@@ -1,0 +1,100 @@
+USE water_system;
+DELIMITER //
+
+-- =========================================
+-- PROCEDURE: sp_update_invoice_total
+-- =========================================
+DROP PROCEDURE IF EXISTS sp_update_invoice_total//
+CREATE PROCEDURE sp_update_invoice_total(IN p_invoice_id INT)
+BEGIN
+    DECLARE v_reading_amount DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_concepts_amount DECIMAL(10,2) DEFAULT 0;
+    
+    -- Total from readings
+    SELECT COALESCE(SUM(amount), 0)
+    INTO v_reading_amount
+    FROM readings
+    WHERE invoice_id = p_invoice_id;
+    
+    -- Total from additional concepts
+    SELECT COALESCE(SUM(ac.amount), 0)
+    INTO v_concepts_amount
+    FROM invoice_concept ic
+    JOIN additional_concepts ac
+        ON ic.concept_id = ac.concept_id
+    WHERE ic.invoice_id = p_invoice_id;
+    
+    -- Update invoice
+    UPDATE invoices
+    SET total_amount = v_reading_amount + v_concepts_amount
+    WHERE invoice_id = p_invoice_id;
+END//
+
+-- =========================================
+-- PROCEDURE: sp_apply_global_concept
+-- =========================================
+DROP PROCEDURE IF EXISTS sp_apply_global_concept//
+CREATE PROCEDURE sp_apply_global_concept(IN p_concept_id INT)
+BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE v_inv_id INT;
+    
+    DECLARE cur CURSOR FOR
+        SELECT i.invoice_id
+        FROM invoices i
+        JOIN additional_concepts ac
+            ON i.billing_month = ac.application_month
+        WHERE ac.concept_id = p_concept_id
+          AND i.status = 'pending';
+        
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    OPEN cur;
+    read_loop: LOOP
+        FETCH cur INTO v_inv_id;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+        
+        INSERT IGNORE INTO invoice_concept (invoice_id, concept_id)
+        VALUES (v_inv_id, p_concept_id);
+        
+        CALL sp_update_invoice_total(v_inv_id);
+    END LOOP;
+
+    CLOSE cur;
+END//
+
+-- =========================================
+-- PROCEDURE: sp_recalculate_concept_impact
+-- =========================================
+DROP PROCEDURE IF EXISTS sp_recalculate_concept_impact//
+CREATE PROCEDURE sp_recalculate_concept_impact(IN p_concept_id INT)
+BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE v_inv_id INT;
+    
+    DECLARE cur CURSOR FOR
+        SELECT ic.invoice_id
+        FROM invoice_concept ic
+        JOIN invoices i
+            ON ic.invoice_id = i.invoice_id
+        WHERE ic.concept_id = p_concept_id
+          AND i.status = 'pending';
+        
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    OPEN cur;
+    read_loop: LOOP
+        FETCH cur INTO v_inv_id;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+        
+        CALL sp_update_invoice_total(v_inv_id);
+    END LOOP;
+
+    CLOSE cur;
+END//
+
+DELIMITER ;

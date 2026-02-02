@@ -1,0 +1,337 @@
+====================================================
+MODELO DE DATOS – SISTEMA DE AGUA / FACTURACIÓN
+====================================================
+
+
+TABLA: USUARIOS
+----------------------------------------------------
+id_usuario (PK)
+cedula
+nombre
+apellido
+direccion
+telefono
+email
+fecha_registro
+estado (true / false)
+
+
+TABLA: MEDIDORES
+----------------------------------------------------
+id_medidor (PK)
+codigo
+tipo (consumo / riego)
+lectura_inicial
+fecha_instalacion
+activo (true / false, default true)
+
+
+TABLA: HISTORIAL_MEDIDOR
+----------------------------------------------------
+id_historial (PK)
+id_medidor (FK → MEDIDORES)
+id_usuario (FK → USUARIOS)
+fecha_asignacion
+fecha_baja
+asignado (true / false, default true)
+
+REGLA:
+Un usuario solo puede tener UN medidor por tipo con asignado = true
+
+
+TABLA: TARIFAS
+----------------------------------------------------
+id_tarifa (PK)
+tipo_medidor (consumo / riego)
+precio_unitario
+limite_base
+precio_exceso
+vigente (true / false)
+fecha_inicio
+fecha_fin
+
+REGLA:
+Solo una tarifa por tipo puede estar vigente = true
+
+
+TABLA: FACTURAS
+----------------------------------------------------
+id_factura (PK)
+id_usuario (FK → USUARIOS)
+mes_factura (YYYY-MM)
+total_pagar
+fecha_emision
+estado (pendiente / parcial / pagada)
+
+REGLA:
+Una factura por usuario y por mes
+
+
+TABLA: LECTURAS
+----------------------------------------------------
+id_lectura (PK)
+id_factura (FK → FACTURAS)
+id_medidor (FK → MEDIDORES)
+id_tarifa (FK → TARIFAS)
+mes_anio
+lectura_anterior
+lectura_actual
+consumo
+exceso
+valor 
+
+
+TABLA: CONCEPTOS_ADICIONALES
+----------------------------------------------------
+id_concepto (PK)
+descripcion
+monto
+aplica_a (todos / usuario)
+mes_aplicacion
+
+
+TABLA: FACTURA_CONCEPTO
+----------------------------------------------------
+id (PK)
+id_factura (FK → FACTURAS)
+id_concepto (FK → CONCEPTOS_ADICIONALES)
+estado (pagado/pendiente)
+
+
+TABLA: PAGOS
+----------------------------------------------------
+id_pago (PK)
+id_factura (FK → FACTURAS)
+fecha_pago
+monto_factura
+monto_entregado
+vuelto
+tipo_movimiento (pago / abono)
+tipo_pago (efectivo / transferencia / tarjeta)
+
+
+
+TABLA: REUNIONES
+----------------------------------------------------
+id_reunion (PK)
+motivo
+fecha
+acta
+observacion
+
+
+TABLA: ASISTENCIA
+----------------------------------------------------
+id_asistencia (PK)
+id_usuario (FK → USUARIOS)
+asistio (si / no)
+observaciones
+
+
+TABLA: DIRECTIVA
+----------------------------------------------------
+id_directiva (PK)
+id_usuario (FK → USUARIOS)
+rol 
+fecha_inicio
+fecha_fin
+estado (true, default true)
+
+
+TABLA: USUARIOS_SISTEMA
+----------------------------------------------------
+id_usuario_sistema (PK)
+id_usuario (FK → USUARIOS)
+username
+password (hash)
+rol (admin / directiva / usuario)
+
+
+====================================================
+FIN DEL ARCHIVO
+====================================================
+
+
+
+-- =========================================
+-- DATABASE
+-- =========================================
+CREATE DATABASE IF NOT EXISTS water_system
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_general_ci;
+
+USE water_system;
+
+-- =========================================
+-- TABLE: USERS
+-- =========================================
+CREATE TABLE users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    national_id VARCHAR(10) NOT NULL UNIQUE,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    address VARCHAR(255),
+    phone VARCHAR(20),
+    email VARCHAR(150) UNIQUE,
+    registration_date DATE NOT NULL DEFAULT (CURRENT_DATE),
+    status BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+-- =========================================
+-- TABLE: METERS
+-- =========================================
+CREATE TABLE meters (
+    meter_id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    type ENUM('consumo', 'riego') NOT NULL,
+    initial_reading INT NOT NULL,
+    installation_date DATE NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+-- =========================================
+-- TABLE: METER_HISTORY
+-- =========================================
+CREATE TABLE meter_history (
+    history_id INT AUTO_INCREMENT PRIMARY KEY,
+    meter_id INT NOT NULL,
+    user_id INT NOT NULL,
+    assignment_date DATE NOT NULL,
+    removal_date DATE,
+    assigned BOOLEAN NOT NULL DEFAULT TRUE,
+    FOREIGN KEY (meter_id) REFERENCES meters(meter_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+-- =========================================
+-- TABLE: RATES
+-- =========================================
+CREATE TABLE rates (
+    rate_id INT AUTO_INCREMENT PRIMARY KEY,
+    meter_type ENUM('consumo', 'riego') NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL,
+    base_limit INT NOT NULL CHECK (base_limit >= 0),
+    excess_price DECIMAL(10,2) NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    start_date DATE NOT NULL,
+    end_date DATE
+);
+
+-- =========================================
+-- TABLE: INVOICES
+-- =========================================
+CREATE TABLE invoices (
+    invoice_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    billing_month VARCHAR(100) NOT NULL, -- YYYY-MM
+    total_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+    issue_date DATE NOT NULL DEFAULT (CURRENT_DATE),
+    status ENUM('pending', 'partial', 'paid') NOT NULL DEFAULT 'pending',
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+-- =========================================
+-- TABLE: READINGS
+-- =========================================
+CREATE TABLE readings (
+    reading_id INT AUTO_INCREMENT PRIMARY KEY,
+    invoice_id INT NOT NULL,
+    meter_id INT NOT NULL,
+    rate_id INT NOT NULL,
+    month_year VARCHAR(100) NOT NULL,
+    previous_reading INT NOT NULL,
+    current_reading INT NOT NULL,
+    consumption INT NOT NULL,
+    excess INT NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id),
+    FOREIGN KEY (meter_id) REFERENCES meters(meter_id),
+    FOREIGN KEY (rate_id) REFERENCES rates(rate_id)
+);
+
+-- =========================================
+-- TABLE: ADDITIONAL_CONCEPTS
+-- =========================================
+CREATE TABLE additional_concepts (
+    concept_id INT AUTO_INCREMENT PRIMARY KEY,
+    description VARCHAR(2000) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    applies_to ENUM('all', 'user') NOT NULL,
+    application_month VARCHAR(100) NOT NULL
+);
+
+-- =========================================
+-- TABLE: INVOICE_CONCEPT
+-- =========================================
+CREATE TABLE invoice_concept (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    invoice_id INT NOT NULL,
+    concept_id INT NOT NULL,
+    FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id),
+    FOREIGN KEY (concept_id) REFERENCES additional_concepts(concept_id),
+    UNIQUE (invoice_id, concept_id)
+);
+
+-- =========================================
+-- TABLE: PAYMENTS
+-- =========================================
+CREATE TABLE payments (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    invoice_id INT NOT NULL,
+    payment_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    invoice_amount DECIMAL(10,2) NOT NULL,
+    amount_paid DECIMAL(10,2) NOT NULL,
+    change_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+    movement_type ENUM('payment', 'partial') NOT NULL,
+    payment_method ENUM('cash', 'transfer', 'card') NOT NULL,
+    FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id)
+);
+
+-- =========================================
+-- TABLE: MEETINGS
+-- =========================================
+CREATE TABLE meetings (
+    meeting_id INT AUTO_INCREMENT PRIMARY KEY,
+    reason VARCHAR(255) NOT NULL,
+    meeting_date DATE NOT NULL,
+    minutes TEXT,
+    notes TEXT
+);
+
+-- =========================================
+-- TABLE: ATTENDANCE
+-- =========================================
+CREATE TABLE attendance (
+    attendance_id INT AUTO_INCREMENT PRIMARY KEY,
+    meeting_id INT NOT NULL,
+    user_id INT NOT NULL,
+    attended VARCHAR(50) NOT NULL,
+    observations TEXT,
+    FOREIGN KEY (meeting_id) REFERENCES meetings(meeting_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+-- =========================================
+-- TABLE: BOARD_MEMBERS
+-- =========================================
+CREATE TABLE board_members (
+    board_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    role VARCHAR(100) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+-- =========================================
+-- TABLE: SYSTEM_USERS
+-- =========================================
+CREATE TABLE system_users (
+    system_user_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    username VARCHAR(100) NOT NULL,
+    password VARCHAR(655) NOT NULL,
+    role ENUM('admin', 'board', 'user') NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
