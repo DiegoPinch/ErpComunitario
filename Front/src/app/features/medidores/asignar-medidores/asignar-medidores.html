@@ -1,0 +1,214 @@
+<div class="flex flex-col md:flex-row gap-0 h-full bg-gray-50/30">
+    <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
+
+    <!-- Panel Izquierdo: Usuarios -->
+    <div class="w-full md:w-80 bg-white shadow-sm border-r border-gray-100 flex flex-col h-full overflow-hidden">
+        <div class="p-5 border-b border-gray-100 bg-white">
+            <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2 mb-4">
+                <i class="pi pi-users text-blue-500"></i>
+                Asignación
+            </h2>
+            <div class="bg-blue-50 p-3 rounded-lg text-center">
+                <span class="block text-[10px] text-blue-600 font-bold uppercase tracking-widest">Gestión de
+                    Medidores</span>
+            </div>
+        </div>
+
+        <!-- Lista de Usuarios -->
+        <div class="flex-1 overflow-hidden">
+            <p-listbox [options]="filteredUsers" [(ngModel)]="selectedUser" (onChange)="onUserSelect($event.value)"
+                optionLabel="first_name" [filter]="true" filterBy="first_name,last_name,national_id"
+                filterPlaceholder="Buscar por nombre o CI..." [listStyle]="{ 'max-height': 'calc(100vh - 280px)' }"
+                [style]="{ 'border': 'none' }" styleClass="w-full assignment-listbox">
+                <ng-template let-user pTemplate="item">
+                    <div class="flex flex-col py-1 w-full">
+                        <span class="font-bold text-gray-700 truncate leading-tight">{{ user.last_name }} {{
+                            user.first_name }}</span>
+                        <span class="text-[10px] text-gray-500 font-mono mt-1">{{ user.national_id }}</span>
+                    </div>
+                </ng-template>
+            </p-listbox>
+        </div>
+    </div>
+
+    <!-- Panel Derecho: Detalle -->
+    <div class="flex-1 bg-white flex flex-col h-full">
+        <!-- Empty State -->
+        <div *ngIf="!selectedUser" class="flex-1 flex flex-col items-center justify-center text-gray-300 gap-6 p-12">
+            <div class="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center">
+                <i class="pi pi-user-plus text-5xl"></i>
+            </div>
+            <div class="text-center">
+                <p class="text-xl font-semibold text-gray-500">Seleccione un usuario</p>
+                <p class="text-sm">Haga clic en un usuario de la lista para gestionar sus medidores</p>
+            </div>
+        </div>
+
+        <!-- content State -->
+        <div *ngIf="selectedUser" class="flex-1 flex flex-col overflow-hidden animate-fade-in">
+            <!-- Header Detalle -->
+            <div
+                class="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50/30">
+                <div class="flex items-center gap-4">
+                    <div
+                        class="w-14 h-14 bg-gradient-to-br from-info to-blue-600 rounded-2xl shadow-lg shadow-info/20 flex items-center justify-center text-white text-xl font-bold">
+                        {{ selectedUser.first_name.charAt(0) }}{{ selectedUser.last_name.charAt(0) }}
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-black text-gray-800 tracking-tight">{{ selectedUser.last_name }} {{
+                            selectedUser.first_name }}</h2>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="text-sm font-medium text-gray-500"><i class="pi pi-id-card mr-1"></i>{{
+                                selectedUser.national_id }}</span>
+                            <span class="text-gray-300">|</span>
+                            <span class="text-sm font-medium text-gray-500"><i class="pi pi-map-marker mr-1"></i>{{
+                                selectedUser.address || 'No disponible' }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <p-button label="Asignar Existente" icon="pi pi-link" severity="secondary"
+                        (click)="openAssignDialog()" styleClass="p-button-raised py-3 px-5 font-bold"></p-button>
+                    <p-button label="Crear y Vincular" icon="pi pi-plus" severity="info"
+                        (click)="openQuickSetupDialog()" styleClass="p-button-raised py-3 px-5 font-bold"></p-button>
+                </div>
+            </div>
+
+            <!-- Tabla de Asignaciones -->
+            <div class="flex-1 p-6 overflow-y-auto relative bg-white">
+                <!-- Overlay de carga específica para asignaciones -->
+                <div *ngIf="loadingAssignments"
+                    class="absolute inset-0 bg-white/60 z-10 flex items-center justify-center backdrop-blur-[1px]">
+                    <p-progressSpinner styleClass="w-12 h-12" strokeWidth="4" fill="transparent"
+                        animationDuration=".5s"></p-progressSpinner>
+                </div>
+
+                <div class="mb-6 flex items-center justify-between">
+                    <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                        <i class="pi pi-list text-info"></i>
+                        Medidores Vinculados
+                    </h3>
+                </div>
+
+                <app-custom-table [data]="userAssignments" [columns]="cols" [actions]="actions" [showIndex]="true"
+                    [globalFilterFields]="['meter_code']">
+                </app-custom-table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Asignación -->
+<p-dialog [(visible)]="displayDialog" [header]="'Vincular Medidor'" [modal]="true" [style]="{ width: '500px' }"
+    [draggable]="false" [resizable]="false" styleClass="p-fluid assignment-dialog">
+    <form [formGroup]="assignmentForm" (ngSubmit)="saveAssignment()" class="flex flex-col gap-6 pt-4">
+
+        <div class="p-4 bg-info/5 border border-info/10 rounded-xl flex items-center gap-4 mb-2">
+            <div class="w-10 h-10 bg-info rounded-full flex items-center justify-center text-white">
+                <i class="pi pi-user"></i>
+            </div>
+            <div>
+                <p class="text-xs font-bold text-info uppercase tracking-wider">Cliente Seleccionado</p>
+                <p class="font-bold text-gray-800">{{ selectedUser?.last_name }} {{ selectedUser?.first_name }}</p>
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <label for="meter_id" class="text-sm font-bold text-gray-600 ml-1">Buscar Medidor Disponible</label>
+            <p-select id="meter_id" [options]="availableMeters" formControlName="meter_id"
+                placeholder="Busque por código de medidor..." optionLabel="code" optionValue="meter_id" [filter]="true"
+                filterBy="code" styleClass="h-12 flex items-center">
+                <ng-template let-meter pTemplate="selectedItem">
+                    <div class="flex items-center gap-2" *ngIf="meter">
+                        <span class="font-bold text-gray-800">{{ meter.code }}</span>
+                        <p-tag [value]="meter.type?.toUpperCase()" [severity]="meter.type === 'riego' ? 'warn' : 'info'"
+                            styleClass="text-[9px] px-2 py-0.5"></p-tag>
+                    </div>
+                </ng-template>
+                <ng-template let-meter pTemplate="item">
+                    <div class="flex justify-between items-center w-full py-1">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-gray-800">{{ meter.code }}</span>
+                            <span class="text-[10px] text-gray-400">Lectura inicial: {{ meter.initial_reading }}</span>
+                        </div>
+                        <p-tag [value]="meter.type?.toUpperCase()"
+                            [severity]="meter.type === 'riego' ? 'warn' : 'info'"></p-tag>
+                    </div>
+                </ng-template>
+            </p-select>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <label for="assignment_date" class="text-sm font-bold text-gray-600 ml-1">Fecha de Vinculación</label>
+            <p-datepicker id="assignment_date" formControlName="assignment_date" dateFormat="yy-mm-dd" [showIcon]="true"
+                appendTo="body" styleClass="h-12"></p-datepicker>
+        </div>
+
+        <div class="flex justify-end gap-3 mt-4 pt-6 border-t border-gray-100">
+            <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary"
+                (click)="displayDialog = false" styleClass="h-12 px-6 font-bold"></p-button>
+            <p-button label="Confirmar Vínculo" icon="pi pi-check" type="submit" severity="info"
+                [disabled]="assignmentForm.invalid" styleClass="h-12 px-6 font-bold"></p-button>
+        </div>
+    </form>
+</p-dialog>
+
+<!-- Modal de Creación y Asignación Rápida -->
+<p-dialog [(visible)]="displayQuickDialog" [header]="'Crear y Vincular Nuevo Medidor'" [modal]="true"
+    [style]="{ width: '600px' }" [draggable]="false" [resizable]="false" styleClass="p-fluid">
+    <form [formGroup]="quickSetupForm" (ngSubmit)="saveQuickSetup()" class="flex flex-col gap-6 pt-4">
+
+        <div class="p-4 bg-info/5 border border-info/10 rounded-xl flex items-center gap-4 mb-2">
+            <div class="w-10 h-10 bg-info rounded-full flex items-center justify-center text-white">
+                <i class="pi pi-plus"></i>
+            </div>
+            <div>
+                <p class="text-xs font-bold text-info uppercase tracking-wider">Nuevo Medidor para</p>
+                <p class="font-bold text-gray-800">{{ selectedUser?.last_name }} {{ selectedUser?.first_name }}</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Código -->
+            <div class="flex flex-col gap-2">
+                <label for="q_code" class="text-sm font-bold text-gray-600">Código (Automático)</label>
+                <input pInputText id="q_code" formControlName="code" class="h-12 bg-gray-50" />
+            </div>
+
+            <!-- Tipo -->
+            <div class="flex flex-col gap-2">
+                <label for="q_type" class="text-sm font-bold text-gray-600">Tipo de Servicio</label>
+                <p-select id="q_type" [options]="[{label:'Consumo', value:'consumo'}, {label:'Riego', value:'riego'}]"
+                    formControlName="type" optionLabel="label" optionValue="value"
+                    styleClass="h-12 flex items-center"></p-select>
+            </div>
+
+            <!-- Lectura Inicial -->
+            <div class="flex flex-col gap-2">
+                <label for="q_initial" class="text-sm font-bold text-gray-600">Lectura Inicial</label>
+                <input pInputText type="number" id="q_initial" formControlName="initial_reading" class="h-12" />
+            </div>
+
+            <!-- Fecha Instalación -->
+            <div class="flex flex-col gap-2">
+                <label for="q_inst_date" class="text-sm font-bold text-gray-600">Fecha Instalación</label>
+                <p-datepicker id="q_inst_date" formControlName="installation_date" dateFormat="yy-mm-dd"
+                    [showIcon]="true" appendTo="body" styleClass="h-12"></p-datepicker>
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <label for="q_assign_date" class="text-sm font-bold text-gray-600">Fecha de Vinculación</label>
+            <p-datepicker id="q_assign_date" formControlName="assignment_date" dateFormat="yy-mm-dd" [showIcon]="true"
+                appendTo="body" styleClass="h-12"></p-datepicker>
+        </div>
+
+        <div class="flex justify-end gap-3 mt-4 pt-6 border-t border-gray-100">
+            <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary"
+                (click)="displayQuickDialog = false" styleClass="h-12 px-6 font-bold"></p-button>
+            <p-button label="Crear y Vincular" icon="pi pi-check" type="submit" severity="info"
+                [disabled]="quickSetupForm.invalid" styleClass="h-12 px-6 font-bold"></p-button>
+        </div>
+    </form>
+</p-dialog>

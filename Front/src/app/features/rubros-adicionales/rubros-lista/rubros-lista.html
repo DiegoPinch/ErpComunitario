@@ -1,0 +1,182 @@
+<div class="bg-white rounded-lg shadow-md p-6">
+    <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
+
+    <!-- Header Section -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Rubros Adicionales</h1>
+        <p-button label="Nuevo Rubro" icon="pi pi-plus" severity="info" (click)="openNew()"></p-button>
+    </div>
+
+    <!-- Main Content: Concepts Table -->
+    <app-custom-table [data]="(concepts$ | async) || []" [columns]="cols" [actions]="actions"
+        [globalFilterFields]="['description']" title="Listado de Rubros">
+    </app-custom-table>
+
+    <!-- CRUD Dialog -->
+    <p-dialog [(visible)]="conceptDialog"
+        [header]="conceptForm.get('concept_id')?.value ? 'Editar Rubro' : 'Nuevo Rubro'" [modal]="true"
+        [style]="{ width: '450px' }" [draggable]="false" [resizable]="false">
+
+        <form [formGroup]="conceptForm" (ngSubmit)="saveConcept()" class="flex flex-col gap-4 pt-2">
+            <!-- Descripción -->
+            <div class="flex flex-col gap-2">
+                <label for="description" class="font-semibold text-gray-700">Descripción</label>
+                <input pInputText id="description" formControlName="description"
+                    placeholder="Ej: Multa por mora, Ajuste de saldo..." />
+                <small *ngIf="conceptForm.get('description')?.invalid && conceptForm.get('description')?.touched"
+                    class="text-red-500">
+                    La descripción es requerida.
+                </small>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Tipo Aplicación -->
+                <div class="flex flex-col gap-2">
+                    <label for="applies_to" class="font-semibold text-gray-700">Tipo Aplicación</label>
+                    <p-select id="applies_to" [options]="appliesOptions" formControlName="applies_to"
+                        styleClass="w-full" appendTo="body"
+                        [disabled]="!!conceptForm.get('concept_id')?.value"></p-select>
+                </div>
+                <!-- Mes -->
+                <div class="flex flex-col gap-2">
+                    <label for="application_month" class="font-semibold text-gray-700">Mes Application</label>
+                    <p-select id="application_month" [options]="availableMonths" formControlName="application_month"
+                        placeholder="Seleccionar" styleClass="w-full" appendTo="body"
+                        [disabled]="!!conceptForm.get('concept_id')?.value"></p-select>
+                    <small
+                        *ngIf="conceptForm.get('application_month')?.invalid && conceptForm.get('application_month')?.touched"
+                        class="text-red-500">
+                        Mes requerido.
+                    </small>
+                </div>
+            </div>
+
+            <!-- Monto -->
+            <div class="flex flex-col gap-2">
+                <label for="amount" class="font-semibold text-gray-700">Monto ($)</label>
+                <p-inputNumber id="amount" formControlName="amount" mode="decimal" [minFractionDigits]="2"
+                    placeholder="0.00" styleClass="w-full"></p-inputNumber>
+                <small *ngIf="conceptForm.get('amount')?.invalid && conceptForm.get('amount')?.touched"
+                    class="text-red-500">
+                    Monto válido requerido.
+                </small>
+            </div>
+
+            <!-- Nota Informativa -->
+            <div class="bg-blue-50 p-4 rounded-lg flex items-start gap-3 mt-2"
+                *ngIf="conceptForm.get('applies_to')?.value === 'all'">
+                <i class="pi pi-info-circle text-blue-500 mt-1"></i>
+                <p class="text-[12px] text-blue-700 leading-snug">
+                    <strong class="block uppercase mb-1">Nota importante:</strong>
+                    Al guardar este rubro como <strong>GLOBAL</strong>, se aplicará automáticamente a todas las facturas
+                    <strong>PENDIENTES</strong> del mes de {{formatMonth(conceptForm.get('application_month')?.value)}}.
+                </p>
+            </div>
+
+            <!-- Botones -->
+            <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
+                <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary"
+                    (click)="conceptDialog = false"></p-button>
+                <p-button label="Guardar" icon="pi pi-check" type="submit" severity="info"
+                    [disabled]="conceptForm.invalid"></p-button>
+            </div>
+        </form>
+    </p-dialog>
+
+    <!-- Assignment Dialog (Manual link) -->
+    <p-dialog [(visible)]="assignDialog" [header]="'Asignar Rubro a Usuario'" [modal]="true"
+        [style]="{ width: '600px' }" [draggable]="false" [resizable]="false">
+        <div class="flex flex-col gap-6 pt-2">
+            <div class="bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Rubro Seleccionado</span>
+                    <p-tag severity="warn" value="INDIVIDUAL" class="text-[9px]"></p-tag>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800">{{selectedConcept?.description}}</h3>
+                <p class="text-lg font-bold text-blue-600">${{selectedConcept?.amount | number:'1.2-2'}}
+                    ({{formatMonth(selectedConcept?.application_month!)}})</p>
+            </div>
+
+            <div class="flex flex-col gap-2 sticky top-0 bg-white z-10 pb-4">
+                <label class="font-semibold text-gray-700">Buscar Usuario</label>
+                <p-select [options]="pendingUsers" [(ngModel)]="selectedUser" (onChange)="onUserSelect()"
+                    optionLabel="user_name" [filter]="true" filterBy="user_name,national_id"
+                    placeholder="Buscar por nombre o cédula..." styleClass="w-full" appendTo="body"></p-select>
+            </div>
+
+            <div *ngIf="selectedUser" class="animate-fade-in">
+                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Facturas de
+                    {{formatMonth(selectedConcept?.application_month!)}}</h4>
+                <div class="flex flex-col gap-2">
+                    <div *ngFor="let inv of userInvoices"
+                        class="flex justify-between items-center p-4 bg-white border border-gray-200 rounded-lg hover:border-blue-300 transition-all">
+                        <div class="flex items-center gap-4">
+                            <i class="pi pi-file-pdf text-2xl text-gray-300"></i>
+                            <div>
+                                <span class="block font-bold text-gray-800">Factura #{{inv.invoice_id}}</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[11px] text-gray-500 font-medium">Total: ${{inv.total_amount |
+                                        number:'1.2-2'}}</span>
+                                    <p-tag [severity]="inv.status === 'paid' ? 'success' : 'warn'"
+                                        [value]="inv.status === 'paid' ? 'COBRADA' : 'PENDIENTE'"
+                                        class="text-[8px]"></p-tag>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <p-tag *ngIf="inv.is_linked" severity="success" value="VINCULADO" icon="pi pi-check-circle"
+                                class="text-[10px]"></p-tag>
+
+                            <p-button *ngIf="!inv.is_linked && inv.status === 'pending'" label="VINCULAR"
+                                icon="pi pi-link" [text]="true" severity="info" size="small"
+                                (click)="assignToInvoice(inv)"></p-button>
+
+                            <div *ngIf="inv.status === 'paid' && !inv.is_linked"
+                                class="text-[10px] text-gray-400 font-bold italic">
+                                PROTEGIDA (YA COBRADA)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <ng-template pTemplate="footer">
+            <div class="flex justify-end pt-4">
+                <p-button label="Cerrar" icon="pi pi-times" [text]="true" severity="secondary"
+                    (click)="assignDialog = false"></p-button>
+            </div>
+        </ng-template>
+    </p-dialog>
+
+    <!-- Assigned Users List Dialog -->
+    <p-dialog [(visible)]="assignedUsersDialog" [header]="'Gestionar Usuarios Asignados'" [modal]="true"
+        [style]="{ width: '900px' }" [draggable]="false" [resizable]="false">
+        <div class="flex flex-col gap-4 pt-2">
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 flex justify-between items-center">
+                <div>
+                    <h3 class="text-lg font-bold text-blue-900">{{selectedConcept?.description}}</h3>
+                    <p class="text-xs font-bold text-blue-600 uppercase">
+                        {{formatMonth(selectedConcept?.application_month!)}}</p>
+                </div>
+                <div class="text-right">
+                    <span class="block text-[10px] font-bold text-blue-400 uppercase">Total Asignados</span>
+                    <span class="text-2xl font-bold text-blue-700">{{assignedUsers.length}}</span>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg overflow-hidden border border-gray-200 p-2 shadow-sm">
+                <app-custom-table [data]="assignedUsers" [columns]="assignedUsersCols" [actions]="assignedUsersActions"
+                    [globalFilterFields]="['user_name', 'national_id', 'invoice_id_display']">
+                </app-custom-table>
+            </div>
+        </div>
+        <ng-template pTemplate="footer">
+            <div class="flex justify-end pt-4">
+                <p-button label="Cerrar" icon="pi pi-times" [text]="true" severity="secondary"
+                    (click)="assignedUsersDialog = false"></p-button>
+            </div>
+        </ng-template>
+    </p-dialog>
+</div>

@@ -1,0 +1,171 @@
+<div class="p-6 bg-slate-50/50 min-h-full animate-fade-in">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
+            <i class="pi pi-chart-line text-blue-600 bg-blue-50 p-3 rounded-2xl"></i>
+            Panel de Control
+        </h1>
+        <p class="text-slate-500 font-medium ml-14 -mt-2">Resumen histórico y métricas de acción inmediata.</p>
+    </div>
+
+    <!-- KPI Grid (Decision Cards) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        <!-- Monthly Revenue -->
+        <p-card
+            styleClass="border-none shadow-sm rounded-3xl overflow-hidden hover:scale-[1.02] transition-transform bg-gradient-to-br from-white to-blue-50/30">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
+                    <i class="pi pi-wallet text-xl"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ingresos del
+                        Mes</span>
+                    <h3 class="text-2xl font-black text-slate-800">${{stats.monthlyRevenue | number:'1.2-2'}}</h3>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter italic">Recaudado en
+                    {{currentMonthName}}</span>
+                <i class="pi pi-calendar text-blue-400 text-xs"></i>
+            </div>
+        </p-card>
+
+        <!-- Total Debt (Cartera Vencida) -->
+        <p-card styleClass="border-none shadow-sm rounded-3xl overflow-hidden hover:scale-[1.02] transition-transform">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600">
+                    <i class="pi pi-exclamation-triangle text-xl"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cartera Vencida</span>
+                    <h3 class="text-2xl font-black text-slate-800">${{stats.totalPendingDebt | number:'1.2-2'}}</h3>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-[10px] text-slate-400 font-bold uppercase">Deuda por recuperar</span>
+                <p-tag [value]="'Alerta'" severity="warn" styleClass="text-[8px] rounded-lg"></p-tag>
+            </div>
+        </p-card>
+
+        <!-- Total Users -->
+        <p-card styleClass="border-none shadow-sm rounded-3xl overflow-hidden hover:scale-[1.02] transition-transform">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                    <i class="pi pi-users text-xl"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Usuarios</span>
+                    <h3 class="text-2xl font-black text-slate-800">{{stats.totalUsers}}</h3>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-[10px] text-slate-400 font-bold uppercase italic">Socios registrados</span>
+                <i class="pi pi-id-card text-indigo-400"></i>
+            </div>
+        </p-card>
+
+        <!-- Total Meters -->
+        <p-card styleClass="border-none shadow-sm rounded-3xl overflow-hidden hover:scale-[1.02] transition-transform">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                    <i class="pi pi-box text-xl"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Medidores</span>
+                    <h3 class="text-2xl font-black text-slate-800">{{stats.totalMeters}}</h3>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-slate-100 flex items-center gap-3">
+                <div class="flex items-center gap-1">
+                    <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                    <span class="text-[9px] text-slate-500 font-bold uppercase">{{stats.consumoMeters}} Consumo</span>
+                </div>
+                <div class="flex items-center gap-1">
+                    <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                    <span class="text-[9px] text-slate-500 font-bold uppercase">{{stats.riegoMeters}} Riego</span>
+                </div>
+            </div>
+        </p-card>
+    </div>
+
+    <!-- Main Content Section (Decision Charts) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Revenue Growth Chart (RESTORED) -->
+        <div class="bg-white rounded-[2.5rem] p-8 shadow-sm">
+            <div class="flex justify-between items-start mb-8">
+                <div>
+                    <h4 class="text-lg font-black text-slate-800">Crecimiento de Ingresos</h4>
+                    <p class="text-xs text-slate-400 font-medium">Historial 6 meses (Agua vs Rubros Adicionales)</p>
+                </div>
+                <div class="px-3 py-1 bg-blue-50 rounded-full text-[10px] font-bold text-blue-600 uppercase">
+                    Historial Recaudación
+                </div>
+            </div>
+            <div class="h-64">
+                <p-chart type="bar" [data]="revenueData" [options]="revenueOptions" height="100%"></p-chart>
+            </div>
+        </div>
+
+        <!-- Consumption Trend Chart (SPLIT) -->
+        <div class="bg-white rounded-[2.5rem] p-8 shadow-sm">
+            <div class="flex justify-between items-start mb-8">
+                <div>
+                    <h4 class="text-lg font-black text-slate-800">Tendencia de Consumo (m³)</h4>
+                    <p class="text-xs text-slate-400 font-medium">Diferenciado por tipo de servicio</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+                    <span class="text-[10px] font-bold text-slate-500 uppercase">Control de Gasto</span>
+                </div>
+            </div>
+            <div class="h-64">
+                <p-chart type="line" [data]="consumptionData" [options]="consumptionOptions" height="100%"></p-chart>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actionable List (Top Debtors) -->
+    <div class="bg-white rounded-[2.5rem] p-8 shadow-sm">
+        <div class="flex justify-between items-center mb-10">
+            <div>
+                <h4 class="text-xl font-black text-slate-800">Cartera Crítica (Acción Requerida)</h4>
+                <p class="text-sm font-medium text-slate-400">Usuarios con mayor tiempo de morosidad y saldo pendiente.
+                </p>
+            </div>
+            <p-button label="Generar Órdenes de Corte" icon="pi pi-bolt"
+                styleClass="rounded-2xl p-button-danger"></p-button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div *ngFor="let debtor of topDebtors"
+                class="p-5 rounded-3xl border border-slate-100 hover:border-rose-200 hover:shadow-lg hover:shadow-rose-100/30 transition-all group bg-white">
+                <div class="flex justify-between items-start mb-4">
+                    <div
+                        class="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-rose-50 group-hover:text-rose-500 transition-colors">
+                        <i class="pi pi-user text-xl"></i>
+                    </div>
+                    <p-tag [value]="debtor.months + ' meses de mora'" severity="danger"
+                        styleClass="text-[9px] font-black rounded-lg"></p-tag>
+                </div>
+
+                <h5 class="text-base font-black text-slate-800 mb-1 tracking-tight">{{debtor.name}}</h5>
+                <p class="text-xs text-slate-400 font-bold mb-4">C.I.: {{debtor.national_id}}</p>
+
+                <div class="flex justify-between items-center pt-4 border-t border-slate-50 mt-2">
+                    <div class="flex flex-col">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Deuda
+                            Pendiente</span>
+                        <span class="text-lg font-black text-rose-600">${{debtor.amount | number:'1.2-2'}}</span>
+                    </div>
+                    <p-button icon="pi pi-envelope" [rounded]="true" [text]="true" severity="info"
+                        pTooltip="Notificar Pago"></p-button>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 text-center pt-6 border-t border-slate-50">
+            <p-button label="Ver todos los deudores" icon="pi pi-list" [text]="true" severity="info"
+                styleClass="text-sm font-black"></p-button>
+        </div>
+    </div>
+</div>

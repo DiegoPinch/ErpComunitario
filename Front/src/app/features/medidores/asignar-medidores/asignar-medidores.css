@@ -1,0 +1,75 @@
+/* Assignment listbox styles - Edge-to-edge style */
+.assignment-listbox :ng-deep .p-listbox {
+    border: none;
+    border-radius: 0;
+}
+
+.assignment-listbox :ng-deep .p-listbox-list {
+    padding: 0;
+}
+
+.assignment-listbox :ng-deep .p-listbox-item {
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid #f9fafb;
+    transition: all 0.2s ease;
+    margin: 0 !important;
+    border-radius: 0 !important;
+}
+
+.assignment-listbox :ng-deep .p-listbox-item:hover {
+    background-color: #f8fafc !important;
+}
+
+.assignment-listbox :ng-deep .p-listbox-item.p-highlight {
+    background-color: #eff6ff !important;
+    border-left: 4px solid #3b82f6;
+    color: inherit;
+}
+
+/* Custom Scrollbar for the list */
+.assignment-listbox :ng-deep .p-listbox-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.assignment-listbox :ng-deep .p-listbox-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.assignment-listbox :ng-deep .p-listbox-list::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 10px;
+}
+
+.assignment-listbox :ng-deep .p-listbox-list::-webkit-scrollbar-thumb:hover {
+    background: #cbd5e1;
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+}
+
+
+
+:host ::ng-deep .assignment-dialog .p-dialog-title {
+    width: 100%;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: #1f2937;
+}
+
+:host ::ng-deep .assignment-dialog .p-dialog-content {
+    padding: 1.5rem;
+}

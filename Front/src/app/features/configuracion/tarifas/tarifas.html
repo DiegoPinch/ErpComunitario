@@ -1,0 +1,76 @@
+<div class="bg-white rounded-lg shadow-md p-6">
+    <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
+
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Gestión de Tarifas</h1>
+        <p-button label="Nueva Tarifa" icon="pi pi-plus" severity="info" (click)="openNew()"></p-button>
+    </div>
+
+    <app-custom-table [data]="(rates$ | async) || []" [columns]="cols" title="Listado de Tarifas" [showIndex]="true"
+        [globalFilterFields]="['meter_type', 'unit_price', 'base_limit']" [actions]="actions">
+    </app-custom-table>
+
+    <!-- Modal de Tarifa -->
+    <p-dialog [(visible)]="rateDialog" header="Detalles de la Tarifa" [modal]="true" [style]="{ width: '40vw' }"
+        [breakpoints]="{ '960px': '75vw', '640px': '90vw' }" [draggable]="false" [resizable]="false">
+
+        <form [formGroup]="rateForm" (ngSubmit)="saveRate()" class="flex flex-col gap-4">
+
+            <!-- Info Alert -->
+            <div class="bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-start gap-3">
+                <i class="pi pi-info-circle text-blue-500 mt-1"></i>
+                <div class="text-xs text-blue-700">
+                    <p class="font-bold mb-1">REGLA DE NEGOCIO</p>
+                    Solo puede existir una tarifa activa por cada tipo de medidor (CONSUMO / RIEGO).
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Tipo de Medidor -->
+                <div class="flex flex-col gap-2">
+                    <label class="font-semibold text-gray-700">Tipo de Medidor</label>
+                    <p-select [options]="meterTypes" formControlName="meter_type" placeholder="Seleccione un tipo"
+                        styleClass="w-full">
+                    </p-select>
+                    <small class="text-red-500"
+                        *ngIf="rateForm.get('meter_type')?.touched && rateForm.get('meter_type')?.invalid">
+                        El tipo es requerido.
+                    </small>
+                </div>
+
+                <!-- Límite Base -->
+                <div class="flex flex-col gap-2">
+                    <label class="font-semibold text-gray-700">Límite Base (m³)</label>
+                    <p-inputNumber formControlName="base_limit" [min]="0" placeholder="0" styleClass="w-full"
+                        inputStyleClass="w-full">
+                    </p-inputNumber>
+                </div>
+
+                <!-- Precio Unitario -->
+                <div class="flex flex-col gap-2">
+                    <label class="font-semibold text-gray-700">Precio Base ($)</label>
+                    <p-inputNumber formControlName="unit_price" [minFractionDigits]="0" [maxFractionDigits]="4"
+                        [min]="0" styleClass="w-full" inputStyleClass="w-full">
+                    </p-inputNumber>
+                </div>
+
+                <!-- Precio Exceso -->
+                <div class="flex flex-col gap-2">
+                    <label class="font-semibold text-gray-700">Precio Exceso ($)</label>
+                    <p-inputNumber formControlName="excess_price" [minFractionDigits]="0" [maxFractionDigits]="4"
+                        [min]="0" styleClass="w-full" inputStyleClass="w-full">
+                    </p-inputNumber>
+                </div>
+            </div>
+
+            <!-- Botones -->
+            <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
+                <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary"
+                    (click)="rateDialog = false"></p-button>
+                <p-button label="Guardar" icon="pi pi-check" type="submit" severity="info"
+                    [disabled]="rateForm.invalid"></p-button>
+            </div>
+        </form>
+    </p-dialog>
+</div>

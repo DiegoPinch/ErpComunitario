@@ -1,0 +1,27 @@
+.animate-fade-in {
+    animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+:host ::ng-deep .p-card {
+    background: white;
+}
+
+:host ::ng-deep .p-card-body {
+    padding: 1.5rem !important;
+}
+
+:host ::ng-deep .p-tag {
+    padding: 0.25rem 0.6rem;
+}

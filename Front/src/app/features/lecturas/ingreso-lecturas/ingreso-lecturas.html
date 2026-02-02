@@ -1,0 +1,229 @@
+<p-toast></p-toast>
+<div class="flex flex-col md:flex-row gap-0 h-full bg-gray-50/30">
+    <!-- Panel Izquierdo: Lista de Usuarios -->
+    <div class="w-full md:w-80 bg-white shadow-sm border-r border-gray-100 flex flex-col h-full">
+        <!-- Dashboard Rápido -->
+        <div class="p-5 border-b border-gray-100 bg-white">
+            <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2 mb-4">
+                <i class="pi pi-pencil text-blue-500"></i>
+                Lecturas
+            </h2>
+
+            <div class="grid grid-cols-2 gap-2">
+                <div class="bg-blue-50 p-2 rounded-lg text-center">
+                    <span
+                        class="block text-xs text-blue-600 font-medium font-mono uppercase tracking-tighter">Pendientes</span>
+                    <span class="text-lg font-bold text-blue-700">{{stats.pending}}</span>
+                </div>
+                <div class="bg-emerald-50 p-2 rounded-lg text-center">
+                    <span
+                        class="block text-xs text-emerald-600 font-medium font-mono uppercase tracking-tighter">Listos</span>
+                    <span class="text-lg font-bold text-emerald-700">{{stats.completed}}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de Usuarios -->
+        <div class="flex-1 overflow-y-auto">
+            <p-listbox [options]="users" [(ngModel)]="selectedUser" (onChange)="onSelectUser($event)" [filter]="true"
+                filterBy="user_name,national_id" filterPlaceholder="Buscar usuario..."
+                [listStyle]="{ 'max-height': 'calc(100vh - 250px)' }" [style]="{ 'border': 'none' }"
+                styleClass="w-full readings-listbox">
+
+                <ng-template let-user pTemplate="item">
+                    <div class="flex items-center gap-3 py-2 w-full">
+                        <div class="flex flex-col min-w-0 flex-1">
+                            <span class="font-bold text-gray-700 truncate leading-tight">{{ user.user_name }}</span>
+                            <span class="text-[10px] text-gray-500 font-mono mt-1">{{ user.national_id }}</span>
+                        </div>
+
+                        <!-- Badge de estado -->
+                        <div *ngIf="getPendingMeters(user) > 0"
+                            class="px-2 py-1 rounded-full bg-orange-100 text-orange-600 text-[10px] font-bold">
+                            {{ getPendingMeters(user) }} pend.
+                        </div>
+                        <div *ngIf="getPendingMeters(user) === 0"
+                            class="px-2 py-1 rounded-full bg-emerald-100 text-emerald-600 text-[10px] font-bold">
+                            Listo
+                        </div>
+                    </div>
+                </ng-template>
+            </p-listbox>
+        </div>
+    </div>
+
+    <!-- Panel Derecho: Formulario de Lectura -->
+    <div class="flex-1 flex flex-col h-full overflow-hidden">
+        <!-- Header -->
+        <div class="bg-white p-4 border-b border-gray-100 flex justify-between items-center shadow-sm z-10">
+            <div class="flex items-center gap-4">
+                <span class="text-sm font-medium text-gray-500">Periodo:</span>
+                <select [(ngModel)]="selectedMonth" (change)="onMonthChange()"
+                    class="period-select px-3 py-2 rounded-lg text-sm font-bold bg-slate-100 border-none focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer">
+                    <option *ngFor="let month of availableMonths" [value]="month.value">
+                        {{month.label}}
+                    </option>
+                </select>
+            </div>
+
+            <div *ngIf="selectedUser" class="animate-fade-in flex items-center gap-2">
+                <i class="pi pi-user text-blue-500"></i>
+                <span class="font-bold text-gray-700 leading-none">Medidores de {{selectedUser.user_name}}</span>
+            </div>
+        </div>
+
+        <!-- Medidores del Usuario (Cards Horizontales) -->
+        <div *ngIf="selectedUser" class="p-6 bg-gray-50/50 border-b border-gray-100">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div *ngFor="let meter of selectedUser.meters" (click)="onSelectMeter(meter)"
+                    class="meter-card p-4 border-2 rounded-xl cursor-pointer transition-all" [ngClass]="{
+                        'border-blue-500 bg-blue-50 shadow-lg ring-2 ring-blue-200': selectedMeter?.meter_id === meter.meter_id,
+                        'border-emerald-200 bg-emerald-50/30 hover:border-emerald-400': meter.status === 'completed' && selectedMeter?.meter_id !== meter.meter_id,
+                        'border-gray-200 bg-white hover:border-blue-400 hover:shadow-md': meter.status === 'pending' && selectedMeter?.meter_id !== meter.meter_id
+                    }">
+
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-lg flex items-center justify-center text-xl flex-shrink-0"
+                            [ngClass]="meter.meter_type === 'riego' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'">
+                            <i [class]="meter.meter_type === 'riego' ? 'pi pi-sun' : 'pi pi-home'"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-bold text-gray-800 truncate">{{ meter.meter_code }}</p>
+                            <p class="text-xs text-gray-500 capitalize">{{ meter.meter_type }}</p>
+                        </div>
+
+                        <!-- Estado: Visto o Pendiente -->
+                        <div *ngIf="meter.status === 'completed'"
+                            class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0 animate-scale-in">
+                            <i class="pi pi-check font-bold"></i>
+                        </div>
+                        <div *ngIf="meter.status === 'pending'"
+                            class="w-8 h-8 rounded-lg bg-gray-100 text-gray-300 flex items-center justify-center flex-shrink-0">
+                            <i class="pi pi-circle text-[8px]"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Área Central -->
+        <div class="flex-1 overflow-y-auto p-4">
+
+            <!-- Empty State -->
+            <div *ngIf="!selectedUser" class="flex flex-col items-center justify-center text-center mt-20 opacity-40">
+                <div class="w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-inner mb-6">
+                    <i class="pi pi-search text-5xl text-gray-300"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-400">Seleccione un usuario</h3>
+                <p class="text-gray-400 max-w-xs mt-2 text-sm font-medium">Haga clic en un usuario de la lista para ver
+                    sus medidores.</p>
+            </div>
+
+            <!-- Formulario de Lectura (2 Columnas) -->
+            <div *ngIf="selectedMeter" class="w-full animate-fade-in">
+                <p-card styleClass="border-none shadow-lg rounded-xl overflow-hidden">
+                    <div class="flex flex-col gap-3">
+                        <!-- Header Info -->
+                        <div class="flex justify-between items-center pb-3 border-b border-gray-100">
+                            <div>
+                                <p class="text-[9px] font-mono text-blue-500 font-bold uppercase tracking-wide">Medidor
+                                </p>
+                                <h3 class="text-xl font-black text-slate-800">{{selectedMeter.meter_code}}</h3>
+                            </div>
+                            <div class="flex gap-2">
+                                <span
+                                    class="bg-slate-100 text-slate-600 text-[9px] px-2 py-1 rounded font-bold uppercase">{{selectedMeter.meter_type}}</span>
+                                <span
+                                    class="bg-blue-50 text-blue-600 text-[9px] px-2 py-1 rounded font-bold">{{selectedMonth}}</span>
+                            </div>
+                        </div>
+
+                        <!-- Layout 2 Columnas: Lecturas | Previsualización -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Columna Izquierda: Lecturas -->
+                            <div class="flex items-center justify-center gap-6">
+                                <!-- Lectura Anterior -->
+                                <div class="text-center">
+                                    <p class="text-[9px] font-bold text-gray-400 uppercase mb-2">Anterior</p>
+                                    <div
+                                        class="w-24 h-24 rounded-full border-4 border-slate-100 flex flex-col items-center justify-center bg-slate-50/50">
+                                        <span
+                                            class="text-xl font-black text-slate-400">{{previousReadingData?.previous_reading
+                                            || '--'}}</span>
+                                        <span class="text-[7px] text-slate-400 font-bold">m³</span>
+                                    </div>
+                                    <p class="text-[8px] font-bold text-gray-400 mt-1 uppercase">{{
+                                        getFormattedPreviousMonth() }}</p>
+                                </div>
+
+                                <!-- Flecha -->
+                                <i class="pi pi-arrow-right text-slate-300 text-2xl"></i>
+
+                                <!-- Lectura Actual -->
+                                <div class="text-center">
+                                    <p class="text-[9px] font-bold text-blue-500 uppercase mb-2">Actual</p>
+                                    <div class="relative w-fit mx-auto">
+                                        <input type="number" [(ngModel)]="currentReading" [disabled]="!isEditable"
+                                            class="w-36 h-20 text-center text-3xl font-black rounded-2xl border-4 border-blue-100 focus:border-blue-500 focus:ring-0 bg-white shadow-md text-blue-700 disabled:opacity-50 disabled:bg-slate-100"
+                                            placeholder="0" pInputText>
+                                        <div
+                                            class="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-[7px] px-2 py-0.5 rounded-full font-bold">
+                                            m³
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Columna Derecha: Previsualización + Botón -->
+                            <div class="flex flex-col gap-3">
+                                <!-- Cálculos -->
+                                <div class="bg-slate-50 rounded-xl p-3 border border-slate-100 flex-1">
+                                    <h4 class="text-[9px] font-bold text-slate-400 uppercase mb-3">Previsualización</h4>
+                                    <div class="flex flex-col gap-2">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-xs text-slate-600">Consumo:</span>
+                                            <span class="text-base font-black text-slate-700">
+                                                {{ (currentReading && previousReadingData) ? (currentReading -
+                                                previousReadingData.previous_reading).toFixed(1) : '--' }} m³
+                                            </span>
+                                        </div>
+                                        <div class="flex justify-between items-center opacity-70">
+                                            <span class="text-xs text-slate-600">Tarifa:</span>
+                                            <span
+                                                class="text-xs font-bold text-slate-700 uppercase">{{selectedMeter.meter_type}}</span>
+                                        </div>
+                                        <div
+                                            class="mt-2 pt-2 border-t border-slate-200 flex justify-between items-center">
+                                            <span class="text-xs font-bold text-slate-800">Total:</span>
+                                            <span class="text-xl font-black text-blue-600 font-mono italic"
+                                                [class.text-emerald-500]="totalAmount > 0">
+                                                $ {{ totalAmount | number:'1.2-2' }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Alerta Bloqueo -->
+                                <div *ngIf="!isEditable"
+                                    class="p-2 bg-amber-50 border border-amber-100 rounded-lg flex items-center gap-2 animate-fade-in">
+                                    <i class="pi pi-lock text-amber-500 text-xs text-center"></i>
+                                    <p class="text-[9px] text-amber-700 font-medium leading-tight">
+                                        Factura <strong>PAGADA</strong>. Edición bloqueada.
+                                    </p>
+                                </div>
+
+                                <!-- Botón Guardar -->
+                                <p-button (click)="onSaveReading()"
+                                    [disabled]="!currentReading || !isEditable || currentReading < (previousReadingData?.previous_reading || 0)"
+                                    [label]="currentReadingData ? 'Actualizar' : 'Guardar'" icon="pi pi-save"
+                                    styleClass="w-full p-3 text-sm font-bold rounded-xl shadow-md">
+                                </p-button>
+                            </div>
+                        </div>
+                    </div>
+                </p-card>
+            </div>
+
+        </div>
+    </div>
+</div>

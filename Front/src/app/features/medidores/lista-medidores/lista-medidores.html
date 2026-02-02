@@ -1,0 +1,74 @@
+<div class="bg-white rounded-lg shadow-md p-6">
+    <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
+
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Gestión de Medidores</h1>
+        <p-button label="Nuevo Medidor" icon="pi pi-plus" severity="info" (click)="openNew()"></p-button>
+    </div>
+
+    <app-custom-table [data]="(meters$ | async) || []" [columns]="cols" title="Listado de Medidores" [showIndex]="true"
+        [globalFilterFields]="['code', 'type']" [actions]="actions">
+    </app-custom-table>
+
+    <!-- Modal de Medidor -->
+    <p-dialog [(visible)]="displayDialog" [header]="dialogTitle" [modal]="true" [style]="{ width: '600px' }"
+        styleClass="p-fluid">
+
+        <form [formGroup]="meterForm" (ngSubmit)="saveMeter()">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <!-- Código -->
+                <div class="flex flex-col gap-2">
+                    <label for="code" class="font-semibold text-gray-700">Código (Automático)</label>
+                    <input pInputText id="code" formControlName="code" placeholder="Generando..."
+                        class="cursor-not-allowed bg-gray-50" />
+                    <small *ngIf="meterForm.get('code')?.invalid && meterForm.get('code')?.touched"
+                        class="text-red-500">
+                        El código es requerido.
+                    </small>
+                </div>
+
+                <!-- Tipo -->
+                <div class="flex flex-col gap-2">
+                    <label for="type" class="font-semibold text-gray-700">Tipo</label>
+                    <p-select id="type" [options]="types" formControlName="type" placeholder="Seleccione Tipo"
+                        optionLabel="label" optionValue="value">
+                    </p-select>
+                </div>
+
+                <!-- Lectura Inicial -->
+                <div class="flex flex-col gap-2">
+                    <label for="initial_reading" class="font-semibold text-gray-700">Lectura Inicial</label>
+                    <input pInputText type="number" id="initial_reading" formControlName="initial_reading" min="1"
+                        onkeydown="return event.key !== '-' && event.key !== '+' && event.key !== 'e'" />
+                    <small
+                        *ngIf="meterForm.get('initial_reading')?.invalid && meterForm.get('initial_reading')?.touched"
+                        class="text-red-500">
+                        La lectura inicial debe ser al menos 1.
+                    </small>
+                </div>
+
+                <!-- Fecha de Instalación -->
+                <div class="flex flex-col gap-2">
+                    <label for="installation_date" class="font-semibold text-gray-700">Fecha de Instalación</label>
+                    <p-datepicker id="installation_date" formControlName="installation_date" dateFormat="yy-mm-dd"
+                        [showIcon]="true" appendTo="body" [showOnFocus]="false">
+                    </p-datepicker>
+                    <small
+                        *ngIf="meterForm.get('installation_date')?.invalid && meterForm.get('installation_date')?.touched"
+                        class="text-red-500">
+                        La fecha es requerida.
+                    </small>
+                </div>
+            </div>
+
+            <!-- Botones -->
+            <div class="flex justify-end gap-2 mt-8 pt-4 border-t border-gray-100">
+                <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary"
+                    (click)="onCancel()"></p-button>
+                <p-button label="Guardar" icon="pi pi-check" type="submit" severity="info"
+                    [disabled]="meterForm.invalid"></p-button>
+            </div>
+        </form>
+    </p-dialog>
+</div>

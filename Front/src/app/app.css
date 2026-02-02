@@ -1,0 +1,3 @@
+:host ::ng-deep .p-inputtext:enabled:focus {
+    border-color: #3b82f6;
+}

@@ -1,0 +1,17 @@
+@import "tailwindcss";
+@import "primeicons/primeicons.css";
+
+/* Kill global browser scrollbar */
+html,
+body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    /* Essential to remove the 'big scroll' */
+}
+
+/* Ensure app-root fills the screen */
+app-root {
+    display: block;
+    height: 100%;
+}

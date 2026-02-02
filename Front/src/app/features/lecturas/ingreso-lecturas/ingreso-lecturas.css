@@ -1,0 +1,90 @@
+.readings-listbox :ng-deep .p-listbox {
+    border: none;
+    border-radius: 0;
+}
+
+.readings-listbox :ng-deep .p-listbox-list {
+    padding: 0;
+}
+
+.readings-listbox :ng-deep .p-listbox-item {
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid #f9fafb;
+    transition: all 0.2s ease;
+}
+
+.readings-listbox :ng-deep .p-listbox-item:hover {
+    background-color: #f8fafc !important;
+}
+
+.readings-listbox :ng-deep .p-listbox-item.p-highlight {
+    background-color: #eff6ff !important;
+    border-left: 4px solid #3b82f6;
+    color: inherit;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #cbd5e1;
+}
+
+/* Period Picker Customization */
+:host ::ng-deep .period-picker .p-inputtext {
+    border: none !important;
+    background: #f1f5f9 !important;
+    font-weight: 800 !important;
+    color: #475569 !important;
+    border-radius: 0.75rem !important;
+    font-size: 0.8rem !important;
+}
+
+/* Animations */
+.animate-fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Utilities */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+}
+
+input[type=number] {
+    -webkit-appearance: textfield;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+/* Responsive fixes */
+@media (max-width: 768px) {
+    .readings-listbox {
+        max-height: 45vh !important;
+    }
+}

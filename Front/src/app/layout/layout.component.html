@@ -1,0 +1,17 @@
+<div class="h-screen flex flex-col bg-gray-50 overflow-hidden">
+  <app-header class="flex-shrink-0" (toggleSidebar)="toggleSidebar()"></app-header>
+
+  <div class="flex flex-1 overflow-hidden">
+    <app-sidebar [ngClass]="sidebarVisible ? 'sidebar-visible' : 'sidebar-hidden'"
+      class="transition-all duration-500 ease-in-out flex-shrink-0 border-r border-gray-100">
+    </app-sidebar>
+
+    <main class="flex-1 overflow-y-auto flex flex-col transition-all duration-500 ease-in-out">
+      <div class="w-full h-full p-2">
+        <router-outlet></router-outlet>
+      </div>
+    </main>
+  </div>
+
+  <app-footer class="flex-shrink-0"></app-footer>
+</div>

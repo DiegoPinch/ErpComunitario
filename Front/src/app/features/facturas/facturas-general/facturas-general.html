@@ -1,0 +1,551 @@
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>
+
+<div class="flex flex-col md:flex-row gap-0 h-full bg-gray-50/30">
+    <!-- Panel Izquierdo: Lista de Usuarios con Facturas Pendientes -->
+    <div class="w-full md:w-80 bg-white shadow-sm border-r border-gray-100 flex flex-col h-full">
+        <div class="p-5 border-b border-gray-100 bg-white">
+            <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2 mb-4">
+                <i class="pi pi-wallet text-blue-500"></i>
+                Cobros
+            </h2>
+
+            <div class="grid grid-cols-3 gap-2">
+                <div class="bg-blue-50 p-2 rounded-lg text-center">
+                    <span class="block text-[10px] text-blue-600 font-medium uppercase tracking-tighter">Facturas</span>
+                    <span class="text-base font-bold text-blue-700">{{stats.total_pending}}</span>
+                </div>
+                <div class="bg-indigo-50 p-2 rounded-lg text-center">
+                    <span class="block text-[10px] text-indigo-600 font-medium uppercase tracking-tighter">Deuda
+                        Total</span>
+                    <span class="text-base font-bold text-indigo-700">${{stats.total_amount | number:'1.2-2'}}</span>
+                </div>
+                <div class="bg-purple-50 p-2 rounded-lg text-center">
+                    <span
+                        class="block text-[10px] text-purple-600 font-medium uppercase tracking-tighter">Morosos</span>
+                    <span class="text-base font-bold text-purple-700">{{stats.users_with_debt}}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de Usuarios -->
+        <div class="flex-1 overflow-y-auto">
+            <p-listbox [options]="users" [(ngModel)]="selectedUser" (onChange)="onSelectUser($event)" [filter]="true"
+                filterBy="user_name,national_id" filterPlaceholder="Buscar usuario..."
+                [listStyle]="{ 'max-height': 'calc(100vh - 250px)' }" [style]="{ 'border': 'none' }"
+                styleClass="w-full readings-listbox">
+
+                <ng-template let-user pTemplate="item">
+                    <div class="flex items-center gap-3 py-2 w-full">
+                        <div class="flex flex-col min-w-0 flex-1">
+                            <span class="font-bold text-gray-700 truncate leading-tight">{{ user.user_name }}</span>
+                            <span class="text-[10px] text-gray-500 font-mono mt-1">{{ user.national_id }}</span>
+                        </div>
+
+                        <!-- Badge de facturas -->
+                        <div *ngIf="getPendingCount(user) > 0"
+                            class="px-2 py-1 rounded-full bg-red-100 text-red-600 text-[10px] font-bold">
+                            {{ getPendingCount(user) }} fact.
+                        </div>
+                        <div *ngIf="getPendingCount(user) === 0"
+                            class="px-2 py-1 rounded-full bg-blue-50 text-blue-500 text-[10px] font-bold">
+                            Al día
+                        </div>
+                    </div>
+                </ng-template>
+            </p-listbox>
+        </div>
+    </div>
+
+    <!-- Panel Derecho: Detalle de Facturas -->
+    <div class="flex-1 flex flex-col h-full overflow-hidden">
+        <!-- Header -->
+        <div class="bg-white p-4 border-b border-gray-100 flex items-center shadow-sm z-10">
+            <div class="w-1/4">
+                <!-- Espacio reservado o para futuros filtros globales -->
+            </div>
+
+            <div *ngIf="selectedUser" class="flex-1 flex justify-center items-center gap-2">
+                <i class="pi pi-user text-blue-500 text-lg"></i>
+                <span
+                    class="text-lg font-black text-slate-800 uppercase tracking-tight">{{selectedUser.user_name}}</span>
+            </div>
+
+            <div *ngIf="selectedUser" class="w-1/4 flex justify-end">
+                <p-button (click)="onViewAllInvoices()" label="Ver Historial / Tablas" icon="pi pi-table"
+                    severity="info" styleClass="rounded-xl text-xs font-bold shadow-lg hover:shadow-xl active:scale-95">
+                </p-button>
+            </div>
+        </div>
+
+        <!-- Área Central -->
+        <div class="flex-1 overflow-y-auto p-6 bg-gray-50/50">
+            <!-- Empty State -->
+            <div *ngIf="!selectedUser" class="flex flex-col items-center justify-center text-center mt-20 opacity-40">
+                <div class="w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-inner mb-6">
+                    <i class="pi pi-inbox text-5xl text-gray-300"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-400">Seleccione un usuario</h3>
+                <p class="text-gray-400 max-w-xs mt-2 text-sm">Busque un usuario para gestionar sus facturas.</p>
+            </div>
+
+            <!-- Factura Seleccionada o Resumen de Deuda -->
+            <div *ngIf="selectedInvoices.length > 0" class="max-w-6xl mx-auto animate-fade-in">
+
+                <!-- Alerta de Deuda Múltiple -->
+                <div *ngIf="selectedUser && getPendingCount(selectedUser) > 1"
+                    class="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-xl flex items-center justify-between shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+                            <i class="pi pi-exclamation-triangle text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-black text-red-800 uppercase">Usuario con Deuda Acumulada</h4>
+                            <p class="text-xs text-red-600 font-medium">Este usuario tiene
+                                {{getPendingCount(selectedUser)}} meses pendientes por cobrar.</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="block text-[10px] font-bold text-red-400 uppercase">Total Consolidado</span>
+                        <span class="text-2xl font-black text-red-700">${{getTotalDebt(selectedUser) |
+                            number:'1.2-2'}}</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+                    <!-- Columna 1: Selector de Meses Pendientes -->
+                    <div class="lg:col-span-1 flex flex-col gap-4">
+                        <div class="bg-white p-4 rounded-2xl shadow-md border border-gray-100">
+                            <h2
+                                class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center justify-between leading-none">
+                                <span>Meses Pendientes</span>
+                                <i class="pi pi-sort-alt text-[10px]"></i>
+                            </h2>
+                            <div class="flex flex-col gap-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                                <ng-container *ngFor="let inv of selectedUser?.invoices">
+                                    <div *ngIf="inv.status === 'pending'" (click)="onCardClick(inv)"
+                                        class="p-3 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 relative group overflow-hidden"
+                                        [ngClass]="{
+                                             'border-blue-500 bg-blue-50 ring-2 ring-blue-100': isSelected(inv),
+                                              'border-gray-100 bg-white hover:border-blue-200': !isSelected(inv)
+                                         }">
+
+                                        <!-- Checkbox (Integrated Left) -->
+                                        <div (click)="$event.stopPropagation()">
+                                            <p-checkbox [binary]="true" [ngModel]="isSelected(inv)"
+                                                (onChange)="toggleInvoiceSelection(inv)"
+                                                styleClass="custom-invoice-checkbox">
+                                            </p-checkbox>
+                                        </div>
+
+                                        <div class="flex-1 flex flex-col min-w-0">
+                                            <div class="flex justify-between items-center">
+                                                <span
+                                                    class="text-[11px] font-black text-slate-700 uppercase leading-none">{{formatMonth(inv.billing_month)}}</span>
+                                                <span
+                                                    class="text-xs font-black text-blue-600 leading-none">${{inv.total_amount
+                                                    | number:'1.2-2'}}</span>
+                                            </div>
+                                            <span
+                                                class="text-[9px] font-bold text-slate-400 font-mono mt-1 leading-none">#{{inv.invoice_id}}</span>
+                                        </div>
+                                    </div>
+                                </ng-container>
+                            </div>
+                        </div>
+
+                        <!-- Info Adicional -->
+                        <div class="bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i class="pi pi-info-circle text-blue-500 text-sm"></i>
+                                <span class="text-[10px] font-bold text-blue-700 uppercase">Nota de Cobro</span>
+                            </div>
+                            <p class="text-[10px] text-blue-600 leading-relaxed font-medium">
+                                Se recomienda cobrar los meses más antiguos primero para evitar cortes de servicio.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Columna 2 & 3: Detalle de Factura -->
+                    <!-- Columna 2 & 3: Resumen Rápido Central -->
+                    <div class="lg:col-span-2">
+                        <p-card styleClass="border-none shadow-lg rounded-2xl overflow-hidden bg-white">
+                            <div class="flex flex-col items-center justify-center p-5 text-center gap-4">
+                                <!-- Icono e Info Principal -->
+                                <div
+                                    class="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 shadow-sm transition-transform hover:scale-110">
+                                    <i class="pi pi-wallet text-2xl" *ngIf="selectedInvoices.length > 1"></i>
+                                    <i class="pi pi-file-pdf text-2xl" *ngIf="selectedInvoices.length <= 1"></i>
+                                </div>
+
+                                <div class="space-y-1">
+                                    <p
+                                        class="text-[10px] font-bold text-blue-500 uppercase tracking-widest leading-none mb-1">
+                                        {{selectedInvoices.length > 1 ? 'Monto Total a Cobrar' : 'Periodo
+                                        Seleccionado'}}
+                                    </p>
+                                    <h3 class="text-3xl font-black text-slate-800 leading-tight">
+                                        {{selectedInvoices.length > 1 ? '$' + (totalSelectedAmount | number:'1.2-2') :
+                                        (selectedInvoices.length === 1 ? formatMonth(selectedInvoices[0].billing_month)
+                                        : 'Sin selección')}}
+                                    </h3>
+                                    <p class="text-[11px] text-slate-400 font-medium leading-none"
+                                        *ngIf="selectedInvoices.length > 0">
+                                        {{selectedInvoices.length > 1 ? selectedInvoices.length + ' meses seleccionados'
+                                        : 'Factura #' + selectedInvoices[0].invoice_id}}
+                                    </p>
+                                </div>
+
+                                <!-- Status Badge Compacto (Solo si hay 1 seleccionado) -->
+                                <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all"
+                                    *ngIf="selectedInvoices.length === 1"
+                                    [ngClass]="selectedInvoices[0].status === 'paid' ? 'bg-blue-50 border-blue-100 text-blue-700' : 'bg-blue-50 border-blue-100 text-blue-700'">
+                                    <i [class]="selectedInvoices[0].status === 'paid' ? 'pi pi-check-circle' : 'pi pi-clock'"
+                                        class="text-sm"></i>
+                                    <span class="text-[11px] font-black uppercase italic">{{selectedInvoices[0].status
+                                        === 'paid' ? 'PAGADA' : 'PENDIENTE'}}</span>
+                                </div>
+
+                                <!-- Botón Abrir Detalle -->
+                                <p-button (click)="onOpenInvoiceDetail()" *ngIf="selectedInvoices.length > 0"
+                                    [label]="selectedInvoices.length > 1 ? 'Ver Resumen de Selección' : 'Ver Detalles Completos'"
+                                    [icon]="'pi pi-search-plus'" severity="info"
+                                    styleClass="rounded-xl shadow-lg transition-all hover:scale-105 active:scale-95 text-xs font-black uppercase">
+                                </p-button>
+
+                                <p class="text-[9px] text-slate-300 font-medium max-w-[180px] leading-tight"
+                                    *ngIf="selectedInvoices.length > 0">
+                                    {{selectedInvoices.length > 1 ? 'Se procesará el cobro de todos los meses marcados.'
+                                    : 'Haga clic para ver el desglose detallado.'}}
+                                </p>
+                            </div>
+                        </p-card>
+                    </div>
+
+                    <!-- Columna 4: Acción de Pago -->
+                    <div class="lg:col-span-1 flex flex-col gap-4">
+                        <p-card
+                            styleClass="border-none shadow-lg rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 text-white">
+                            <div class="text-center py-4">
+                                <p class="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1 leading-none">
+                                    Total a Recaudar
+                                </p>
+                                <h4 class="text-3xl font-black mb-6 leading-none">${{totalSelectedAmount |
+                                    number:'1.2-2'}}
+                                </h4>
+
+                                <p-button *ngIf="allSelectedPending" (click)="onCollectPayment()"
+                                    [label]="selectedInvoices.length > 1 ? 'COBRAR SELECCIÓN' : 'COBRAR MES'"
+                                    icon="pi pi-check-circle" severity="info"
+                                    styleClass="w-full py-4 border-none rounded-2xl font-bold text-sm shadow-xl active:scale-95">
+                                </p-button>
+
+                                <div *ngIf="allSelectedPaid" class="flex flex-col items-center gap-2 animate-bounce">
+                                    <i class="pi pi-verified text-4xl"></i>
+                                    <span class="font-bold">¡Mes Pagado!</span>
+                                </div>
+                            </div>
+                        </p-card>
+
+                        <!-- Botón Pago Total (Si hay deuda múltiple) -->
+                        <p-button *ngIf="selectedUser && getPendingCount(selectedUser) > 1"
+                            (click)="onCollectAllPayments()" severity="info"
+                            styleClass="w-full py-4 border-none shadow-lg active:scale-95 rounded-2xl">
+                            <div class="flex flex-col items-center gap-1 group">
+                                <span
+                                    class="opacity-60 uppercase text-[8px] group-hover:opacity-100 transition-opacity leading-none">
+                                    Cobrar Deuda Total
+                                </span>
+                                <span class="text-sm font-black leading-none">${{getTotalDebt(selectedUser) |
+                                    number:'1.2-2'}}</span>
+                            </div>
+                        </p-button>
+                    </div>
+
+                </div>
+            </div>
+
+
+            <!-- No hay facturas para este periodo (Usuario al día) -->
+            <div *ngIf="selectedUser && selectedInvoices.length === 0 && getPendingCount(selectedUser) === 0"
+                class="flex flex-col items-center justify-center text-center mt-20 opacity-40">
+                <div class="w-32 h-32 bg-blue-50 rounded-full flex items-center justify-center shadow-inner mb-6">
+                    <i class="pi pi-verified text-5xl text-blue-600"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-400 leading-tight">Sin facturas pendientes</h3>
+                <p class="text-gray-400 max-w-xs mt-2 text-sm italic font-medium">Este usuario se encuentra al día con
+                    sus pagos.
+                </p>
+            </div>
+
+            <!-- Usuario con deuda pero sin factura seleccionada -->
+            <div *ngIf="selectedUser && selectedInvoices.length === 0 && getPendingCount(selectedUser) > 0"
+                class="flex flex-col items-center justify-center text-center mt-20 opacity-40">
+                <i class="pi pi-calendar-times text-5xl text-gray-300 mb-4"></i>
+                <h3 class="text-xl font-bold text-gray-400 leading-tight">Seleccione un mes pendiente</h3>
+                <p class="text-gray-400 max-w-xs mt-2 text-sm font-medium">El usuario tiene deudas en otros periodos.
+                    Seleccione uno
+                    de la lista lateral.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Detalle de Factura (Empresarial - Optimizado para Accesibilidad) -->
+<p-dialog [(visible)]="showInvoiceDetailModal" [modal]="true" [style]="{width: '650px'}" header="Resumen de Facturación"
+    [draggable]="false" [resizable]="false" styleClass="invoice-detail-dialog custom-dialog rounded-3xl"
+    [closable]="true">
+
+    <div *ngIf="selectedInvoiceForDetail" class="flex flex-col gap-3 pt-1">
+        <!-- Header del Modal Compacto -->
+        <div class="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-600 shadow-sm border border-slate-100">
+                    <i class="pi pi-file-o text-lg"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg font-black text-slate-800 leading-none mb-1">
+                        {{selectedInvoices.length > 1 ? selectedInvoices.length + ' Meses Seleccionados' :
+                        formatMonth(selectedInvoiceForDetail.billing_month)}}
+                    </h2>
+                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                        {{selectedInvoices.length > 1 ? 'Resumen de Cobro Consolidado' : 'Factura #' +
+                        selectedInvoiceForDetail.invoice_id}}
+                    </p>
+                </div>
+            </div>
+            <p-tag severity="warn" [value]="selectedInvoices.length > 1 ? 'RESUMEN' : 'PENDIENTE'"
+                styleClass="text-[9px] font-black px-2.5 py-1 rounded-lg">
+            </p-tag>
+        </div>
+
+        <!-- Cuerpo del Modal: Tablas desglosadas -->
+        <div class="space-y-4 px-1">
+            <!-- Nota si hay varios -->
+            <div class="bg-blue-50 p-3 rounded-xl border border-blue-100 flex items-center gap-3"
+                *ngIf="selectedInvoices.length > 1">
+                <i class="pi pi-info-circle text-blue-500"></i>
+                <p class="text-[10px] text-blue-700 font-medium">Estás visualizando el detalle del <strong>último mes
+                        seleccionado</strong>. El total a pagar incluye todos los meses marcados.</p>
+            </div>
+
+            <!-- Sección: Consumos Detallados -->
+            <div class="space-y-2">
+                <div class="flex items-center gap-2 border-b border-slate-100 pb-1.5">
+                    <i class="pi pi-bolt text-blue-500 text-[9px]"></i>
+                    <h4 class="text-[9px] font-black text-slate-500 uppercase tracking-widest">Lecturas y Consumos (Mes
+                        Seleccionado)</h4>
+                </div>
+
+                <div *ngIf="selectedInvoiceForDetail.details?.readings?.length > 0"
+                    class="overflow-hidden border border-slate-100 rounded-xl bg-white shadow-sm">
+                    <table class="w-full text-left text-[11px]">
+                        <thead class="bg-slate-50 border-b border-slate-100">
+                            <tr>
+                                <th class="px-4 py-2 font-bold text-slate-400 uppercase tracking-tighter">Medidor</th>
+                                <th class="px-2 py-2 text-center font-bold text-slate-400">Tipo</th>
+                                <th class="px-2 py-2 text-right font-bold text-slate-400">Lec. Ant.</th>
+                                <th class="px-2 py-2 text-right font-bold text-slate-400">Lec. Act.</th>
+                                <th class="px-2 py-2 text-right font-bold text-slate-400">Consumo</th>
+                                <th class="px-4 py-2 text-right font-bold text-slate-400">Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-50">
+                            <tr *ngFor="let detail of selectedInvoiceForDetail.details?.readings"
+                                class="hover:bg-slate-50 transition-colors">
+                                <td class="px-4 py-2">
+                                    <span class="font-black text-slate-700">{{detail.meter_code}}</span>
+                                </td>
+                                <td class="px-2 py-2 text-center">
+                                    <span
+                                        class="px-2 py-0.5 bg-slate-100 text-[8px] font-black text-slate-600 rounded uppercase">
+                                        {{detail.meter_type}}
+                                    </span>
+                                </td>
+                                <td class="px-2 py-2 text-right font-mono text-slate-400">{{detail.previous_reading}}
+                                </td>
+                                <td class="px-2 py-2 text-right font-mono text-slate-400">{{detail.current_reading}}
+                                </td>
+                                <td class="px-2 py-2 text-right">
+                                    <span class="font-black text-slate-700">{{detail.consumption}} m³</span>
+                                </td>
+                                <td class="px-4 py-2 text-right">
+                                    <span class="font-black text-slate-800">${{detail.amount | number:'1.2-2'}}</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Sección: Cargos y Servicios Extra -->
+            <div class="space-y-2">
+                <div class="flex items-center gap-2 border-b border-slate-100 pb-1.5">
+                    <i class="pi pi-plus-circle text-amber-500 text-[9px]"></i>
+                    <h4 class="text-[9px] font-black text-slate-500 uppercase tracking-widest">Cargos Adicionales</h4>
+                </div>
+
+                <div *ngIf="selectedInvoiceForDetail.details?.concepts?.length > 0"
+                    class="overflow-hidden border border-slate-100 rounded-xl bg-white shadow-sm transition-all animate-fade-in">
+                    <table class="w-full text-left text-[11px]">
+                        <thead class="bg-amber-50/50 border-b border-slate-100">
+                            <tr>
+                                <th class="px-4 py-2 font-bold text-amber-600 uppercase tracking-tighter">Descripción
+                                </th>
+                                <th class="px-4 py-2 text-right font-bold text-amber-600 uppercase tracking-tighter">
+                                    Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-50">
+                            <tr *ngFor="let concept of selectedInvoiceForDetail.details?.concepts"
+                                class="hover:bg-amber-50/30 transition-colors">
+                                <td class="px-4 py-2.5 font-bold text-slate-700">{{concept.description}}</td>
+                                <td class="px-4 py-2.5 text-right font-black text-slate-800">${{concept.amount |
+                                    number:'1.2-2'}}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty State for concepts -->
+                <div *ngIf="!selectedInvoiceForDetail.details?.concepts || selectedInvoiceForDetail.details?.concepts?.length === 0"
+                    class="p-3 bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center gap-3 text-center">
+                    <div
+                        class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-300 shadow-sm border border-slate-100">
+                        <i class="pi pi-info-circle text-base"></i>
+                    </div>
+                    <div class="text-left">
+                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-tight leading-none mb-1">Sin
+                            cargos adicionales</p>
+                        <p class="text-[9px] text-slate-400 leading-none">No se registran multas este periodo.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer del Modal: Resumen Financiero -->
+        <div class="mt-1 pt-4 border-t border-slate-100 flex justify-between items-end">
+            <div class="flex gap-6">
+                <div class="flex flex-col">
+                    <span
+                        class="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Consumo
+                        / Lecturas</span>
+                    <span class="text-sm font-bold text-slate-700">${{totalConsumptionAmount |
+                        number:'1.2-2'}}</span>
+                </div>
+                <div class="flex flex-col">
+                    <span
+                        class="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Rubros
+                        Adicionales</span>
+                    <span class="text-sm font-bold text-slate-600">${{totalConceptsAmount |
+                        number:'1.2-2'}}</span>
+                </div>
+            </div>
+
+            <div class="flex flex-col items-end">
+                <span class="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1 leading-none">Total
+                    de Selección</span>
+                <div class="flex items-baseline gap-0.5 text-slate-800">
+                    <span class="text-lg font-bold opacity-30">$</span>
+                    <span class="text-4xl font-black tracking-tighter leading-none">
+                        {{totalSelectedAmount | number:'1.2-2'}}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <ng-template pTemplate="footer">
+        <div class="flex justify-end pt-2 pb-1 border-t border-slate-100 mt-1">
+            <p-button (click)="showInvoiceDetailModal = false" label="Cerrar Detalle" severity="secondary"
+                styleClass="rounded-xl transition-all text-[9px] tracking-widest uppercase shadow-lg active:scale-95">
+            </p-button>
+        </div>
+    </ng-template>
+</p-dialog>
+
+<!-- Diálogo de Historial de Facturas -->
+<p-dialog [(visible)]="showInvoicesTable" [modal]="true" [header]="'Historial de Facturas - ' + selectedUser?.user_name"
+    [style]="{width: '85vw', 'max-width': '1000px'}" styleClass="custom-dialog" [draggable]="false" [resizable]="false">
+
+    <div class="p-2">
+        <app-custom-table [data]="formattedInvoices" [columns]="historyColumns" [actions]="historyActions"
+            [showIndex]="true">
+        </app-custom-table>
+    </div>
+
+    <ng-template pTemplate="footer">
+        <div class="flex justify-end gap-2 p-4 pt-0">
+            <p-button (click)="showInvoicesTable = false" label="Cerrar" severity="secondary"
+                styleClass="rounded-xl font-bold text-sm shadow-md active:scale-95">
+            </p-button>
+        </div>
+    </ng-template>
+</p-dialog>
+
+<!-- Diálogo de Confirmación de Cobro (Versión Compacta & Moderna) -->
+<p-dialog [(visible)]="showPaymentDialog" [modal]="true" [header]="'Confirmar Cobro'" [style]="{width: '400px'}"
+    styleClass="confirm-payment-dialog bg-white rounded-[28px] overflow-hidden shadow-2xl border-none"
+    [draggable]="false" [resizable]="false" [closable]="true">
+
+    <div class="flex flex-col gap-6 p-5">
+
+        <!-- Tarjeta de Resumen Compacta -->
+        <div class="bg-blue-600 rounded-2xl p-5 text-white shadow-lg relative overflow-hidden group">
+            <div class="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-xl"></div>
+            <div class="flex justify-between items-center relative z-10">
+                <div class="flex flex-col">
+                    <span class="text-[9px] font-black uppercase tracking-widest text-blue-100">Total a Pagar</span>
+                    <div class="flex items-baseline gap-1">
+                        <span class="text-lg font-bold opacity-60">$</span>
+                        <span class="text-4xl font-black tracking-tight">{{totalToPay | number:'1.2-2'}}</span>
+                    </div>
+                </div>
+                <!-- Mini visual de progreso/estado can go here if needed -->
+                <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <i class="pi pi-wallet text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inputs Compactos -->
+        <div class="space-y-4">
+            <!-- Efectivo Recibido -->
+            <div class="flex flex-col gap-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Efectivo
+                    Recibido</label>
+                <div class="relative group">
+                    <input type="number" pInputText [(ngModel)]="amountReceived" (input)="calculateChange()"
+                        placeholder="0.00" step="0.01"
+                        class="w-full py-4 px-6 bg-slate-50 border-2 border-slate-100 focus:bg-white focus:border-blue-500 rounded-2xl text-2xl font-black text-slate-800 transition-all outline-none text-center shadow-sm">
+                </div>
+            </div>
+
+            <!-- Vuelto Compacto -->
+            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
+                        <i class="pi pi-undo text-xs"></i>
+                    </div>
+                    <span class="text-[11px] font-bold text-slate-500 uppercase">Su Vuelto</span>
+                </div>
+                <span class="text-2xl font-black text-blue-600 tracking-tight">${{changeAmount |
+                    number:'1.2-2'}}</span>
+            </div>
+        </div>
+
+        <!-- Acciones Compactas -->
+        <div class="flex flex-col gap-2 mt-1">
+            <p-button (click)="onConfirmPayment()" [disabled]="!amountReceived || amountReceived < totalToPay"
+                label="Procesar Cobro" icon="pi pi-check" severity="info"
+                styleClass="w-full py-4 border-none rounded-2xl font-black text-xs uppercase tracking-widest shadow-md active:scale-[0.98] disabled:opacity-20">
+            </p-button>
+            <p-button (click)="showPaymentDialog = false" label="Regresar" [text]="true" severity="secondary"
+                styleClass="w-full py-2 border-none font-bold text-[9px] uppercase tracking-widest transition-colors">
+            </p-button>
+        </div>
+
+    </div>
+</p-dialog>

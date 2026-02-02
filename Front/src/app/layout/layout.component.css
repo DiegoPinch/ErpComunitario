@@ -1,0 +1,17 @@
+/* Layout styles específicos si se necesitan */
+
+/* Animación suave para el sidebar */
+.sidebar-visible {
+    width: 16rem;
+    /* w-64 en Tailwind = 256px = 16rem */
+    opacity: 1;
+    margin-right: 0;
+    overflow: visible;
+}
+
+.sidebar-hidden {
+    width: 0;
+    opacity: 0;
+    margin-right: 0;
+    overflow: hidden;
+}
