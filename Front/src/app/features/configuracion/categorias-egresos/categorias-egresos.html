@@ -1,0 +1,51 @@
+<div class="p-4">
+    <div class="flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800 m-0">Categorías de Egresos</h1>
+            <p class="text-gray-600 mt-1">Gestión de categorías para la clasificación de egresos financieros</p>
+        </div>
+        <button pButton pRipple label="Nueva Categoría" icon="pi pi-plus"
+            class="p-button-primary shadow-2 border-round-lg" (click)="openNew()">
+        </button>
+    </div>
+
+    <!-- Tabla Personalizada -->
+    <div class="bg-white shadow-2 border-round-xl overflow-hidden">
+        <app-custom-table [data]="(categories$ | async) || []" [columns]="cols" [actions]="actions"
+            [title]="'Listado de Categorías'">
+        </app-custom-table>
+    </div>
+
+    <!-- Modal de Registro/Edición -->
+    <p-dialog [(visible)]="displayDialog" [style]="{width: '450px'}" [header]="dialogTitle" [modal]="true"
+        class="p-fluid">
+
+        <form [formGroup]="categoryForm" (ngSubmit)="saveCategory()" class="flex flex-column gap-3 mt-2">
+
+            <div class="field">
+                <label for="name" class="font-semibold block mb-2">Nombre de la Categoría</label>
+                <input type="text" pInputText id="name" formControlName="name"
+                    placeholder="Ej: Sueldos, Energía Eléctrica..." autocomplete="off" />
+                <small class="p-error block mt-1"
+                    *ngIf="categoryForm.get('name')?.invalid && categoryForm.get('name')?.touched">
+                    El nombre es obligatorio (máx. 100 caracteres).
+                </small>
+            </div>
+
+            <div class="field">
+                <label for="description" class="font-semibold block mb-2">Descripción (Opcional)</label>
+                <textarea id="description" pTextarea formControlName="description" rows="3"
+                    placeholder="Detalle adicional de la categoría..."></textarea>
+            </div>
+
+            <div class="flex justify-content-end gap-2 mt-4">
+                <p-button label="Cancelar" icon="pi pi-times" severity="secondary" (click)="onCancel()"
+                    [text]="true"></p-button>
+                <p-button label="Guardar" icon="pi pi-check" type="submit" [disabled]="categoryForm.invalid"></p-button>
+            </div>
+        </form>
+    </p-dialog>
+
+    <p-confirmDialog></p-confirmDialog>
+    <p-toast></p-toast>
+</div>

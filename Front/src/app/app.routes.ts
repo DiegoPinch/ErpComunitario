@@ -16,6 +16,7 @@ export const routes: Routes = [
       { path: 'facturas', loadComponent: () => import('./features/facturas/facturas-general/facturas-general').then(c => c.FacturasGeneral) },
       { path: 'rubros-adicionales', loadComponent: () => import('./features/rubros-adicionales/rubros-lista/rubros-lista').then(c => c.RubrosLista) },
       { path: 'tarifas', loadComponent: () => import('./features/configuracion/tarifas/tarifas').then(c => c.Tarifas) },
+      { path: 'categorias-egresos', loadComponent: () => import('./features/configuracion/categorias-egresos/categorias-egresos').then(c => c.CategoriasEgresos) },
       { path: 'reportes', loadComponent: () => import('./features/reportes/reporte-general/reporte-general').then(c => c.ReporteGeneral) },
 
     ]

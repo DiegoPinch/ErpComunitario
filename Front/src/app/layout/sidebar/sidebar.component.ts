@@ -134,6 +134,13 @@ export class SidebarComponent implements OnInit {
                         command: () => {
                             this.router.navigate(['/layout/tarifas']);
                         }
+                    },
+                    {
+                        label: 'Categorías Egresos',
+                        icon: 'pi pi-tags',
+                        command: () => {
+                            this.router.navigate(['/layout/categorias-egresos']);
+                        }
                     }
                 ]
             },
