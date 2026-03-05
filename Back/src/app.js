@@ -26,6 +26,7 @@ app.use('/api/readings', require('./routes/readingsRoutes'));
 app.use('/api/rates', require('./routes/ratesRoutes'));
 app.use('/api/invoices', require('./routes/invoicesRoutes'));
 app.use('/api/additional-concepts', require('./routes/additionalConceptsRoutes'));
+app.use('/api/expense-categories', require('./routes/expenseCategoryRoutes'));
 app.use('/api/invoice-concepts', require('./routes/invoiceConceptRoutes'));
 app.use('/api/payments', require('./routes/paymentsRoutes'));
 app.use('/api/meetings', require('./routes/meetingsRoutes'));
@@ -33,6 +34,7 @@ app.use('/api/attendance', require('./routes/attendanceRoutes'));
 app.use('/api/board-members', require('./routes/boardMembersRoutes'));
 app.use('/api/system-users', require('./routes/systemUsersRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
+app.use('/api/financial', require('./routes/financialRoutes'));
 app.use('/api/reports', require('./routes/reportsRoutes'));
 
 // Manejo de rutas no encontradas

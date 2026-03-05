@@ -1,19 +1,8 @@
 const pool = require('../config/db');
 
-const getAllInvoiceConcepts = async () => {
-  const [rows] = await pool.query('SELECT * FROM invoice_concept');
-  return rows;
-};
-
-const getInvoiceConceptById = async (id) => {
-  const [rows] = await pool.query('SELECT * FROM invoice_concept WHERE id = ?', [id]);
-  return rows[0];
-};
-
 const createInvoiceConcept = async (ic) => {
   const { invoice_id, concept_id } = ic;
 
-  // SHIELD: Check if invoice is already paid
   const [inv] = await pool.query('SELECT status FROM invoices WHERE invoice_id = ?', [invoice_id]);
   if (inv[0]?.status === 'paid') {
     throw new Error('No se puede asignar rubros a una factura ya cobrada.');
@@ -31,17 +20,7 @@ const createInvoiceConcept = async (ic) => {
   return result.insertId;
 };
 
-const updateInvoiceConcept = async (id, ic) => {
-  const { invoice_id, concept_id } = ic;
-  const [result] = await pool.query(
-    `UPDATE invoice_concept SET invoice_id=?, concept_id=? WHERE id=?`,
-    [invoice_id, concept_id, id]
-  );
-  return result.affectedRows;
-};
-
 const deleteInvoiceConcept = async (id) => {
-  // First get the invoice_id and its status
   const [rows] = await pool.query(`
     SELECT ic.invoice_id, i.status 
     FROM invoice_concept ic
@@ -68,9 +47,6 @@ const deleteInvoiceConcept = async (id) => {
 };
 
 module.exports = {
-  getAllInvoiceConcepts,
-  getInvoiceConceptById,
   createInvoiceConcept,
-  updateInvoiceConcept,
   deleteInvoiceConcept,
 };

@@ -88,27 +88,27 @@ export class SidebarComponent implements OnInit {
                     }
                 ]
             },
-            /*
+
             {
-                label: 'Pagos',
+                label: 'Caja',
                 icon: 'pi pi-money-bill',
                 items: [
                     {
-                        label: 'Registrar Pago',
-                        icon: 'pi pi-wallet',
+                        label: 'Registrar Egreso',
+                        icon: 'pi pi-minus-circle',
                         command: () => {
-                            // TODO: Navegar a registrar pago
+                            // TODO: Navegar a registro de gastos
                         }
                     },
                     {
-                        label: 'Historial de Pagos',
-                        icon: 'pi pi-history',
+                        label: 'Estado de Caja',
+                        icon: 'pi pi-calculator',
                         command: () => {
-                            // TODO: Navegar a historial de pagos
+                            // TODO: Navegar a vista de saldo y últimos movimientos
                         }
                     },
                 ]
-            },*/
+            },
             // Rubros Adicionales
             {
                 label: 'Rubros Adicionales',
@@ -148,7 +148,7 @@ export class SidebarComponent implements OnInit {
                         command: () => {
                             this.router.navigate(['/layout/reportes']);
                         }
-                    }                    
+                    }
                 ]
             }
         ]
