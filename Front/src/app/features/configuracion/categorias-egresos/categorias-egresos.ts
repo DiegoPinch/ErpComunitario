@@ -1,6 +1,6 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormsModule } from '@angular/forms';
 import { Observable } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -8,6 +8,8 @@ import { InputTextModule } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
+import { TagModule } from 'primeng/tag';
+import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ExpenseCategoryService } from '../../../core/services/expense-category.service';
 import { CustomTable } from '../../../shared/components/tables/custom-table/custom-table';
@@ -20,13 +22,16 @@ import { TableAction } from '../../../shared/components/tables/custom-table/tabl
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    FormsModule,
     CustomTable,
     ButtonModule,
     DialogModule,
     InputTextModule,
     TextareaModule,
     ConfirmDialogModule,
-    ToastModule
+    ToastModule,
+    TooltipModule,
+    TagModule
   ],
   providers: [ConfirmationService, MessageService],
   templateUrl: './categorias-egresos.html',
@@ -37,6 +42,7 @@ export class CategoriasEgresos implements OnInit {
   private fb = inject(FormBuilder);
   private confirmationService = inject(ConfirmationService);
   private messageService = inject(MessageService);
+  private cdr = inject(ChangeDetectorRef);
 
   categories$!: Observable<ExpenseCategory[]>;
   cols: any[] = [];
@@ -129,7 +135,11 @@ export class CategoriasEgresos implements OnInit {
       return;
     }
 
-    const categoryData = this.categoryForm.getRawValue();
+    const categoryData = {
+      ...this.categoryForm.getRawValue(),
+      name: this.categoryForm.get('name')?.value?.toUpperCase(),
+      description: this.categoryForm.get('description')?.value?.toUpperCase()
+    };
     const categoryId = categoryData.category_id;
 
     if (categoryId) {
