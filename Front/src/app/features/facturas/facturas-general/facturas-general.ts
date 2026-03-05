@@ -11,7 +11,8 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { MessageService, ConfirmationService } from 'primeng/api';
-import { InvoicesService, UserPendingSummary, Invoice } from '../../../core/services/invoices.service';
+import { InvoicesService } from '../../../core/services/invoices.service';
+import { UserPendingSummary, Invoice } from '../../../core/models/invoice.model';
 import { CustomTable } from '../../../shared/components/tables/custom-table/custom-table';
 import { TableAction } from '../../../shared/components/tables/custom-table/table-action.model';
 

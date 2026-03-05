@@ -6,6 +6,7 @@ import { Button } from 'primeng/button';
 import { Card } from 'primeng/card';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
+import { Observable } from 'rxjs';
 import { ReportsService } from '../../../core/services/reports.service';
 
 interface ReportType {
@@ -145,7 +146,7 @@ export class ReporteGeneral implements OnInit {
       return;
     }
 
-    let reportObservable;
+    let reportObservable: Observable<any[]>;
 
     switch (this.selectedReport.id) {
       case 'users-meters':
@@ -172,7 +173,7 @@ export class ReporteGeneral implements OnInit {
     }
 
     reportObservable.subscribe({
-      next: (data) => {
+      next: (data: any[]) => {
         if (!data || data.length === 0) {
           this.messageService.add({
             severity: 'info',
@@ -194,7 +195,7 @@ export class ReporteGeneral implements OnInit {
           window.open(pdfUrl, '_blank');
         }
       },
-      error: (err) => {
+      error: (err: any) => {
         console.error('Error al obtener reporte:', err);
         this.messageService.add({
           severity: 'error',

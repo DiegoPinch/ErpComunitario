@@ -3,16 +3,18 @@ export interface GenericResponse {
     result?: any;
 }
 
+export interface ReadingStatus {
+    meter_id: number;
+    meter_code: string;
+    meter_type: string;
+    status: string;
+}
+
 export interface UserAssignmentStatus {
     user_id: number;
     user_name: string;
     national_id: string;
-    meters: {
-        meter_id: number;
-        meter_code: string;
-        meter_type: string;
-        status: string;
-    }[];
+    meters: ReadingStatus[];
 }
 
 export interface LatestReadingResponse {
