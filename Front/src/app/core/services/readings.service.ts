@@ -1,16 +1,15 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { UserAssignmentStatus, LatestReadingResponse, CurrentReadingResponse, ProcessReadingRequest } from '../models/reading.model';
+import { UserAssignmentStatus, LatestReadingResponse, CurrentReadingResponse, ProcessReadingRequest, GenericResponse } from '../models/reading.model';
 
 @Injectable({
     providedIn: 'root'
 })
 export class ReadingsService {
+    private http = inject(HttpClient);
     private apiUrl = `${environment.apiUrl}/readings`;
-
-    constructor(private http: HttpClient) { }
 
     /**
      * Obtiene la lista base de usuarios y sus medidores activos
@@ -36,8 +35,8 @@ export class ReadingsService {
     /**
      * Procesa una nueva lectura (Guarda o Actualiza) a través del Stored Procedure
      */
-    processReading(data: ProcessReadingRequest): Observable<any> {
-        return this.http.post<any>(`${this.apiUrl}/process`, data);
+    processReading(data: ProcessReadingRequest): Observable<GenericResponse> {
+        return this.http.post<GenericResponse>(`${this.apiUrl}/process`, data);
     }
 
     /**

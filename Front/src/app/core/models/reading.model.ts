@@ -1,18 +1,18 @@
-export interface ReadingStatus {
-    meter_id: number;
-    meter_code: string;
-    meter_type: string;
-    status: 'pending' | 'completed';
+export interface GenericResponse {
+    message: string;
+    result?: any;
 }
 
 export interface UserAssignmentStatus {
     user_id: number;
     user_name: string;
     national_id: string;
-    meters: ReadingStatus[];
-    // Campos calculados localmente para la UI
-    pending_count?: number;
-    is_fully_completed?: boolean;
+    meters: {
+        meter_id: number;
+        meter_code: string;
+        meter_type: string;
+        status: string;
+    }[];
 }
 
 export interface LatestReadingResponse {
@@ -24,7 +24,7 @@ export interface LatestReadingResponse {
 export interface CurrentReadingResponse {
     current_reading: number;
     amount: number;
-    invoice_status: 'pending' | 'paid' | 'canceled';
+    invoice_status: 'paid' | 'pending';
     invoice_id: number;
 }
 

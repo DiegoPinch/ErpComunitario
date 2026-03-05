@@ -1,16 +1,16 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { AdditionalConcept, InvoiceConcept } from '../models/additional-concept.interface';
+import { AdditionalConcept, InvoiceConcept, AssignedUser, ConceptResponse } from '../models/additional-concept.interface';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
     providedIn: 'root'
 })
 export class AdditionalConceptsService {
-    private apiUrl = 'http://localhost:3000/api/additional-concepts';
-    private linkUrl = 'http://localhost:3000/api/invoice-concepts';
-
-    constructor(private http: HttpClient) { }
+    private http = inject(HttpClient);
+    private apiUrl = `${environment.apiUrl}/additional-concepts`;
+    private linkUrl = `${environment.apiUrl}/invoice-concepts`;
 
     getConcepts(): Observable<AdditionalConcept[]> {
         return this.http.get<AdditionalConcept[]>(this.apiUrl);
@@ -20,28 +20,28 @@ export class AdditionalConceptsService {
         return this.http.get<AdditionalConcept>(`${this.apiUrl}/${id}`);
     }
 
-    createConcept(concept: AdditionalConcept): Observable<any> {
-        return this.http.post(this.apiUrl, concept);
+    createConcept(concept: AdditionalConcept): Observable<ConceptResponse> {
+        return this.http.post<ConceptResponse>(this.apiUrl, concept);
     }
 
-    updateConcept(id: number, concept: AdditionalConcept): Observable<any> {
-        return this.http.put(`${this.apiUrl}/${id}`, concept);
+    updateConcept(id: number, concept: AdditionalConcept): Observable<ConceptResponse> {
+        return this.http.put<ConceptResponse>(`${this.apiUrl}/${id}`, concept);
     }
 
-    deleteConcept(id: number): Observable<any> {
-        return this.http.delete(`${this.apiUrl}/${id}`);
+    deleteConcept(id: number): Observable<ConceptResponse> {
+        return this.http.delete<ConceptResponse>(`${this.apiUrl}/${id}`);
     }
 
     // Links
-    linkConceptToInvoice(invoiceId: number, conceptId: number): Observable<any> {
-        return this.http.post(this.linkUrl, { invoice_id: invoiceId, concept_id: conceptId });
+    linkConceptToInvoice(invoiceId: number, conceptId: number): Observable<{ id: number }> {
+        return this.http.post<{ id: number }>(this.linkUrl, { invoice_id: invoiceId, concept_id: conceptId });
     }
 
-    unlinkConcept(id: number): Observable<any> {
-        return this.http.delete(`${this.linkUrl}/${id}`);
+    unlinkConcept(id: number): Observable<{ message: string }> {
+        return this.http.delete<{ message: string }>(`${this.linkUrl}/${id}`);
     }
 
-    getAssignedUsers(conceptId: number): Observable<any[]> {
-        return this.http.get<any[]>(`${this.apiUrl}/assigned-users/${conceptId}`);
+    getAssignedUsers(conceptId: number): Observable<AssignedUser[]> {
+        return this.http.get<AssignedUser[]>(`${this.apiUrl}/assigned-users/${conceptId}`);
     }
 }

@@ -2,34 +2,15 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-
-export interface UserPendingSummary {
-    user_id: number;
-    user_name: string;
-    national_id: string;
-    pending_count: number;
-    total_debt: string;
-}
-
-export interface Invoice {
-    invoice_id: number;
-    user_id: number;
-    billing_month: string;
-    total_amount: number;
-    issue_date: string;
-    status: 'pending' | 'paid';
-    details?: any | null;
-}
+import { UserPendingSummary, Invoice } from '../models/invoice.model';
 
 @Injectable({
     providedIn: 'root'
 })
 export class InvoicesService {
     private http = inject(HttpClient);
-    private apiUrl = environment.apiUrl + '/invoices';
-    private paymentsUrl = environment.apiUrl + '/payments';
-
-    constructor() { }
+    private apiUrl = `${environment.apiUrl}/invoices`;
+    private paymentsUrl = `${environment.apiUrl}/payments`;
 
     /**
      * Obtiene el resumen de usuarios con facturas pendientes 
