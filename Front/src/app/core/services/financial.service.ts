@@ -29,6 +29,10 @@ export class FinancialService {
         return this.http.post<{ id: number; message: string }>(`${this.apiUrl}/expenses`, expense);
     }
 
+    updateExpense(id: number, expense: Expense): Observable<{ message: string }> {
+        return this.http.put<{ message: string }>(`${this.apiUrl}/expenses/${id}`, expense);
+    }
+
     deleteExpense(id: number): Observable<{ message: string }> {
         return this.http.delete<{ message: string }>(`${this.apiUrl}/expenses/${id}`);
     }

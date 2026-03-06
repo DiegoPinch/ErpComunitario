@@ -40,6 +40,19 @@ const createExpense = async (req, res, next) => {
     }
 };
 
+const updateExpense = async (req, res, next) => {
+    try {
+        const affectedRows = await expenseModel.updateExpense(req.params.id, req.body);
+        if (affectedRows === 0) return res.status(404).json({ message: 'Egreso no encontrado' });
+        res.json({ message: 'Egreso actualizado con éxito' });
+    } catch (err) {
+        if (err.status === 400) {
+            return res.status(400).json({ error: err.message });
+        }
+        next(err);
+    }
+};
+
 const deleteExpense = async (req, res, next) => {
     try {
         const affectedRows = await expenseModel.deleteExpense(req.params.id);
@@ -55,5 +68,6 @@ module.exports = {
     getCollectionByConcept,
     getAllExpenses,
     createExpense,
+    updateExpense,
     deleteExpense
 };

@@ -17,6 +17,7 @@ export const routes: Routes = [
       { path: 'rubros-adicionales', loadComponent: () => import('./features/rubros-adicionales/rubros-lista/rubros-lista').then(c => c.RubrosLista) },
       { path: 'tarifas', loadComponent: () => import('./features/configuracion/tarifas/tarifas').then(c => c.Tarifas) },
       { path: 'categorias-egresos', loadComponent: () => import('./features/configuracion/categorias-egresos/categorias-egresos').then(c => c.CategoriasEgresos) },
+      { path: 'registro-egresos', loadComponent: () => import('./features/caja/registro-egresos/registro-egresos').then(c => c.RegistroEgresos) },
       { path: 'reportes', loadComponent: () => import('./features/reportes/reporte-general/reporte-general').then(c => c.ReporteGeneral) },
 
     ]

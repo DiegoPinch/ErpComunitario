@@ -1,0 +1,100 @@
+<div class="bg-white rounded-lg shadow-md p-6">
+    <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
+
+    <!-- Header & Balance -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Registro de Egresos</h1>
+            <p class="text-gray-500">Control de gastos y salidas de caja</p>
+
+            <div class="flex items-center gap-4 mt-4">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">Rango de Fechas</label>
+                    <p-datePicker [(ngModel)]="filterDates" selectionMode="range" [numberOfMonths]="2"
+                        [readonlyInput]="true" (onSelect)="onDateChange()" styleClass="w-full md:w-64">
+                    </p-datePicker>
+                </div>
+                <p-button label="Nuevo Egreso" icon="pi pi-plus" severity="info" (click)="openNew()"
+                    class="mt-5"></p-button>
+            </div>
+        </div>
+
+        <div
+            class="bg-blue-600 rounded-xl p-6 text-white shadow-lg flex justify-between items-center overflow-hidden relative">
+            <div class="relative z-10">
+                <p class="text-blue-100 text-sm font-medium uppercase mb-1">Saldo Disponible (Caja)</p>
+                <h2 class="text-4xl font-black">${{ balance.toLocaleString('en-US', {minimumFractionDigits: 2}) }}</h2>
+            </div>
+            <i
+                class="pi pi-wallet text-6xl text-blue-500 opacity-30 absolute -right-2 -bottom-2 transform rotate-12"></i>
+        </div>
+    </div>
+
+    <!-- Tabla -->
+    <app-custom-table [data]="(expenses$ | async) || []" [columns]="cols" title="Listado de Egresos" [showIndex]="true"
+        [globalFilterFields]="['description', 'category_name']" [actions]="actions">
+    </app-custom-table>
+
+    <!-- Modal Registro -->
+    <p-dialog [(visible)]="displayDialog" [header]="dialogTitle" [modal]="true" [style]="{ width: '40vw' }"
+        [breakpoints]="{ '960px': '75vw', '640px': '90vw' }" [draggable]="false" [resizable]="false">
+
+        <form [formGroup]="expenseForm" (ngSubmit)="saveExpense()" class="flex flex-col gap-4 mt-2">
+
+            <!-- Alerta Saldo -->
+            <div class="bg-orange-50 border-l-4 border-orange-400 p-3 flex gap-3 items-center">
+                <i class="pi pi-exclamation-circle text-orange-500"></i>
+                <div class="text-xs text-orange-700">
+                    <strong>Atención:</strong> El monto no puede superar el saldo disponible de
+                    <strong>${{balance}}</strong>.
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex flex-col gap-2">
+                    <label class="font-semibold text-gray-700">Categoría</label>
+                    <p-select [options]="categories" formControlName="category_id" placeholder="Seleccione..."
+                        styleClass="w-full"></p-select>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    <label class="font-semibold text-gray-700">Fecha del Gasto</label>
+                    <p-datePicker formControlName="expense_date" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body"
+                        styleClass="w-full"></p-datePicker>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    <label class="font-semibold text-gray-700">Monto ($)</label>
+                    <p-inputNumber formControlName="amount" [minFractionDigits]="2" [maxFractionDigits]="2"
+                        placeholder="0.00" mode="decimal" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    <label class="font-semibold text-gray-700">Método de Pago</label>
+                    <p-select [options]="paymentMethods" formControlName="payment_method"
+                        styleClass="w-full"></p-select>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <label class="font-semibold text-gray-700">Referencia / N° Comprobante (Opcional)</label>
+                <input pInputText formControlName="reference_number" placeholder="Ej: FAC-123, RECIBO..."
+                    class="uppercase-text" />
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <label class="font-semibold text-gray-700">Descripción del Gasto</label>
+                <textarea pTextarea formControlName="description" rows="3" placeholder="Detalle del gasto realizado..."
+                    class="uppercase-text"></textarea>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
+                <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary"
+                    (click)="displayDialog = false"></p-button>
+                <p-button label="Guardar Egreso" icon="pi pi-check" type="submit" severity="info"
+                    [disabled]="expenseForm.invalid"></p-button>
+            </div>
+        </form>
+    </p-dialog>
+</div>

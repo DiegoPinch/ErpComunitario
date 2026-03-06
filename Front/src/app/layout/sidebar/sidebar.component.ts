@@ -97,7 +97,7 @@ export class SidebarComponent implements OnInit {
                         label: 'Registrar Egreso',
                         icon: 'pi pi-minus-circle',
                         command: () => {
-                            // TODO: Navegar a registro de gastos
+                            this.router.navigate(['/layout/registro-egresos']);
                         }
                     },
                     {

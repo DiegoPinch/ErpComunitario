@@ -1,0 +1,17 @@
+.uppercase-text {
+    text-transform: uppercase;
+}
+
+:host ::ng-deep .p-datatable .p-datatable-tbody>tr>td {
+    text-transform: uppercase;
+}
+
+input[pInputText],
+textarea[pTextarea] {
+    text-transform: uppercase;
+}
+
+:host ::ng-deep .p-datepicker-month-picker,
+:host ::ng-deep .p-datepicker-year-picker {
+    text-transform: uppercase;
+}
