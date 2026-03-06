@@ -38,6 +38,8 @@ export class IngresoLecturas implements OnInit {
 
   selectedMonth: string = '';
   availableMonths: { label: string, value: string }[] = [];
+  showPeriodConfirm: boolean = false;
+  isCurrentMonthSelected: boolean = false;
 
   // Usuarios agrupados con sus medidores
   users: UserAssignmentStatus[] = [];
@@ -59,6 +61,10 @@ export class IngresoLecturas implements OnInit {
   ngOnInit(): void {
     this.generateAvailableMonths();
     this.loadUsersAndStatus();
+    // Mostrar confirmación al entrar
+    setTimeout(() => {
+      this.showPeriodConfirm = true;
+    }, 500);
   }
 
   //formato para la lectura anterior
@@ -78,10 +84,21 @@ export class IngresoLecturas implements OnInit {
     return `${year}-${monthNames[monthIndex] || month}`;
   }
 
+  getFormattedSelectedMonth(): string {
+    if (!this.selectedMonth) return '';
+    const [year, month] = this.selectedMonth.split('-');
+    const monthNames = [
+      'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+      'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
+    ];
+    const monthIndex = parseInt(month, 10) - 1;
+    return `${year}-${monthNames[monthIndex] || month}`;
+  }
+
   generateAvailableMonths() {
     const now = new Date();
     const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
+    const currentMonth = now.getMonth(); // 0-11
 
     const monthNames = [
       'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -89,6 +106,7 @@ export class IngresoLecturas implements OnInit {
     ];
 
     this.availableMonths = [];
+    // Generar meses hasta el actual
     for (let i = 0; i <= currentMonth; i++) {
       const monthNum = (i + 1).toString().padStart(2, '0');
       this.availableMonths.push({
@@ -97,10 +115,26 @@ export class IngresoLecturas implements OnInit {
       });
     }
 
-    this.selectedMonth = this.availableMonths[this.availableMonths.length - 1].value;
+    // POR DEFECTO: Seleccionar el mes anterior (si existe en la lista)
+    // Si estamos en Enero (0), no hay mes anterior en el mismo año en esta lógica básica, 
+    // pero para ERPAGUA usualmente registrarán el mes cerrado.
+    if (this.availableMonths.length > 1) {
+      this.selectedMonth = this.availableMonths[this.availableMonths.length - 2].value;
+    } else {
+      this.selectedMonth = this.availableMonths[this.availableMonths.length - 1].value;
+    }
+
+    this.checkCurrentMonthSelection();
+  }
+
+  checkCurrentMonthSelection() {
+    const now = new Date();
+    const currentPeriod = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+    this.isCurrentMonthSelected = this.selectedMonth === currentPeriod;
   }
 
   onMonthChange() {
+    this.checkCurrentMonthSelection();
     this.selectedUser = null;
     this.selectedMeter = null;
     this.previousReadingData = null;

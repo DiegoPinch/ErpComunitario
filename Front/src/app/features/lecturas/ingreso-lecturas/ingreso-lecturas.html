@@ -1,4 +1,28 @@
 <p-toast></p-toast>
+
+<!-- Diálogo de Confirmación de Periodo al Iniciar -->
+<p-dialog [(visible)]="showPeriodConfirm" header="Confirmación de Periodo" [modal]="true" [style]="{ width: '400px' }"
+    [closable]="false" [draggable]="false" [resizable]="false">
+    <div class="flex flex-col items-center text-center gap-4 py-4">
+        <div class="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-2">
+            <i class="pi pi-calendar-clock text-3xl"></i>
+        </div>
+        <p class="text-gray-600 font-medium">Usted está a punto de registrar lecturas para el periodo:</p>
+        <div class="px-6 py-3 bg-blue-600 text-white rounded-2xl shadow-lg ring-4 ring-blue-100">
+            <span class="text-xl font-black uppercase">{{ getFormattedSelectedMonth() }}</span>
+        </div>
+        <p class="text-[10px] text-gray-400 uppercase font-bold tracking-widest mt-2">¿Es este el mes que desea
+            registrar?</p>
+    </div>
+    <ng-template pTemplate="footer">
+        <div class="flex flex-col gap-2 w-full">
+            <p-button label="SÍ, ES CORRECTO" icon="pi pi-check" (click)="showPeriodConfirm = false"
+                styleClass="p-button-info w-full rounded-xl py-3"></p-button>
+            <p-button label="NO, CAMBIAR MES" icon="pi pi-pencil" (click)="showPeriodConfirm = false"
+                styleClass="p-button-text p-button-secondary w-full text-xs"></p-button>
+        </div>
+    </ng-template>
+</p-dialog>
 <div class="flex flex-col md:flex-row gap-0 h-full bg-gray-50/30">
     <!-- Panel Izquierdo: Lista de Usuarios -->
     <div class="w-full md:w-80 bg-white shadow-sm border-r border-gray-100 flex flex-col h-full">
@@ -55,20 +79,44 @@
     <!-- Panel Derecho: Formulario de Lectura -->
     <div class="flex-1 flex flex-col h-full overflow-hidden">
         <!-- Header -->
-        <div class="bg-white p-4 border-b border-gray-100 flex justify-between items-center shadow-sm z-10">
-            <div class="flex items-center gap-4">
-                <span class="text-sm font-medium text-gray-500">Periodo:</span>
-                <select [(ngModel)]="selectedMonth" (change)="onMonthChange()"
-                    class="period-select px-3 py-2 rounded-lg text-sm font-bold bg-slate-100 border-none focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer">
-                    <option *ngFor="let month of availableMonths" [value]="month.value">
-                        {{month.label}}
-                    </option>
-                </select>
+        <div
+            class="bg-white p-4 border-b border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center shadow-sm z-10 gap-4">
+            <div class="flex flex-col gap-1 w-full md:w-auto">
+                <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Periodo de
+                    Registro</span>
+                <div class="flex items-center gap-2 group">
+                    <div class="relative flex-1 md:flex-none">
+                        <select [(ngModel)]="selectedMonth" (change)="onMonthChange()"
+                            class="period-select w-full md:w-64 px-4 py-3 rounded-xl text-base font-black bg-blue-50 text-blue-700 border-2 border-transparent focus:border-blue-400 focus:bg-white transition-all outline-none cursor-pointer appearance-none">
+                            <option *ngFor="let month of availableMonths" [value]="month.value">
+                                {{month.label | uppercase}}
+                            </option>
+                        </select>
+                        <i
+                            class="pi pi-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none"></i>
+                    </div>
+                </div>
             </div>
 
-            <div *ngIf="selectedUser" class="animate-fade-in flex items-center gap-2">
+            <!-- Banner de Advertencia si es el mes actual -->
+            <div *ngIf="isCurrentMonthSelected" class="flex-1 animate-pulse min-w-0 max-w-full">
+                <div class="bg-amber-50 border-2 border-amber-200 p-2 rounded-xl flex items-center gap-3">
+                    <div class="bg-amber-100 p-2 rounded-lg shrink-0">
+                        <i class="pi pi-exclamation-triangle text-amber-600 font-bold"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-[10px] font-black text-amber-800 uppercase leading-none mb-1">Cuidado: Mes Actual
+                        </p>
+                        <p class="text-[9px] text-amber-700 font-bold leading-tight">¿Seguro que quiere
+                            registrar {{ getFormattedSelectedMonth() }}? Casi siempre se registra el MES ANTERIOR.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div *ngIf="selectedUser"
+                class="animate-fade-in flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
                 <i class="pi pi-user text-blue-500"></i>
-                <span class="font-bold text-gray-700 leading-none">Medidores de {{selectedUser.user_name}}</span>
+                <span class="font-bold text-gray-700 leading-none">Lecturas de {{selectedUser.user_name}}</span>
             </div>
         </div>
 
@@ -133,8 +181,8 @@
                             <div class="flex gap-2">
                                 <span
                                     class="bg-slate-100 text-slate-600 text-[9px] px-2 py-1 rounded font-bold uppercase">{{selectedMeter.meter_type}}</span>
-                                <span
-                                    class="bg-blue-50 text-blue-600 text-[9px] px-2 py-1 rounded font-bold">{{selectedMonth}}</span>
+                                <span class="bg-blue-50 text-blue-600 text-[9px] px-2 py-1 rounded font-bold">{{
+                                    getFormattedSelectedMonth() }}</span>
                             </div>
                         </div>
 
