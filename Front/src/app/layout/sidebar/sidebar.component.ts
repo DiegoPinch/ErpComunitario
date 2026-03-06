@@ -104,7 +104,7 @@ export class SidebarComponent implements OnInit {
                         label: 'Estado de Caja',
                         icon: 'pi pi-calculator',
                         command: () => {
-                            // TODO: Navegar a vista de saldo y últimos movimientos
+                            this.router.navigate(['/layout/estado-caja']);
                         }
                     },
                 ]

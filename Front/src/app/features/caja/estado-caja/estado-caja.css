@@ -1,0 +1,11 @@
+:host ::ng-deep .p-progressbar {
+    background: #f1f5f9;
+}
+
+:host ::ng-deep .p-datatable .p-datatable-tbody>tr>td {
+    text-transform: uppercase;
+}
+
+.tabular-nums {
+    font-variant-numeric: tabular-nums;
+}
