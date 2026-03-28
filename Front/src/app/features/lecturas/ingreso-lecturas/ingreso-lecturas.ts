@@ -267,7 +267,17 @@ export class IngresoLecturas implements OnInit {
 
   //guardar lectura 
   onSaveReading() {
-    if (!this.selectedUser || !this.selectedMeter || this.currentReading === null) return;
+    const previous = this.previousReadingData?.previous_reading || 0;
+    if (!this.selectedUser || !this.selectedMeter || this.currentReading === null || !this.isEditable) return;
+
+    if (this.currentReading < previous) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Atención',
+        detail: 'La lectura actual no puede ser menor a la anterior.'
+      });
+      return;
+    }
 
     const request = {
       user_id: this.selectedUser.user_id,

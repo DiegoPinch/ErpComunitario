@@ -102,8 +102,7 @@
                             <div class="flex flex-col gap-3">
                                 <!-- Filtros de Mes -->
                                 <div *ngIf="needsMonthFilter()">
-                                    <label
-                                        class="text-[9px] font-bold text-gray-400 uppercase mb-2 block">Periodo</label>
+                                    <label class="text-[9px] font-bold text-gray-400 uppercase mb-2 block">Periodo</label>
                                     <div class="flex flex-col gap-2">
                                         <div>
                                             <label class="text-[8px] text-gray-500 mb-1 block">Mes Inicial</label>
@@ -116,6 +115,18 @@
                                             <input type="month" [(ngModel)]="selectedMonthEnd"
                                                 (change)="onMonthEndChange()" [min]="selectedMonthStart || minMonth"
                                                 [max]="maxMonth"
+                                                class="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Filtro de Fecha Específica -->
+                                <div *ngIf="needsDateFilter()">
+                                    <label class="text-[9px] font-bold text-gray-400 uppercase mb-2 block">Fecha de Cuadre</label>
+                                    <div class="flex flex-col gap-2">
+                                        <div>
+                                            <label class="text-[8px] text-gray-500 mb-1 block">Seleccione el Día</label>
+                                            <input type="date" [(ngModel)]="selectedDate"
                                                 class="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none">
                                         </div>
                                     </div>

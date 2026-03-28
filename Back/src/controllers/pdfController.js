@@ -59,8 +59,10 @@ const generateReceiptPdf = async (req, res) => {
 
         let doc;
         const totalGlobalToPay = groupedInvoices.reduce((acc, inv) => acc + inv.invoice_amount, 0);
-        const totalGlobalAmountPaid = groupedInvoices.reduce((acc, inv) => acc + inv.amount_paid, 0);
-        const totalGlobalChange = groupedInvoices.reduce((acc, inv) => acc + inv.change_amount, 0);
+        // amount_paid y change_amount son iguales en todas las facturas de la misma transacción.
+        // Tomamos los de la primera para evitar multiplicarlos por el nro de facturas.
+        const totalGlobalAmountPaid = groupedInvoices[0]?.amount_paid ?? 0;
+        const totalGlobalChange = groupedInvoices[0]?.change_amount ?? 0;
 
         const formatMonthName = (billingMonth) => {
             const months = {
@@ -80,7 +82,7 @@ const generateReceiptPdf = async (req, res) => {
             if (index === 0) {
                 doc = new PDFDocument({ margin: 15, size: [ticketWidth, pageHeight] });
                 const filename = `ticket_${firstRow.national_id}_${Date.now()}.pdf`;
-                res.setHeader('Content-disposition', `attachment; filename="${filename}"`);
+                res.setHeader('Content-disposition', `inline; filename="${filename}"`);
                 res.setHeader('Content-type', 'application/pdf');
                 doc.pipe(res);
             } else {
@@ -153,6 +155,7 @@ const generateReceiptPdf = async (req, res) => {
                 });
             }
 
+
             doc.moveTo(25, doc.y).lineTo(ticketWidth - 25, doc.y).dash(1, { space: 2 }).stroke('#ccc');
             doc.moveDown(0.3);
 
@@ -164,22 +167,29 @@ const generateReceiptPdf = async (req, res) => {
             doc.moveTo(15, doc.y).lineTo(ticketWidth - 15, doc.y).dash(1, { space: 1 }).stroke('#000');
             doc.moveDown(0.5);
 
-            // Totals area (Global summary for the transaction)
-            doc.fontSize(10).font('Helvetica-Bold').text('RESUMEN DE COBRO', { align: 'center' });
-            doc.moveDown(0.4);
+            const isLastInvoice = index === groupedInvoices.length - 1;
 
-            const drawRow = (label, value, isBig = false, color = '#000') => {
-                const currentY = doc.y;
-                doc.fillColor(color).fontSize(isBig ? 12 : 10).font(isBig ? 'Helvetica-Bold' : 'Helvetica').text(label, 15, currentY);
-                doc.text(value, 15, currentY, { align: 'right', width: ticketWidth - 30 });
-                doc.moveDown(0.2);
-            };
+            if (isLastInvoice) {
+                // Resumen global SOLO en el último ticket
+                const drawRow = (label, value, isBig = false, color = '#000') => {
+                    const currentY = doc.y;
+                    doc.fillColor(color).fontSize(isBig ? 12 : 10).font(isBig ? 'Helvetica-Bold' : 'Helvetica').text(label, 15, currentY);
+                    doc.text(value, 15, currentY, { align: 'right', width: ticketWidth - 30 });
+                    doc.moveDown(0.2);
+                };
+                doc.fontSize(10).font('Helvetica-Bold').text('RESUMEN DE COBRO', { align: 'center' });
+                doc.moveDown(0.4);
+                drawRow('TOTAL COBRADO:', `$${totalGlobalToPay.toFixed(2)}`, true);
+                drawRow('EFECTIVO RECIBIDO:', `$${totalGlobalAmountPaid.toFixed(2)}`);
+                drawRow('CAMBIO ENTREGADO:', `$${totalGlobalChange.toFixed(2)}`);
+                doc.fillColor('#000').moveDown(0.8);
+            } else {
+                // Tickets intermedios: remitir al último
+                doc.fontSize(8).font('Helvetica').fillColor('#555')
+                    .text('Ver resumen de cobro en el ultimo ticket', { align: 'center' });
+                doc.fillColor('#000').moveDown(0.5);
+            }
 
-            drawRow('TOTAL COBRADO:', `$${totalGlobalToPay.toFixed(2)}`, true);
-            drawRow('EFECTIVO RECIBIDO:', `$${totalGlobalAmountPaid.toFixed(2)}`);
-            drawRow('CAMBIO ENTREGADO:', `$${totalGlobalChange.toFixed(2)}`);
-
-            doc.fillColor('#000').moveDown(0.8);
             doc.fontSize(8).font('Helvetica-Bold').text('¡GRACIAS POR SU PAGO!', { align: 'center' });
             doc.fontSize(7).font('Helvetica').text('Conserve este ticket para cualquier reclamo', { align: 'center' });
             doc.moveDown(0.5);
@@ -187,6 +197,7 @@ const generateReceiptPdf = async (req, res) => {
             // Identificador de factura en esta página específica
             doc.fontSize(7).font('Helvetica').text(`RECIBO Nro: 001-001-${formatInvoiceId(inv.invoice_id)}`, { align: 'center' });
         });
+
 
         doc.end();
 

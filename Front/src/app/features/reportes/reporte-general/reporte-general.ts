@@ -43,6 +43,7 @@ export class ReporteGeneral implements OnInit {
   selectedReport: ReportType | null = null;
   selectedMonthStart: string = '';
   selectedMonthEnd: string = '';
+  selectedDate: string = '';
   minMonth: string = '';
   maxMonth: string = '';
 
@@ -100,16 +101,37 @@ export class ReporteGeneral implements OnInit {
       gradientFrom: '#f43f5e',
       gradientTo: '#e11d48',
       filters: []
+    },
+    {
+      id: 'daily-collections',
+      title: 'Recaudación Diaria / Cuadre de Caja',
+      description: 'Detalle de todos los cobros realizados en una fecha específica, útil para el cuadre de caja diario.',
+      icon: 'pi-wallet',
+      gradientFrom: '#0ea5e9',
+      gradientTo: '#0284c7',
+      filters: ['singleDate']
+    },
+    {
+      id: 'cash-balance',
+      title: 'Estado de Caja Consolidado',
+      description: 'Reporte gerencial mensual detallado mostrando las entradas, salidas y el saldo neto, junto al listado de egresos.',
+      icon: 'pi-building',
+      gradientFrom: '#047857',
+      gradientTo: '#064e3b',
+      filters: ['monthRange']
     }
   ];
 
   ngOnInit() {
-    // Inicializar con el mes actual
+    // Inicializar con el mes y fecha actual
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    
     this.selectedMonthStart = `${year}-${month}`;
     this.selectedMonthEnd = `${year}-${month}`;
+    this.selectedDate = `${year}-${month}-${day}`;
 
     // Permitir desde 5 años atrás hasta 2 años adelante
     this.minMonth = `${year - 5}-01`;
@@ -146,6 +168,15 @@ export class ReporteGeneral implements OnInit {
       return;
     }
 
+    if (this.needsDateFilter() && !this.selectedDate) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Atención',
+        detail: 'Por favor seleccione una fecha.'
+      });
+      return;
+    }
+
     let reportObservable: Observable<any[]>;
 
     switch (this.selectedReport.id) {
@@ -167,14 +198,23 @@ export class ReporteGeneral implements OnInit {
       case 'active-users':
         reportObservable = this.reportsService.getActiveUsersReport();
         break;
+      case 'daily-collections':
+        reportObservable = this.reportsService.getDailyCollectionsReport(this.selectedDate);
+        break;
+      case 'cash-balance':
+        reportObservable = this.reportsService.getCashBalanceReport(this.selectedMonthStart, this.selectedMonthEnd);
+        break;
       default:
         console.error('Reporte no reconocido');
         return;
     }
 
     reportObservable.subscribe({
-      next: (data: any[]) => {
-        if (!data || data.length === 0) {
+      next: (data: any) => {
+        // Soporte para reporte compuesto
+        const reportData = (data && data.resumen) ? data.resumen : data;
+
+        if (!reportData || reportData.length === 0) {
           this.messageService.add({
             severity: 'info',
             summary: 'Información',
@@ -184,13 +224,14 @@ export class ReporteGeneral implements OnInit {
         }
 
         if (format === 'excel') {
-          this.downloadCSV(data, this.selectedReport!.title);
+          this.downloadCSV(reportData, this.selectedReport!.title);
         } else {
           // Para PDF, abrimos la URL del backend directamente
           const pdfUrl = this.reportsService.getReportPdfUrl(
             this.selectedReport!.id,
-            this.selectedMonthStart,
-            this.selectedMonthEnd
+            this.needsMonthFilter() ? this.selectedMonthStart : undefined,
+            this.needsMonthFilter() ? this.selectedMonthEnd : undefined,
+            this.needsDateFilter() ? this.selectedDate : undefined
           );
           window.open(pdfUrl, '_blank');
         }
@@ -234,7 +275,7 @@ export class ReporteGeneral implements OnInit {
   }
 
   needsDateFilter(): boolean {
-    return this.selectedReport?.filters.includes('dateRange') || false;
+    return this.selectedReport?.filters.includes('singleDate') || false;
   }
 
   needsMonthFilter(): boolean {

@@ -193,14 +193,14 @@ export class RubrosLista implements OnInit {
 
     this.availableMonths = [];
 
-    // Generamos únicamente: Mes Anterior y Mes Actual
-    for (let i = -1; i <= 0; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    // Generamos desde Enero hasta el Mes Siguiente (para previsión)
+    for (let i = 0; i <= now.getMonth() + 1; i++) {
+      const d = new Date(now.getFullYear(), i, 1);
       const year = d.getFullYear();
-      const monthNum = (d.getMonth() + 1).toString().padStart(2, '0');
+      const monthNum = (i + 1).toString().padStart(2, '0');
 
       this.availableMonths.push({
-        label: `${monthNames[d.getMonth()]} ${year}`,
+        label: `${monthNames[i]} ${year}`,
         value: `${year}-${monthNum}`
       });
     }

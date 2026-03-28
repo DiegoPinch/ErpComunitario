@@ -20,4 +20,12 @@ router.get('/additional-charges', reportsController.getAdditionalCharges);
 // Directorio de Usuarios Activos
 router.get('/active-users', reportsController.getActiveUsers);
 
+// Reporte de Cobros Diarios
+router.get('/daily-collections', reportsController.getDailyCollections);
+
+// Reporte de Estado de Caja
+router.get('/cash-balance', reportsController.getCashBalance);
+
 module.exports = router;
+
+

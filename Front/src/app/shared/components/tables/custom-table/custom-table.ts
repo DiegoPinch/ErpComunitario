@@ -31,6 +31,7 @@ export class CustomTable {
   @Input() showIndex: boolean = false;
   @Input() globalFilterFields: string[] = [];
   @Input() actions: TableAction[] = [];
+  @Input() emptyMessage: string = 'No se encontraron registros.';
 
   clear(table: Table) {
     table.clear();

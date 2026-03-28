@@ -5,7 +5,7 @@ const pool = require('../config/db');
  */
 const getCurrentBalance = async () => {
     // 1. Ingresos Pagos de facturas
-    const [incomeResult] = await pool.query('SELECT SUM(amount_paid) as total_income FROM payments');
+    const [incomeResult] = await pool.query('SELECT SUM(invoice_amount) as total_income FROM payments');
     const totalIncome = parseFloat(incomeResult[0]?.total_income || 0);
 
     // 2. Egresos totales (Gastos registrados)
@@ -30,6 +30,16 @@ const getCollectionByConcept = async () => {
         JOIN invoices i ON ic.invoice_id = i.invoice_id
         WHERE i.status = 'paid'
         GROUP BY ac.concept_id, ac.description
+
+        UNION ALL
+
+        SELECT 
+            0 as concept_id,
+            'CONSUMO DE AGUA' as description,
+            SUM(r.amount) as total_collected
+        FROM readings r
+        JOIN invoices i ON r.invoice_id = i.invoice_id
+        WHERE i.status = 'paid'
     `;
     const [rows] = await pool.query(query);
     return rows;

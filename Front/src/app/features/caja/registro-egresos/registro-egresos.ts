@@ -20,6 +20,7 @@ import { ExpenseCategoryService } from '../../../core/services/expense-category.
 import { Expense, ExpenseCategory } from '../../../core/models/financial.model';
 import { CustomTable } from '../../../shared/components/tables/custom-table/custom-table';
 import { TableAction } from '../../../shared/components/tables/custom-table/table-action.model';
+import { parseLocalDate } from '../../../shared/utils/date-utils';
 
 @Component({
   selector: 'app-registro-egresos',
@@ -60,6 +61,23 @@ export class RegistroEgresos implements OnInit {
 
   cols: any[] = [];
   actions: TableAction[] = [];
+  get filterLabel(): string {
+    if (!this.filterDates || !this.filterDates[0] || !this.filterDates[1]) return 'Todo el tiempo';
+    return `${this.filterDates[0].toLocaleDateString()} al ${this.filterDates[1].toLocaleDateString()}`;
+  }
+
+  get isDateOutOfFilter(): boolean {
+    const selectedDate = this.expenseForm.get('expense_date')?.value;
+    if (!selectedDate || !this.filterDates || !this.filterDates[0] || !this.filterDates[1]) return false;
+
+    const d = new Date(selectedDate);
+    const start = new Date(this.filterDates[0]);
+    const end = new Date(this.filterDates[1]);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+
+    return d < start || d > end;
+  }
 
   displayDialog: boolean = false;
   dialogTitle: string = 'Registrar Nuevo Egreso';
@@ -127,12 +145,12 @@ export class RegistroEgresos implements OnInit {
         end.setHours(23, 59, 59, 999);
 
         return expenses.filter(e => {
-          const d = new Date(e.expense_date);
+          const d = parseLocalDate(e.expense_date);
           return d >= start && d <= end;
         }).map(e => ({
           ...e,
           amount_display: `$${parseFloat(e.amount.toString()).toFixed(2)}`,
-          date_display: new Date(e.expense_date).toLocaleDateString()
+          date_display: parseLocalDate(e.expense_date).toLocaleDateString()
         }));
       })
     );
@@ -179,7 +197,7 @@ export class RegistroEgresos implements OnInit {
   onEdit(expense: any) {
     this.expenseForm.patchValue({
       ...expense,
-      expense_date: new Date(expense.expense_date)
+      expense_date: parseLocalDate(expense.expense_date)
     });
     this.dialogTitle = 'Editar Egreso';
     this.displayDialog = true;
@@ -229,6 +247,27 @@ export class RegistroEgresos implements OnInit {
           summary: 'Éxito',
           detail: expenseId ? 'Egreso actualizado correctamente' : 'Egreso registrado correctamente'
         });
+
+        // Verificar si la fecha está fuera del filtro actual
+        if (this.filterDates && this.filterDates[0] && this.filterDates[1]) {
+          const expenseDate = parseLocalDate(expenseData.expense_date);
+          const start = new Date(this.filterDates[0]);
+          const end = new Date(this.filterDates[1]);
+          start.setHours(0, 0, 0, 0);
+          end.setHours(23, 59, 59, 999);
+
+          if (expenseDate < start || expenseDate > end) {
+            setTimeout(() => {
+              this.messageService.add({
+                severity: 'info',
+                summary: 'Nota',
+                detail: 'El registro se guardó pero no se muestra porque está fuera del rango seleccionado.',
+                life: 6000
+              });
+            }, 500);
+          }
+        }
+
         this.displayDialog = false;
         this.loadInitialData();
       },

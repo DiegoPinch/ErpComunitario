@@ -267,9 +267,8 @@ export class FacturasGeneral implements OnInit {
 
     this.invoicesService.collectPayments(this.invoicesToCollect, this.amountReceived, this.changeAmount).subscribe({
       next: () => {
-        // Generar y descargar Factura PDF
-        const receiptUrl = this.invoicesService.getReceiptUrl(this.invoicesToCollect);
-        window.open(receiptUrl, '_blank');
+        // Imprimir recibo directamente sin descargar
+        this.invoicesService.printReceipt(this.invoicesToCollect).subscribe();
 
         this.showPaymentDialog = false;
         this.amountReceived = 0;
@@ -342,8 +341,7 @@ export class FacturasGeneral implements OnInit {
   }
 
   downloadPDF(invoice: Invoice) {
-    const receiptUrl = this.invoicesService.getReceiptUrl([invoice.invoice_id]);
-    window.open(receiptUrl, '_blank');
+    this.invoicesService.printReceipt([invoice.invoice_id]).subscribe();
   }
 
   formatMonth(billingMonth: string): string {

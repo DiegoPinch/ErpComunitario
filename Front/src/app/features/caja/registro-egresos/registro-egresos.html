@@ -31,9 +31,24 @@
         </div>
     </div>
 
+    <!-- Info Filtro -->
+    <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6 flex items-center justify-between shadow-sm rounded-r-lg">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-info-circle text-blue-600 text-xl"></i>
+            <div>
+                <p class="text-blue-800 font-medium text-sm uppercase tracking-tight">Mostrando registros del periodo:</p>
+                <p class="text-blue-700 font-black text-xl leading-tight">{{filterLabel}}</p>
+            </div>
+        </div>
+        <div class="hidden lg:block text-right">
+            <span class="text-xs text-blue-400 uppercase font-bold tracking-widest bg-blue-100 px-2 py-1 rounded">Filtro Activo</span>
+        </div>
+    </div>
+
     <!-- Tabla -->
     <app-custom-table [data]="(expenses$ | async) || []" [columns]="cols" title="Listado de Egresos" [showIndex]="true"
-        [globalFilterFields]="['description', 'category_name']" [actions]="actions">
+        [globalFilterFields]="['description', 'category_name']" [actions]="actions"
+        [emptyMessage]="'No se encontraron egresos para el rango: ' + filterLabel">
     </app-custom-table>
 
     <!-- Modal Registro -->
@@ -48,6 +63,15 @@
                 <div class="text-xs text-orange-700">
                     <strong>Atención:</strong> El monto no puede superar el saldo disponible de
                     <strong>${{balance}}</strong>.
+                </div>
+            </div>
+
+            <!-- Alerta Fuera de Rango -->
+            <div *ngIf="isDateOutOfFilter" class="bg-blue-50 border-l-2 border-blue-400 p-3 flex gap-3 items-center animate-fadein">
+                <i class="pi pi-info-circle text-blue-500"></i>
+                <div class="text-xs text-blue-700">
+                    <strong>Aviso:</strong> Esta fecha está fuera del filtro actual ({{filterLabel}}). 
+                    El registro se guardará, pero no aparecerá en la tabla hasta que cambie el rango de fechas.
                 </div>
             </div>
 

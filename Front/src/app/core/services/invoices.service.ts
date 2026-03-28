@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { UserPendingSummary, Invoice } from '../models/invoice.model';
 
@@ -57,4 +58,36 @@ export class InvoicesService {
     getReceiptUrl(invoiceIds: number[]): string {
         return `${this.paymentsUrl}/receipt?invoiceIds=${invoiceIds.join(',')}`;
     }
+
+    /**
+     * Imprime el recibo directamente sin descargarlo.
+     * Carga el PDF en un iframe oculto y dispara el diálogo de impresión del navegador.
+     */
+    printReceipt(invoiceIds: number[]): Observable<void> {
+        const url = this.getReceiptUrl(invoiceIds);
+        return this.http.get(url, { responseType: 'blob' }).pipe(
+            map(blob => {
+                const blobUrl = URL.createObjectURL(blob);
+                const iframe = document.createElement('iframe');
+                iframe.style.position = 'fixed';
+                iframe.style.top = '-9999px';
+                iframe.style.left = '-9999px';
+                iframe.style.width = '0';
+                iframe.style.height = '0';
+                iframe.src = blobUrl;
+                document.body.appendChild(iframe);
+                iframe.onload = () => {
+                    iframe.contentWindow?.print();
+                    // Limpiar recursos después de 2 minutos
+                    setTimeout(() => {
+                        if (document.body.contains(iframe)) {
+                            document.body.removeChild(iframe);
+                        }
+                        URL.revokeObjectURL(blobUrl);
+                    }, 120000);
+                };
+            })
+        );
+    }
+
 }

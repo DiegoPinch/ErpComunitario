@@ -147,6 +147,82 @@ const getActiveUsersReport = async () => {
     return rows;
 };
 
+/**
+ * Report: Cobros por Fecha de Pago
+ * Lista todos los pagos realizados en una fecha específica, sin importar el mes de facturación.
+ */
+const getDailyCollectionsReport = async (date) => {
+    const query = `
+        SELECT 
+            DATE(p.payment_date)        AS fecha_cobro,
+            i.billing_month             AS mes_factura,
+            u.national_id,
+            CONCAT(u.last_name, ' ', u.first_name) AS cliente,
+            i.invoice_id,
+            i.total_amount              AS monto_factura,
+            p.amount_paid               AS efectivo_recibido,
+            p.change_amount             AS cambio_entregado,
+            p.payment_method            AS forma_pago
+        FROM payments p
+        JOIN invoices i ON p.invoice_id = i.invoice_id
+        JOIN users u    ON i.user_id = u.user_id
+        WHERE DATE(p.payment_date) = ?
+          AND p.movement_type = 'payment'
+        ORDER BY p.payment_date ASC, u.last_name ASC, u.first_name ASC;
+    `;
+    const [rows] = await pool.query(query, [date]);
+    return rows;
+};
+
+/**
+ * Report: Estado de Caja (Ingresos y Egresos por Mes)
+ * Devuelve montos consolidados de ingresos y egresos agrupados por mes-año.
+ */
+const getCashBalanceReport = async (startMonth, endMonth) => {
+    // Para simplificar la compatibilidad de SQL, traemos ingresos y egresos agrupados
+    // y los uniremos en el controlador
+    const incQuery = `
+        SELECT i.billing_month AS mes, SUM(p.invoice_amount) AS total_ingresos
+        FROM payments p
+        JOIN invoices i ON p.invoice_id = i.invoice_id
+        WHERE i.billing_month BETWEEN ? AND ?
+          AND p.movement_type = 'payment'
+        GROUP BY mes
+    `;
+    const expQuery = `
+        SELECT DATE_FORMAT(expense_date, '%Y-%m') AS mes, SUM(amount) AS total_egresos
+        FROM expenses
+        WHERE DATE_FORMAT(expense_date, '%Y-%m') BETWEEN ? AND ?
+        GROUP BY mes
+    `;
+    
+    const [ingresos] = await pool.query(incQuery, [startMonth, endMonth]);
+    const [egresos] = await pool.query(expQuery, [startMonth, endMonth]);
+    
+    return { ingresos, egresos };
+};
+
+/**
+ * Report: Detalle de Egresos
+ * Lista cada gasto individual en un rango de meses (Para el desglose del PDF).
+ */
+const getCashExpensesDetailReport = async (startMonth, endMonth) => {
+    const query = `
+        SELECT 
+            e.expense_date,
+            c.name AS category_name,
+            e.description,
+            e.payment_method,
+            e.amount
+        FROM expenses e
+        LEFT JOIN expense_categories c ON e.category_id = c.category_id
+        WHERE DATE_FORMAT(e.expense_date, '%Y-%m') BETWEEN ? AND ?
+        ORDER BY e.expense_date ASC
+    `;
+    const [rows] = await pool.query(query, [startMonth, endMonth]);
+    return rows;
+};
+
 module.exports = {
     getUsersMetersReport,
     getReadingsReport,
@@ -154,4 +230,9 @@ module.exports = {
     getDelinquencyReport,
     getAdditionalChargesReport,
     getActiveUsersReport,
+    getDailyCollectionsReport,
+    getCashBalanceReport,
+    getCashExpensesDetailReport,
 };
+
+

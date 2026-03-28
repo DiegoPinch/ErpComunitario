@@ -21,13 +21,12 @@ const collectPayments = async (invoiceIds, amountPaid, changeAmount) => {
 
       await connection.query('UPDATE invoices SET status = "paid" WHERE invoice_id = ?', [item.id]);
 
-      const isLast = (i === invoiceDetails.length - 1);
-      const currentChange = isLast ? changeAmount : 0;
-
+      // Guardar amount_paid y change_amount REALES en todas las facturas de la transacción.
+      // Así al re-imprimir cualquier factura individual el resumen es siempre correcto.
       await connection.query(
         `INSERT INTO payments (invoice_id, payment_date, invoice_amount, amount_paid, change_amount, movement_type, payment_method)
              VALUES (?, NOW(), ?, ?, ?, "payment", "cash")`,
-        [item.id, item.amount, isLast ? (amountPaid - (totalInvoicesAmount - item.amount)) : item.amount, currentChange]
+        [item.id, item.amount, amountPaid, changeAmount]
       );
     }
 

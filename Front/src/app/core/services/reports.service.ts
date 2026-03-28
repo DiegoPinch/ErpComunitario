@@ -42,10 +42,19 @@ export class ReportsService {
         return this.http.get<ActiveUsersReport[]>(`${this.apiUrl}/active-users`);
     }
 
-    getReportPdfUrl(reportId: string, startMonth?: string, endMonth?: string): string {
+    getDailyCollectionsReport(date: string): Observable<any[]> {
+        return this.http.get<any[]>(`${this.apiUrl}/daily-collections`, { params: { date } });
+    }
+
+    getCashBalanceReport(startMonth: string, endMonth: string): Observable<any> {
+        return this.http.get<any>(`${this.apiUrl}/cash-balance`, { params: { startMonth, endMonth } });
+    }
+
+    getReportPdfUrl(reportId: string, startMonth?: string, endMonth?: string, date?: string): string {
         let url = `${this.apiUrl}/${reportId}?format=pdf`;
         if (startMonth) url += `&startMonth=${startMonth}`;
         if (endMonth) url += `&endMonth=${endMonth}`;
+        if (date) url += `&date=${date}`;
         return url;
     }
 }

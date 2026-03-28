@@ -33,7 +33,7 @@ const formatDate = (dateStr) => {
  * Helper para generar el diseño base del PDF
  */
 const generatePDF = (res, title, data, columns, period = null, totalKey = null) => {
-    const doc = new PDFDocument({ margin: 30, size: 'A4' });
+    const doc = new PDFDocument({ margin: 30, size: 'A4', bufferPages: true });
 
     // Configurar headers para descarga
     res.setHeader('Content-Type', 'application/pdf');
@@ -192,10 +192,14 @@ const generatePDF = (res, title, data, columns, period = null, totalKey = null) 
     }
 
     // Footer
-    const pageCount = doc.bufferedPageRange().count;
-    for (let i = 0; i < pageCount; i++) {
-        doc.switchToPage(i);
-        doc.fontSize(8).fillColor('#94a3b8').text(`Página ${i + 1}`, 30, doc.page.height - 40, { align: 'center' });
+    try {
+        const pageCount = doc.bufferedPageRange().count;
+        for (let i = 0; i < pageCount; i++) {
+            doc.switchToPage(i);
+            doc.fontSize(8).fillColor('#94a3b8').text(`Página ${i + 1}`, 30, doc.page.height - 40, { align: 'center' });
+        }
+    } catch (footerErr) {
+        console.error('Error al generar footer de PDF:', footerErr);
     }
 
     doc.end();
@@ -348,11 +352,221 @@ const getActiveUsers = async (req, res, next) => {
     }
 };
 
+const getDailyCollections = async (req, res, next) => {
+    try {
+        const { date, format } = req.query;
+        if (!date) {
+            return res.status(400).json({ message: 'El parámetro date (YYYY-MM-DD) es requerido.' });
+        }
+        const data = await reportsModel.getDailyCollectionsReport(date);
+
+        if (format === 'pdf') {
+            const cols = [
+                { label: 'Cliente',          key: 'cliente',           width: 170 },
+                { label: 'Mes Factura',      key: 'mes_factura',       width: 75  },
+                { label: 'Nro Fact.',        key: 'invoice_id',        width: 50  },
+                { label: 'Monto $',          key: 'monto_factura',     width: 60  },
+                { label: 'Efectivo $',       key: 'efectivo_recibido', width: 60  },
+                { label: 'Cambio $',         key: 'cambio_entregado',  width: 60  },
+            ];
+            const [y, m, d] = date.split('-');
+            generatePDF(res, `Cobros del día ${d}/${m}/${y}`, data, cols, date, 'monto_factura');
+        } else {
+            res.json(data);
+        }
+    } catch (err) {
+        next(err);
+    }
+};
+
+const getCashBalance = async (req, res, next) => {
+    try {
+        const { startMonth, endMonth, format } = req.query;
+        if (!startMonth || !endMonth) {
+            return res.status(400).json({ message: 'Mes inicial y final son requeridos (YYYY-MM)' });
+        }
+
+        const formatPeriod = (ym) => {
+            if (!ym) return '';
+            const [y, m] = ym.split('-');
+            const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            return `${months[parseInt(m) - 1]} ${y}`;
+        };
+
+        const formatDate = (dateStr) => {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('es-ES', { year:'numeric', month:'2-digit', day:'2-digit' });
+        };
+
+        const data = await reportsModel.getCashBalanceReport(startMonth, endMonth);
+        const details = await reportsModel.getCashExpensesDetailReport(startMonth, endMonth);
+
+        // Agrupar todo mes a mes en un Map para el resumen
+        const summaryMap = new Map();
+        
+        data.ingresos.forEach(i => {
+            if (!summaryMap.has(i.mes)) summaryMap.set(i.mes, { mes: i.mes, ingresos: 0, egresos: 0, saldo: 0 });
+            summaryMap.get(i.mes).ingresos = parseFloat(i.total_ingresos);
+        });
+        data.egresos.forEach(e => {
+            if (!summaryMap.has(e.mes)) summaryMap.set(e.mes, { mes: e.mes, ingresos: 0, egresos: 0, saldo: 0 });
+            summaryMap.get(e.mes).egresos = parseFloat(e.total_egresos);
+        });
+
+        // Convertir a Array y calcular saldos
+        const summaryArr = Array.from(summaryMap.values()).map(row => {
+            row.saldo = row.ingresos - row.egresos;
+            return row;
+        }).sort((a, b) => a.mes.localeCompare(b.mes)); // Orden cronológico cronológico
+
+        if (format === 'pdf') {
+            const doc = new PDFDocument({ margin: 30, size: 'A4', bufferPages: true });
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `attachment; filename=Estado_Caja_${startMonth}_${endMonth}.pdf`);
+            doc.pipe(res);
+
+            // ================= HEADER GENERAL =================
+            doc.fillColor('#1d4ed8').fontSize(20).text('JUNTA ADMINISTRADORA DE AGUA POTABLE COMUNIDAD CHALUAPAMBA', { align: 'center' });
+            doc.fontSize(10).fillColor('#64748b').text('Gestión Eficiente y Transparente', { align: 'center' });
+            doc.moveDown(1.5);
+            
+            const titleY = doc.y;
+            doc.rect(30, titleY, 535, 30).fill('#f1f5f9');
+            doc.fillColor('#1e293b').fontSize(14).text('ESTADO DE CAJA CONSOLIDADO', 40, titleY + 8, { bold: true });
+            
+            const infoY = titleY + 35;
+            doc.fontSize(9).fillColor('#64748b');
+            doc.text(`Fecha de Emisión: ${new Date().toLocaleString()}`, 30, infoY, { width: 535, align: 'right' });
+            doc.fillColor('#1e293b').fontSize(10).text(`Periodo: ${formatPeriod(startMonth)} a ${formatPeriod(endMonth)}`, 30, infoY, { width: 535, align: 'left' });
+            doc.moveDown(2);
+
+
+            // ================= SECCIÓN 1: RESUMEN MENSUAL =================
+            doc.fontSize(12).fillColor('#1e293b').text('RESUMEN DE INGRESOS, EGRESOS Y SALDOS POR MES', 30, doc.y, { bold: true });
+            doc.moveDown(0.5);
+
+            let tableTop = doc.y;
+            const resCols = [
+                { label: '', x: 35, w: 150 }, // Se dibuja manual abajo a la izq
+                { label: 'TOTAL INGRESOS', x: 200, w: 100 },
+                { label: 'TOTAL EGRESOS', x: 320, w: 100 },
+                { label: 'SALDO DEL MES', x: 440, w: 100 }
+            ];
+
+            // Header Tabla 1
+            doc.rect(30, tableTop, 535, 20).fill('#3b82f6');
+            doc.fillColor('#ffffff').fontSize(9);
+            resCols.forEach(c => { if(c.label) doc.text(c.label, c.x, tableTop + 5, { width: c.w, align: 'right' }); });
+            
+            // Excepción de alineamiento param es
+            doc.text('MES / PERIODO', 40, tableTop + 5, { width: 140, align: 'left' });
+
+            let y = tableTop + 25;
+            let sumIn = 0, sumOut = 0, sumBal = 0;
+
+            summaryArr.forEach((row, i) => {
+                sumIn += row.ingresos; sumOut += row.egresos; sumBal += row.saldo;
+                if (i % 2 === 0) doc.rect(30, y - 5, 535, 20).fill('#f8fafc');
+                
+                doc.fillColor('#475569').fontSize(9);
+                doc.text(formatPeriod(row.mes), 40, y);
+                doc.text(`$ ${row.ingresos.toFixed(2)}`, resCols[1].x, y, { width: resCols[1].w, align: 'right' });
+                doc.text(`$ ${row.egresos.toFixed(2)}`, resCols[2].x, y, { width: resCols[2].w, align: 'right' });
+                doc.fillColor(row.saldo >= 0 ? '#10b981' : '#ef4444')
+                   .text(`$ ${(row.saldo).toFixed(2)}`, resCols[3].x, y, { width: resCols[3].w, align: 'right', bold: true });
+                y += 20;
+            });
+
+            // Fila de Total
+            doc.rect(30, y - 5, 535, 25).fill('#1e293b');
+            doc.fillColor('#ffffff').fontSize(10).text('TOTAL ACUMULADO DEL PERIODO:', 40, y + 5, { bold: true });
+            doc.text(`$ ${sumIn.toFixed(2)}`, resCols[1].x, y + 5, { width: resCols[1].w, align: 'right', bold: true });
+            doc.text(`$ ${sumOut.toFixed(2)}`, resCols[2].x, y + 5, { width: resCols[2].w, align: 'right', bold: true });
+            doc.text(`$ ${sumBal.toFixed(2)}`, resCols[3].x, y + 5, { width: resCols[3].w, align: 'right', bold: true });
+            
+            doc.moveDown(3);
+
+
+            // ================= SECCIÓN 2: DETALLE DE EGRESOS =================
+            if (doc.y > 600) doc.addPage();
+            
+            doc.fontSize(12).fillColor('#1e293b').text('DETALLE DE REGISTRO DE EGRESOS Y GASTOS', 30, doc.y, { bold: true });
+            doc.moveDown(0.5);
+
+            tableTop = doc.y;
+            const detCols = [
+                { label: 'FECHA', x: 35, w: 60 },
+                { label: 'CATEGORÍA', x: 100, w: 120 },
+                { label: 'DESCRIPCIÓN', x: 230, w: 230 },
+                { label: 'FORMA', x: 470, w: 40 },
+                { label: 'MONTO', x: 510, w: 50 },
+            ];
+
+            // Header Tabla 2
+            const drawTable2Header = (newY) => {
+                doc.rect(30, newY, 535, 20).fill('#64748b');
+                doc.fillColor('#ffffff').fontSize(8);
+                detCols.forEach(c => doc.text(c.label, c.x, newY + 5, { width: c.w, align: c.label === 'MONTO' ? 'right' : 'left' }));
+                return newY + 25;
+            };
+
+            y = drawTable2Header(tableTop);
+
+            if (details.length === 0) {
+                doc.fillColor('#64748b').fontSize(9).text('No hay egresos registrados en este periodo.', 40, y+5);
+            } else {
+                details.forEach((row, i) => {
+                    // Control de salto de pagina
+                    const heights = [doc.heightOfString(row.description || '', { width: detCols[2].w, fontSize: 8 })];
+                    const rowH = Math.max(...heights) + 10;
+                    
+                    if (y + rowH > 780) {
+                        doc.addPage();
+                        y = drawTable2Header(50);
+                    }
+
+                    if (i % 2 === 0) doc.rect(30, y - 5, 535, rowH).fill('#f8fafc');
+
+                    doc.fillColor('#475569').fontSize(8);
+                    doc.text(formatDate(row.expense_date).split(' ')[0], detCols[0].x, y); // solo fecha
+                    doc.text(row.category_name || 'Sin Categoría', detCols[1].x, y, { width: detCols[1].w });
+                    doc.text(row.description || '-', detCols[2].x, y, { width: detCols[2].w, lineGap: 2 });
+                    doc.text(row.payment_method === 'cash' ? 'Efec.' : 'Transf.', detCols[3].x, y);
+                    doc.fillColor('#ef4444').text(`$${parseFloat(row.amount).toFixed(2)}`, detCols[4].x, y, { width: detCols[4].w, align: 'right', bold: true });
+
+                    y += rowH;
+                });
+            }
+
+            // Footer
+            try {
+                const pageCount = doc.bufferedPageRange().count;
+                for (let i = 0; i < pageCount; i++) {
+                    doc.switchToPage(i);
+                    doc.fontSize(8).fillColor('#94a3b8').text(`Página ${i + 1}`, 30, doc.page.height - 40, { align: 'center' });
+                }
+            } catch (err) {}
+
+            doc.end();
+
+        } else {
+            res.json({ resumen: summaryArr, detalle: details });
+        }
+    } catch (err) {
+        next(err);
+    }
+};
+
 module.exports = {
     getUsersMeters,
     getReadings,
     getRecollection,
     getDelinquency,
     getAdditionalCharges,
-    getActiveUsers
+    getActiveUsers,
+    getDailyCollections,
+    getCashBalance,
 };
+
+

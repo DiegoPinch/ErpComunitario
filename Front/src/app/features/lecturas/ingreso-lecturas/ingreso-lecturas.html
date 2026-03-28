@@ -99,7 +99,7 @@
             </div>
 
             <!-- Banner de Advertencia si es el mes actual -->
-            <div *ngIf="isCurrentMonthSelected" class="flex-1 animate-pulse min-w-0 max-w-full">
+            <div *ngIf="isCurrentMonthSelected" class="flex-shrink-0 animate-pulse w-full md:w-80 overflow-hidden">
                 <div class="bg-amber-50 border-2 border-amber-200 p-2 rounded-xl flex items-center gap-3">
                     <div class="bg-amber-100 p-2 rounded-lg shrink-0">
                         <i class="pi pi-exclamation-triangle text-amber-600 font-bold"></i>
@@ -212,6 +212,7 @@
                                     <p class="text-[9px] font-bold text-blue-500 uppercase mb-2">Actual</p>
                                     <div class="relative w-fit mx-auto">
                                         <input type="number" [(ngModel)]="currentReading" [disabled]="!isEditable"
+                                            (keyup.enter)="onSaveReading()"
                                             class="w-36 h-20 text-center text-3xl font-black rounded-2xl border-4 border-blue-100 focus:border-blue-500 focus:ring-0 bg-white shadow-md text-blue-700 disabled:opacity-50 disabled:bg-slate-100"
                                             placeholder="0" pInputText>
                                         <div

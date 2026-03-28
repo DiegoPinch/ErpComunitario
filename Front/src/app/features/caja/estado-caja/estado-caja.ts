@@ -9,6 +9,7 @@ import { FinancialService } from '../../../core/services/financial.service';
 import { FinancialBalance, ConceptCollection, Expense } from '../../../core/models/financial.model';
 import { CustomTable } from '../../../shared/components/tables/custom-table/custom-table';
 import { TableAction } from '../../../shared/components/tables/custom-table/table-action.model';
+import { parseLocalDate } from '../../../shared/utils/date-utils';
 
 @Component({
   selector: 'app-estado-caja',
@@ -77,7 +78,7 @@ export class EstadoCaja implements OnInit {
       map(expenses => expenses.slice(0, 10).map(e => ({
         ...e,
         amount_display: `$${parseFloat(e.amount.toString()).toFixed(2)}`,
-        date_display: new Date(e.expense_date).toLocaleDateString(),
+        date_display: parseLocalDate(e.expense_date).toLocaleDateString(),
         description: e.description.toUpperCase(),
         category_name: e.category_name?.toUpperCase()
       })))
