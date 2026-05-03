@@ -41,7 +41,7 @@ const generateReceiptPdf = async (req, res) => {
 
         const groupedInvoices = Array.from(invoicesMap.values());
         const firstRow = rawData[0];
-        const ticketWidth = 226; // 80mm approx
+        const ticketWidth = 204; // 72mm aprox de ancho imprimible real para impresoras POS-80C
 
         // Function to calculate height for a single invoice page
         const calcPageHeight = (inv) => {
@@ -80,13 +80,13 @@ const generateReceiptPdf = async (req, res) => {
             const pageHeight = calcPageHeight(inv);
 
             if (index === 0) {
-                doc = new PDFDocument({ margin: 15, size: [ticketWidth, pageHeight] });
+                doc = new PDFDocument({ margin: 10, size: [ticketWidth, pageHeight] });
                 const filename = `ticket_${firstRow.national_id}_${Date.now()}.pdf`;
                 res.setHeader('Content-disposition', `inline; filename="${filename}"`);
                 res.setHeader('Content-type', 'application/pdf');
                 doc.pipe(res);
             } else {
-                doc.addPage({ size: [ticketWidth, pageHeight], margin: 15 });
+                doc.addPage({ size: [ticketWidth, pageHeight], margin: 10 });
             }
 
             // --- Page Content ---
@@ -95,7 +95,7 @@ const generateReceiptPdf = async (req, res) => {
             doc.fontSize(9).font('Helvetica-Bold').text('COMUNIDAD CHALUAPAMBA', { align: 'center' });
             doc.moveDown(0.5);
 
-            doc.moveTo(15, doc.y).lineTo(ticketWidth - 15, doc.y).dash(1, { space: 1 }).stroke('#000');
+            doc.moveTo(10, doc.y).lineTo(ticketWidth - 10, doc.y).dash(1, { space: 1 }).stroke('#000');
             doc.moveDown(0.5);
 
             // Header Info
@@ -105,8 +105,8 @@ const generateReceiptPdf = async (req, res) => {
             doc.fontSize(9).font('Helvetica');
             const drawHeaderLine = (label, value) => {
                 const y = doc.y;
-                doc.font('Helvetica-Bold').fontSize(9).text(label, 15, y);
-                doc.font('Helvetica').fontSize(9).text(value, 60, y, { align: 'right', width: ticketWidth - 75 });
+                doc.font('Helvetica-Bold').fontSize(9).text(label, 10, y);
+                doc.font('Helvetica').fontSize(9).text(value, 55, y, { align: 'right', width: ticketWidth - 65 });
                 doc.moveDown(0.1);
             };
 
@@ -116,22 +116,22 @@ const generateReceiptPdf = async (req, res) => {
             drawHeaderLine('CI/RUC:', maskedID);
             doc.moveDown(0.4);
 
-            doc.moveTo(15, doc.y).lineTo(ticketWidth - 15, doc.y).dash(1, { space: 1 }).stroke('#000');
+            doc.moveTo(10, doc.y).lineTo(ticketWidth - 10, doc.y).dash(1, { space: 1 }).stroke('#000');
             doc.moveDown(0.5);
 
             // Invoice Content
-            doc.font('Helvetica-Bold').fontSize(10).fillColor('#000').text(`MES: ${formatMonthName(inv.billing_month)}`);
+            doc.font('Helvetica-Bold').fontSize(10).fillColor('#000').text(`MES: ${formatMonthName(inv.billing_month)}`, { align: 'center' });
             doc.moveDown(0.3);
 
             inv.readings.forEach(read => {
                 const startY = doc.y;
-                doc.font('Helvetica-Bold').fontSize(9).text(read.type?.toUpperCase() || 'MEDIDOR', 15, startY);
-                doc.font('Helvetica').fontSize(9).text(`${read.cons} m3`, 85, startY, { width: 45, align: 'right' });
-                doc.font('Helvetica-Bold').fontSize(9).text(`$${parseFloat(read.amount || 0).toFixed(2)}`, 135, startY, { width: 76, align: 'right' });
+                doc.font('Helvetica-Bold').fontSize(9).text(read.type?.toUpperCase() || 'MEDIDOR', 10, startY);
+                doc.font('Helvetica').fontSize(9).text(`${read.cons} m3`, 75, startY, { width: 45, align: 'right' });
+                doc.font('Helvetica-Bold').fontSize(9).text(`$${parseFloat(read.amount || 0).toFixed(2)}`, 120, startY, { width: 74, align: 'right' });
 
                 doc.moveDown(0.05);
-                doc.fontSize(8).font('Helvetica').fillColor('#444').text(`Lect: ${read.prev || 0} - ${read.curr || 0}`, 20, doc.y);
-                doc.fillColor('#000').moveDown(0.35);
+                doc.fontSize(9).font('Helvetica').fillColor('#000').text(`Lect: ${read.prev || 0} - ${read.curr || 0}`, 15, doc.y);
+                doc.moveDown(0.35);
             });
 
             // --- Rendición de Rubros Adicionales ---
@@ -142,13 +142,13 @@ const generateReceiptPdf = async (req, res) => {
                     const startY = doc.y;
 
                     // Calculate text height for wrapping
-                    const textHeight = doc.heightOfString(desc.toUpperCase(), { width: 115, fontSize: 9 });
+                    const textHeight = doc.heightOfString(desc.toUpperCase(), { width: 110, fontSize: 9 });
 
                     // Render description with wrapping
-                    doc.font('Helvetica').fontSize(9).text(desc.toUpperCase(), 15, startY, { width: 115 });
+                    doc.font('Helvetica').fontSize(9).text(desc.toUpperCase(), 10, startY, { width: 110 });
 
                     // Render price aligned to the first line of the description
-                    doc.font('Helvetica').fontSize(9).text(`$${parseFloat(val || 0).toFixed(2)}`, 135, startY, { width: 76, align: 'right' });
+                    doc.font('Helvetica').fontSize(9).text(`$${parseFloat(val || 0).toFixed(2)}`, 120, startY, { width: 74, align: 'right' });
 
                     // Move cursor to after the wrapped text
                     doc.y = startY + textHeight + 2;
@@ -156,15 +156,15 @@ const generateReceiptPdf = async (req, res) => {
             }
 
 
-            doc.moveTo(25, doc.y).lineTo(ticketWidth - 25, doc.y).dash(1, { space: 2 }).stroke('#ccc');
+            doc.moveTo(15, doc.y).lineTo(ticketWidth - 15, doc.y).dash(1, { space: 4 }).stroke('#000');
             doc.moveDown(0.3);
 
             const subY = doc.y;
-            doc.font('Helvetica-Bold').fontSize(9).text(`SUBTOTAL MES:`, 15, subY);
-            doc.text(`$${inv.invoice_amount.toFixed(2)}`, 15, subY, { align: 'right', width: ticketWidth - 30 });
+            doc.font('Helvetica-Bold').fontSize(9).text(`SUBTOTAL MES:`, 10, subY);
+            doc.text(`$${inv.invoice_amount.toFixed(2)}`, 10, subY, { align: 'right', width: ticketWidth - 20 });
 
             doc.moveDown(0.7);
-            doc.moveTo(15, doc.y).lineTo(ticketWidth - 15, doc.y).dash(1, { space: 1 }).stroke('#000');
+            doc.moveTo(10, doc.y).lineTo(ticketWidth - 10, doc.y).dash(1, { space: 1 }).stroke('#000');
             doc.moveDown(0.5);
 
             const isLastInvoice = index === groupedInvoices.length - 1;
@@ -173,8 +173,8 @@ const generateReceiptPdf = async (req, res) => {
                 // Resumen global SOLO en el último ticket
                 const drawRow = (label, value, isBig = false, color = '#000') => {
                     const currentY = doc.y;
-                    doc.fillColor(color).fontSize(isBig ? 12 : 10).font(isBig ? 'Helvetica-Bold' : 'Helvetica').text(label, 15, currentY);
-                    doc.text(value, 15, currentY, { align: 'right', width: ticketWidth - 30 });
+                    doc.fillColor(color).fontSize(isBig ? 11 : 10).font(isBig ? 'Helvetica-Bold' : 'Helvetica').text(label, 10, currentY);
+                    doc.text(value, 10, currentY, { align: 'right', width: ticketWidth - 20 });
                     doc.moveDown(0.2);
                 };
                 doc.fontSize(10).font('Helvetica-Bold').text('RESUMEN DE COBRO', { align: 'center' });
@@ -185,17 +185,17 @@ const generateReceiptPdf = async (req, res) => {
                 doc.fillColor('#000').moveDown(0.8);
             } else {
                 // Tickets intermedios: remitir al último
-                doc.fontSize(8).font('Helvetica').fillColor('#555')
-                    .text('Ver resumen de cobro en el ultimo ticket', { align: 'center' });
-                doc.fillColor('#000').moveDown(0.5);
+                doc.fontSize(9).font('Helvetica-Bold').fillColor('#000')
+                    .text('Ver resumen de cobro en el último ticket', { align: 'center' });
+                doc.moveDown(0.5);
             }
 
-            doc.fontSize(8).font('Helvetica-Bold').text('¡GRACIAS POR SU PAGO!', { align: 'center' });
-            doc.fontSize(7).font('Helvetica').text('Conserve este ticket para cualquier reclamo', { align: 'center' });
+            doc.fontSize(9).font('Helvetica-Bold').text('¡GRACIAS POR SU PAGO!', { align: 'center' });
+            doc.fontSize(8).font('Helvetica').text('Conserve este ticket para cualquier reclamo', { align: 'center' });
             doc.moveDown(0.5);
 
             // Identificador de factura en esta página específica
-            doc.fontSize(7).font('Helvetica').text(`RECIBO Nro: 001-001-${formatInvoiceId(inv.invoice_id)}`, { align: 'center' });
+            doc.fontSize(8).font('Helvetica').text(`RECIBO Nro: 001-001-${formatInvoiceId(inv.invoice_id)}`, { align: 'center' });
         });
 
 
