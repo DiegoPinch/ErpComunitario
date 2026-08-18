@@ -1,0 +1,103 @@
+<div class="container mx-auto p-4">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Cortes de Caja (Informes Contables)</h1>
+        <button (click)="openForm()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Generar Nuevo Informe
+        </button>
+    </div>
+
+    <p-dialog header="Generar Informe de Período" [(visible)]="showForm" [modal]="true" [style]="{width: '50vw'}" [breakpoints]="{'960px': '75vw', '640px': '90vw'}" [draggable]="false" [resizable]="false">
+        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4 mt-2 rounded">
+            <div class="flex items-center">
+                <i class="pi pi-info-circle text-blue-500 mr-3 text-xl"></i>
+                <div>
+                    <p class="text-sm text-blue-700 font-bold">Saldo Global Actual del Sistema</p>
+                    <p class="text-2xl font-black text-blue-800">${{ currentSystemBalance.toLocaleString('en-US', {minimumFractionDigits: 2}) }}</p>
+                    <p class="text-xs text-blue-600 italic">Este es el dinero total que el sistema ha calculado hasta este instante preciso. Úsalo como guía.</p>
+                </div>
+            </div>
+        </div>
+        
+        <form [formGroup]="form" (ngSubmit)="onSubmit($event)" class="mt-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Título del Informe</label>
+                    <input formControlName="title" type="text" class="shadow appearance-none border rounded w-full py-2 px-3" placeholder="Ej: Semestre Ene-Jun 2026">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Dinero Físico en Caja ($)</label>
+                    <input formControlName="physical_balance" type="number" step="0.01" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Fecha Desde</label>
+                    <input formControlName="start_date" type="date" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Fecha Hasta</label>
+                    <input formControlName="end_date" type="date" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Observaciones</label>
+                <textarea formControlName="observations" class="shadow appearance-none border rounded w-full py-2 px-3"></textarea>
+            </div>
+            <div class="flex justify-end gap-2 mt-6">
+                <p-button label="Cancelar" styleClass="p-button-text" (onClick)="showForm = false"></p-button>
+                <p-button label="Calcular y Guardar" type="submit" [disabled]="form.invalid" styleClass="p-button-success"></p-button>
+            </div>
+        </form>
+    </p-dialog>
+    <p-confirmDialog></p-confirmDialog>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div *ngFor="let period of periods" class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="bg-gray-800 text-white px-4 py-3">
+                <h3 class="font-bold text-lg">{{ period.title }}</h3>
+                <p class="text-xs text-gray-300">Directiva: {{ period.administration_name }}</p>
+            </div>
+            <div class="p-4">
+                <div class="flex justify-between text-sm mb-2">
+                    <span class="text-gray-600">Desde:</span>
+                    <span class="font-medium">{{ period.start_date | date:'shortDate' }}</span>
+                </div>
+                <div class="flex justify-between text-sm mb-4">
+                    <span class="text-gray-600">Hasta:</span>
+                    <span class="font-medium">{{ period.end_date | date:'shortDate' }}</span>
+                </div>
+                
+                <div class="border-t border-gray-200 pt-4 mb-4">
+                    <div class="flex justify-between mb-1">
+                        <span class="text-gray-600">Saldo Anterior (Base):</span>
+                        <span class="text-gray-800 font-bold">${{ period.previous_balance }}</span>
+                    </div>
+                    <div class="flex justify-between mb-1">
+                        <span class="text-gray-600">Total Ingresos:</span>
+                        <span class="text-green-600 font-bold">+${{ period.total_incomes }}</span>
+                    </div>
+                    <div class="flex justify-between mb-1">
+                        <span class="text-gray-600">Total Egresos:</span>
+                        <span class="text-red-600 font-bold">-${{ period.total_expenses }}</span>
+                    </div>
+                    <div class="flex justify-between mb-1 border-b border-gray-200 pb-2">
+                        <span class="text-gray-800 font-bold">Saldo Sistema:</span>
+                        <span class="text-blue-600 font-bold">${{ period.system_balance }}</span>
+                    </div>
+                    <div class="flex justify-between mt-2">
+                        <span class="text-gray-600">Saldo Físico (Real):</span>
+                        <span class="font-bold">${{ period.physical_balance }}</span>
+                    </div>
+                    <div class="flex justify-between mt-1 p-2 rounded" [ngClass]="{'bg-green-100 text-green-800': period.difference === 0, 'bg-red-100 text-red-800': period.difference !== 0}">
+                        <span class="font-bold">Descuadre:</span>
+                        <span class="font-bold">${{ period.difference }}</span>
+                    </div>
+                </div>
+                
+                <p class="text-xs text-gray-500 italic mt-2">Emitido por: {{ period.treasurer_username }} el {{ period.created_at | date:'shortDate' }}</p>
+            </div>
+        </div>
+        
+        <div *ngIf="periods.length === 0" class="col-span-full py-8 text-center text-gray-500 bg-white rounded shadow">
+            No se han generado informes contables (cortes de caja).
+        </div>
+    </div>
+</div>

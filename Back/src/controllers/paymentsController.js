@@ -9,8 +9,9 @@ const collectPayments = async (req, res, next) => {
 
     const paid = parseFloat(amount_paid) || 0;
     const change = parseFloat(change_amount) || 0;
+    const systemUserId = req.user?.id || 1; // Fallback to 1 if auth is disabled
 
-    await paymentsModel.collectPayments(invoice_ids, paid, change);
+    await paymentsModel.collectPayments(invoice_ids, paid, change, systemUserId);
     res.json({ message: 'Pagos procesados correctamente' });
   } catch (err) {
     next(err);

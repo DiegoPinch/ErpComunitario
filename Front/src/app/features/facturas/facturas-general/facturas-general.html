@@ -165,6 +165,54 @@
                                 Se recomienda cobrar los meses más antiguos primero para evitar cortes de servicio.
                             </p>
                         </div>
+
+                        <!-- Panel de Cuentas por Cobrar (Deudas) -->
+                        <div *ngIf="userDebts.length > 0" class="bg-white p-4 rounded-2xl shadow-md border border-gray-100 mt-2 border-l-4 border-l-amber-500">
+                            <h2 class="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-4 flex items-center justify-between leading-none">
+                                <span>Cuentas por Cobrar (Deudas)</span>
+                                <i class="pi pi-exclamation-circle text-[10px]"></i>
+                            </h2>
+                            <div class="flex flex-col gap-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                                <ng-container *ngFor="let debt of userDebts">
+                                    <div class="p-3 rounded-xl border-2 transition-all flex flex-col gap-2 relative group overflow-hidden"
+                                        [ngClass]="{
+                                             'border-amber-500 bg-amber-50 ring-2 ring-amber-100': isDebtSelected(debt),
+                                              'border-gray-100 bg-white hover:border-amber-200': !isDebtSelected(debt)
+                                         }">
+
+                                        <div class="flex items-start gap-3 cursor-pointer" (click)="toggleDebtSelection(debt)">
+                                            <!-- Checkbox (Integrated Left) -->
+                                            <div (click)="$event.stopPropagation()">
+                                                <p-checkbox [binary]="true" [ngModel]="isDebtSelected(debt)"
+                                                    (onChange)="toggleDebtSelection(debt)"
+                                                    styleClass="custom-invoice-checkbox">
+                                                </p-checkbox>
+                                            </div>
+
+                                            <div class="flex-1 flex flex-col min-w-0">
+                                                <div class="flex justify-between items-start">
+                                                    <span class="text-[10px] font-bold text-slate-700 leading-tight pr-2">{{debt.description}}</span>
+                                                    <span class="text-xs font-black text-amber-600 leading-none">${{debt.remaining_amount | number:'1.2-2'}}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Input de Abono (Solo si está seleccionado) -->
+                                        <div *ngIf="isDebtSelected(debt)" class="mt-2 pl-8 pr-1 animate-fade-in flex items-center gap-2">
+                                            <span class="text-[9px] font-bold text-slate-500 uppercase">Abonar:</span>
+                                            <div class="p-inputgroup h-7 flex-1">
+                                                <span class="p-inputgroup-addon bg-white border-amber-300 text-amber-600 text-xs px-2 py-0 border-r-0">$</span>
+                                                <input type="number" pInputText [value]="getDebtPaymentAmount(debt)" 
+                                                    (input)="updateDebtAmount(debt, $any($event.target).value)" 
+                                                    step="0.01" min="0.01" [max]="debt.remaining_amount"
+                                                    class="h-7 text-xs border-amber-300 focus:border-amber-500 text-right font-bold w-full border-l-0 rounded-r-md">
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </ng-container>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Columna 2 & 3: Detalle de Factura -->
@@ -236,7 +284,7 @@
                                 </h4>
 
                                 <p-button *ngIf="allSelectedPending" (click)="onCollectPayment()"
-                                    [label]="selectedInvoices.length > 1 ? 'COBRAR SELECCIÓN' : 'COBRAR MES'"
+                                    [label]="selectedInvoices.length > 1 ? 'COBRAR SELECCIÓN' : (selectedInvoices.length === 1 ? 'COBRAR MES' : 'COBRAR DEUDA/ABONO')"
                                     icon="pi pi-check-circle" severity="info"
                                     styleClass="w-full py-4 border-none rounded-2xl font-bold text-sm shadow-xl active:scale-95">
                                 </p-button>
@@ -249,7 +297,7 @@
                         </p-card>
 
                         <!-- Botón Pago Total (Si hay deuda múltiple) -->
-                        <p-button *ngIf="selectedUser && getPendingCount(selectedUser) > 1"
+                        <p-button *ngIf="selectedUser && (getPendingCount(selectedUser) > 1 || (getPendingCount(selectedUser) === 1 && userDebts.length > 0) || userDebts.length > 1)"
                             (click)="onCollectAllPayments()" severity="info"
                             styleClass="w-full py-4 border-none shadow-lg active:scale-95 rounded-2xl">
                             <div class="flex flex-col items-center gap-1 group">
@@ -268,23 +316,23 @@
 
 
             <!-- No hay facturas para este periodo (Usuario al día) -->
-            <div *ngIf="selectedUser && selectedInvoices.length === 0 && getPendingCount(selectedUser) === 0"
+            <div *ngIf="selectedUser && selectedInvoices.length === 0 && getPendingCount(selectedUser) === 0 && userDebts.length === 0"
                 class="flex flex-col items-center justify-center text-center mt-20 opacity-40">
                 <div class="w-32 h-32 bg-blue-50 rounded-full flex items-center justify-center shadow-inner mb-6">
                     <i class="pi pi-verified text-5xl text-blue-600"></i>
                 </div>
-                <h3 class="text-xl font-bold text-gray-400 leading-tight">Sin facturas pendientes</h3>
+                <h3 class="text-xl font-bold text-gray-400 leading-tight">Usuario al día</h3>
                 <p class="text-gray-400 max-w-xs mt-2 text-sm italic font-medium">Este usuario se encuentra al día con
-                    sus pagos.
+                    sus pagos y deudas.
                 </p>
             </div>
 
             <!-- Usuario con deuda pero sin factura seleccionada -->
-            <div *ngIf="selectedUser && selectedInvoices.length === 0 && getPendingCount(selectedUser) > 0"
+            <div *ngIf="selectedUser && selectedInvoices.length === 0 && selectedDebts.length === 0 && (getPendingCount(selectedUser) > 0 || userDebts.length > 0)"
                 class="flex flex-col items-center justify-center text-center mt-20 opacity-40">
                 <i class="pi pi-calendar-times text-5xl text-gray-300 mb-4"></i>
-                <h3 class="text-xl font-bold text-gray-400 leading-tight">Seleccione un mes pendiente</h3>
-                <p class="text-gray-400 max-w-xs mt-2 text-sm font-medium">El usuario tiene deudas en otros periodos.
+                <h3 class="text-xl font-bold text-gray-400 leading-tight">Seleccione un mes o deuda pendiente</h3>
+                <p class="text-gray-400 max-w-xs mt-2 text-sm font-medium">El usuario tiene saldos pendientes.
                     Seleccione uno
                     de la lista lateral.</p>
             </div>

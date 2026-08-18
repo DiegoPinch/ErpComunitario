@@ -12,7 +12,9 @@ const getDashboardStats = async () => {
         totalDebt,
         revenueHistory,
         consumptionTrend,
-        criticalDebtors
+        criticalDebtors,
+        globalBalanceResult,
+        globalDebtResult
     ] = await Promise.all([
         pool.query('SELECT COUNT(*) as count FROM users'),
         pool.query('SELECT type, COUNT(*) as count FROM meters GROUP BY type'),
@@ -61,6 +63,20 @@ const getDashboardStats = async () => {
             HAVING months_debt >= 3
             ORDER BY months_debt DESC, total_amount DESC
             LIMIT 10
+        `),
+        // 7. Balance Global (Dinero en caja)
+        pool.query(`
+            SELECT 
+                (SELECT COALESCE(SUM(amount_paid), 0) FROM payments) +
+                (SELECT COALESCE(SUM(amount_paid), 0) FROM debt_payments) +
+                (SELECT COALESCE(SUM(amount), 0) FROM other_incomes) -
+                (SELECT COALESCE(SUM(amount), 0) FROM expenses) as total_balance
+        `),
+        // 8. Deuda Global Pendiente (Facturas + Convenios)
+        pool.query(`
+            SELECT 
+                (SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE status = 'pending') +
+                (SELECT COALESCE(SUM(remaining_amount), 0) FROM payment_agreements WHERE status = 'active') as global_debt
         `)
     ]);
 
@@ -69,7 +85,9 @@ const getDashboardStats = async () => {
             activeUsers: totalUsers[0][0].count,
             meterDistribution: meterTypes[0],
             monthlyRevenue: monthlyRevenue[0][0].total || 0,
-            totalPendingDebt: totalDebt[0][0].total || 0
+            totalPendingDebt: totalDebt[0][0].total || 0,
+            globalBalance: globalBalanceResult[0][0].total_balance || 0,
+            globalDebt: globalDebtResult[0][0].global_debt || 0
         },
         revenueHistory: revenueHistory[0],
         consumptionTrend: consumptionTrend[0],

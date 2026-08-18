@@ -9,6 +9,15 @@ const getCurrentBalance = async (req, res, next) => {
     }
 };
 
+const getGlobalDebt = async (req, res, next) => {
+    try {
+        const globalDebt = await expenseModel.getGlobalDebt();
+        res.json({ globalDebt });
+    } catch (err) {
+        next(err);
+    }
+};
+
 const getCollectionByConcept = async (req, res, next) => {
     try {
         const collection = await expenseModel.getCollectionByConcept();
@@ -29,7 +38,11 @@ const getAllExpenses = async (req, res, next) => {
 
 const createExpense = async (req, res, next) => {
     try {
-        const id = await expenseModel.createExpense(req.body);
+        const expenseData = {
+            ...req.body,
+            system_user_id: req.user?.id || 1 // Fallback to 1 if auth is disabled
+        };
+        const id = await expenseModel.createExpense(expenseData);
         res.status(201).json({ id, message: 'Egreso registrado con éxito' });
     } catch (err) {
         // Si el error es de fondos insuficientes
@@ -65,6 +78,7 @@ const deleteExpense = async (req, res, next) => {
 
 module.exports = {
     getCurrentBalance,
+    getGlobalDebt,
     getCollectionByConcept,
     getAllExpenses,
     createExpense,

@@ -11,7 +11,9 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { MessageService, ConfirmationService } from 'primeng/api';
+import { forkJoin } from 'rxjs';
 import { InvoicesService } from '../../../core/services/invoices.service';
+import { PaymentAgreementsService, PaymentAgreement } from '../../../core/services/payment-agreements';
 import { UserPendingSummary, Invoice } from '../../../core/models/invoice.model';
 import { CustomTable } from '../../../shared/components/tables/custom-table/custom-table';
 import { TableAction } from '../../../shared/components/tables/custom-table/table-action.model';
@@ -40,16 +42,22 @@ import { TableAction } from '../../../shared/components/tables/custom-table/tabl
 export class FacturasGeneral implements OnInit {
   private cdr = inject(ChangeDetectorRef);
   private invoicesService = inject(InvoicesService);
+  private agreementsService = inject(PaymentAgreementsService);
   private messageService = inject(MessageService);
   private confirmationService = inject(ConfirmationService);
 
   users: any[] = [];
   selectedUser: any | null = null;
+  
+  // Invoices
   selectedInvoices: Invoice[] = [];
   showInvoicesTable: boolean = false;
   showInvoiceDetailModal: boolean = false;
+  formattedInvoices: any[] = [];
 
-  // Track search/filter state if needed, normally listbox handles it
+  // Debts (Cuentas por Cobrar)
+  userDebts: PaymentAgreement[] = [];
+  selectedDebts: { agreement: PaymentAgreement, amountToPay: number }[] = [];
 
   // Propiedades para el diálogo de cobro
   showPaymentDialog: boolean = false;
@@ -64,7 +72,6 @@ export class FacturasGeneral implements OnInit {
     users_with_debt: 0
   };
 
-  // Configuración para CustomTable (Historial)
   historyColumns = [
     { field: 'invoice_id_display', header: 'ID' },
     { field: 'billing_month_display', header: 'Periodo' },
@@ -97,8 +104,6 @@ export class FacturasGeneral implements OnInit {
     }
   ];
 
-  formattedInvoices: any[] = [];
-
   ngOnInit(): void {
     this.loadPendingUsers();
   }
@@ -122,9 +127,12 @@ export class FacturasGeneral implements OnInit {
     if (!user) {
       this.selectedUser = null;
       this.selectedInvoices = [];
+      this.userDebts = [];
+      this.selectedDebts = [];
       return;
     }
 
+    // Load Invoices
     this.invoicesService.getUserInvoices(user.user_id).subscribe(invoices => {
       this.selectedUser = { ...user, invoices };
       this.prepareFormattedInvoices(invoices);
@@ -135,7 +143,13 @@ export class FacturasGeneral implements OnInit {
         this.selectedInvoices = [firstPending];
         this.loadInvoiceDetailsIfNeeded(firstPending);
       }
-      this.cdr.detectChanges();
+
+      // Load Debts
+      this.agreementsService.getByUser(user.user_id).subscribe(debts => {
+        this.userDebts = debts.filter(d => d.status === 'active');
+        this.selectedDebts = []; // reset
+        this.cdr.detectChanges();
+      });
     });
   }
 
@@ -146,12 +160,21 @@ export class FacturasGeneral implements OnInit {
       issue_date_display: new Date(inv.issue_date).toLocaleDateString('es-ES'),
       total_amount_display: `$${inv.total_amount.toFixed(2)}`,
       status_display: inv.status === 'paid' ? 'PAGADA' : 'PENDIENTE',
-      original: inv // Guardamos la referencia original para las acciones
+      original: inv
     }));
   }
 
   isSelected(invoice: Invoice): boolean {
     return this.selectedInvoices.some(i => i.invoice_id === invoice.invoice_id);
+  }
+
+  isDebtSelected(debt: PaymentAgreement): boolean {
+    return this.selectedDebts.some(d => d.agreement.agreement_id === debt.agreement_id);
+  }
+
+  getDebtPaymentAmount(debt: PaymentAgreement): number {
+    const found = this.selectedDebts.find(d => d.agreement.agreement_id === debt.agreement_id);
+    return found ? found.amountToPay : Number(debt.remaining_amount);
   }
 
   onCardClick(invoice: Invoice) {
@@ -170,6 +193,24 @@ export class FacturasGeneral implements OnInit {
     this.cdr.detectChanges();
   }
 
+  toggleDebtSelection(debt: PaymentAgreement) {
+    if (this.isDebtSelected(debt)) {
+      this.selectedDebts = this.selectedDebts.filter(d => d.agreement.agreement_id !== debt.agreement_id);
+    } else {
+      this.selectedDebts.push({ agreement: debt, amountToPay: Number(debt.remaining_amount) });
+    }
+    this.cdr.detectChanges();
+  }
+
+  updateDebtAmount(debt: PaymentAgreement, amount: string) {
+    const numAmount = parseFloat(amount);
+    const found = this.selectedDebts.find(d => d.agreement.agreement_id === debt.agreement_id);
+    if (found) {
+      found.amountToPay = isNaN(numAmount) ? 0 : numAmount;
+      this.cdr.detectChanges();
+    }
+  }
+
   private loadInvoiceDetailsIfNeeded(invoice: Invoice) {
     if (!invoice.details) {
       this.invoicesService.getInvoiceDetails(invoice.invoice_id).subscribe(details => {
@@ -179,8 +220,16 @@ export class FacturasGeneral implements OnInit {
     }
   }
 
-  get totalSelectedAmount(): number {
+  get totalSelectedInvoicesAmount(): number {
     return this.selectedInvoices.reduce((acc, inv) => acc + inv.total_amount, 0);
+  }
+
+  get totalSelectedDebtsAmount(): number {
+    return this.selectedDebts.reduce((acc, debt) => acc + debt.amountToPay, 0);
+  }
+
+  get totalSelectedAmount(): number {
+    return this.totalSelectedInvoicesAmount + this.totalSelectedDebtsAmount;
   }
 
   get totalConsumptionAmount(): number {
@@ -202,11 +251,20 @@ export class FacturasGeneral implements OnInit {
   }
 
   get allSelectedPaid(): boolean {
-    return this.selectedInvoices.length > 0 && this.selectedInvoices.every(inv => inv.status === 'paid');
+    if (this.selectedInvoices.length === 0) return false;
+    return this.selectedInvoices.every(inv => inv.status === 'paid');
   }
 
   get allSelectedPending(): boolean {
-    return this.selectedInvoices.length > 0 && this.selectedInvoices.every(inv => inv.status === 'pending');
+    if (this.selectedInvoices.length === 0 && this.selectedDebts.length === 0) return false;
+    
+    // Si hay facturas, todas deben ser pendientes.
+    if (this.selectedInvoices.length > 0) {
+      return this.selectedInvoices.every(inv => inv.status === 'pending');
+    }
+    
+    // Si no hay facturas pero hay deudas seleccionadas
+    return this.selectedDebts.length > 0;
   }
 
   onOpenInvoiceDetail() {
@@ -219,11 +277,13 @@ export class FacturasGeneral implements OnInit {
   }
 
   getTotalDebt(user: any): number {
-    return parseFloat(user.total_debt) || 0;
+    const invoicesDebt = parseFloat(user.total_debt) || 0;
+    const debtsAmount = this.userDebts.reduce((acc, d) => acc + Number(d.remaining_amount), 0);
+    return invoicesDebt + debtsAmount;
   }
 
   onCollectPayment() {
-    if (this.selectedInvoices.length === 0) return;
+    if (this.selectedInvoices.length === 0 && this.selectedDebts.length === 0) return;
     this.invoicesToCollect = this.selectedInvoices.map(i => i.invoice_id);
     this.totalToPay = this.totalSelectedAmount;
     this.openPaymentDialog();
@@ -232,9 +292,12 @@ export class FacturasGeneral implements OnInit {
   onCollectAllPayments() {
     if (!this.selectedUser) return;
     const pendingInvoices = this.selectedUser.invoices.filter((i: any) => i.status === 'pending');
-    if (pendingInvoices.length === 0) return;
-
+    
     this.invoicesToCollect = pendingInvoices.map((i: any) => i.invoice_id);
+    
+    // Select all debts
+    this.selectedDebts = this.userDebts.map(d => ({ agreement: d, amountToPay: Number(d.remaining_amount) }));
+    
     this.totalToPay = this.getTotalDebt(this.selectedUser);
     this.openPaymentDialog();
   }
@@ -265,15 +328,47 @@ export class FacturasGeneral implements OnInit {
       return;
     }
 
-    this.invoicesService.collectPayments(this.invoicesToCollect, this.amountReceived, this.changeAmount).subscribe({
-      next: () => {
-        // Imprimir recibo directamente sin descargar
-        this.invoicesService.printReceipt(this.invoicesToCollect).subscribe();
+    const requests = [];
+
+    // 1. Process Water Invoices
+    if (this.invoicesToCollect.length > 0) {
+      // Si hay abonos a deudas, el vuelto se lo asignamos a la factura de agua (por simplicidad contable en la BD).
+      requests.push(this.invoicesService.collectPayments(this.invoicesToCollect, this.totalSelectedInvoicesAmount + this.changeAmount, this.changeAmount));
+    }
+
+    // 2. Process Debt Payments
+    if (this.selectedDebts.length > 0) {
+      for (const debt of this.selectedDebts) {
+        requests.push(this.agreementsService.addDebtPayment(debt.agreement.agreement_id!, debt.amountToPay));
+      }
+    }
+
+    if (requests.length === 0) return;
+
+    forkJoin(requests).subscribe({
+      next: (results) => {
+        // Print Receipts
+        if (this.invoicesToCollect.length > 0) {
+          this.invoicesService.printReceipt(this.invoicesToCollect).subscribe();
+        }
+
+        const debtResults = this.invoicesToCollect.length > 0 ? results.slice(1) : results;
+        let printDelay = this.invoicesToCollect.length > 0 ? 1000 : 0;
+        
+        debtResults.forEach((res: any) => {
+          if (res && res.debt_payment_id) {
+            setTimeout(() => {
+              this.agreementsService.printReceipt(res.debt_payment_id).subscribe();
+            }, printDelay);
+            printDelay += 1000;
+          }
+        });
 
         this.showPaymentDialog = false;
         this.amountReceived = 0;
         this.changeAmount = 0;
         this.selectedInvoices = [];
+        this.selectedDebts = [];
 
         this.messageService.add({
           severity: 'success',
@@ -287,7 +382,7 @@ export class FacturasGeneral implements OnInit {
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
-          detail: 'Hubo un error al procesar el cobro.'
+          detail: 'Hubo un error al procesar el cobro combinado.'
         });
       }
     });
@@ -296,11 +391,8 @@ export class FacturasGeneral implements OnInit {
   refreshData() {
     this.loadPendingUsers();
     if (this.selectedUser) {
-      this.invoicesService.getUserInvoices(this.selectedUser.user_id).subscribe(invoices => {
-        this.selectedUser.invoices = invoices;
-        this.prepareFormattedInvoices(invoices);
-        this.cdr.detectChanges();
-      });
+      // Re-trigger selection logic to refresh all parts
+      this.onSelectUser({ value: this.selectedUser });
     }
   }
 

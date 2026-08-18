@@ -69,8 +69,26 @@ const getInvoiceDetails = async (invoiceId) => {
   };
 };
 
+const createInvoice = async (invoiceData) => {
+  const { user_id, invoice_type, billing_month, description, total_amount, issue_date } = invoiceData;
+  const [result] = await pool.query(
+    `INSERT INTO invoices (user_id, invoice_type, billing_month, description, total_amount, issue_date, status)
+     VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
+    [
+      user_id, 
+      invoice_type || 'water', 
+      billing_month || null, 
+      description || null, 
+      total_amount || 0, 
+      issue_date || new Date()
+    ]
+  );
+  return result.insertId;
+};
+
 module.exports = {
   getPendingUsersSummary,
   getInvoicesByUserId,
   getInvoiceDetails,
+  createInvoice,
 };

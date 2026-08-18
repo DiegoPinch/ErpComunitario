@@ -33,6 +33,7 @@ export class EstadoCaja implements OnInit {
   balance: number = 0;
   totalIncome: number = 0;
   totalExpenses: number = 0;
+  globalDebt: number = 0;
 
   collectionsByConcept: ConceptCollection[] = [];
   recentExpenses$!: Observable<any[]>;
@@ -60,10 +61,12 @@ export class EstadoCaja implements OnInit {
     // 1. Cargar Balance y Resumen
     forkJoin({
       balance: this.financialService.getBalance(),
+      globalDebt: this.financialService.getGlobalDebt(),
       collections: this.financialService.getCollectionByConcept(),
       expenses: this.financialService.getExpenses()
-    }).subscribe(({ balance, collections, expenses }) => {
+    }).subscribe(({ balance, globalDebt, collections, expenses }) => {
       this.balance = balance.balance;
+      this.globalDebt = globalDebt.globalDebt;
       this.collectionsByConcept = collections;
 
       // Calcular Totales

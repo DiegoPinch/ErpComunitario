@@ -4,17 +4,10 @@
             <h1 class="text-3xl font-black text-gray-800 tracking-tight">Estado de Caja</h1>
             <p class="text-gray-500 font-medium">Resumen financiero y movimientos globales</p>
         </div>
-        <div class="flex items-center gap-3 bg-white p-2 rounded-xl shadow-sm border border-gray-100">
-            <div class="bg-gray-50 p-2 rounded-lg">
-                <i class="pi pi-calendar text-gray-400"></i>
-            </div>
-            <span class="text-sm font-bold text-gray-600 uppercase">{{'hoy' | uppercase}}: {{todaysDate |
-                date:'dd/MM/yyyy'}}</span>
-        </div>
     </div>
 
     <!-- Cards de Resumen -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <!-- Balance Principal -->
         <div
             class="bg-indigo-600 rounded-3xl p-8 text-white shadow-2xl shadow-indigo-200 flex flex-col justify-between relative overflow-hidden h-52">
@@ -30,40 +23,22 @@
             <i class="pi pi-wallet text-9xl text-white opacity-10 absolute -right-8 -bottom-8 transform rotate-12"></i>
         </div>
 
-        <!-- Ingresos Totales -->
+        <!-- Cuentas por Cobrar (Deuda Global) -->
         <div
             class="bg-white rounded-3xl p-8 border border-gray-100 shadow-xl shadow-gray-100 flex flex-col justify-between h-52">
             <div>
                 <div class="flex justify-between items-start mb-4">
-                    <div class="bg-emerald-50 p-3 rounded-2xl">
-                        <i class="pi pi-arrow-up-right text-emerald-600 text-xl font-bold"></i>
+                    <div class="bg-amber-50 p-3 rounded-2xl">
+                        <i class="pi pi-exclamation-triangle text-amber-600 text-xl font-bold"></i>
                     </div>
                     <span
-                        class="text-emerald-500 text-xs font-black bg-emerald-50 px-3 py-1 rounded-full uppercase">Ingresos</span>
+                        class="text-amber-500 text-xs font-black bg-amber-50 px-3 py-1 rounded-full uppercase">Pendientes</span>
                 </div>
-                <p class="text-gray-400 text-sm font-bold uppercase tracking-wider mb-1">Recaudación Total</p>
-                <h2 class="text-4xl font-black text-gray-800">${{ totalIncome.toLocaleString('en-US',
+                <p class="text-gray-400 text-sm font-bold uppercase tracking-wider mb-1">Cuentas por Cobrar</p>
+                <h2 class="text-5xl font-black text-gray-800 tabular-nums">${{ globalDebt.toLocaleString('en-US',
                     {minimumFractionDigits: 2}) }}</h2>
             </div>
-            <p class="text-gray-400 text-xs italic">Proveniente de todos los cobros históricos</p>
-        </div>
-
-        <!-- Egresos Totales -->
-        <div
-            class="bg-white rounded-3xl p-8 border border-gray-100 shadow-xl shadow-gray-100 flex flex-col justify-between h-52">
-            <div>
-                <div class="flex justify-between items-start mb-4">
-                    <div class="bg-rose-50 p-3 rounded-2xl">
-                        <i class="pi pi-arrow-down-left text-rose-600 text-xl font-bold"></i>
-                    </div>
-                    <span
-                        class="text-rose-500 text-xs font-black bg-rose-50 px-3 py-1 rounded-full uppercase">Egresos</span>
-                </div>
-                <p class="text-gray-400 text-sm font-bold uppercase tracking-wider mb-1">Gastos Realizados</p>
-                <h2 class="text-4xl font-black text-gray-800">${{ totalExpenses.toLocaleString('en-US',
-                    {minimumFractionDigits: 2}) }}</h2>
-            </div>
-            <p class="text-gray-400 text-xs italic">Gestionados mediante registro de egresos</p>
+            <p class="text-gray-400 text-sm italic">Suma de facturas vencidas y convenios (dinero por recuperar)</p>
         </div>
     </div>
 

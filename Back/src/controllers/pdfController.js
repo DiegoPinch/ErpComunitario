@@ -207,6 +207,96 @@ const generateReceiptPdf = async (req, res) => {
     }
 };
 
+const paymentAgreementsModel = require('../models/paymentAgreementsModel');
+
+const generateDebtReceiptPdf = async (req, res) => {
+    try {
+        const { paymentId } = req.query;
+        if (!paymentId) {
+            return res.status(400).json({ message: 'paymentId is required' });
+        }
+
+        const data = await paymentAgreementsModel.getDebtPaymentReceiptData(paymentId);
+        if (!data) {
+            return res.status(404).json({ message: 'No payment data found' });
+        }
+
+        const ticketWidth = 204;
+        const pageHeight = 300; // Ajustado para ser más corto que una factura regular
+
+        const doc = new PDFDocument({ margin: 10, size: [ticketWidth, pageHeight] });
+        const filename = `ticket_abono_${data.national_id}_${Date.now()}.pdf`;
+        res.setHeader('Content-disposition', `inline; filename="${filename}"`);
+        res.setHeader('Content-type', 'application/pdf');
+        doc.pipe(res);
+
+        // --- Page Content ---
+        // Brand
+        doc.fillColor('#000').font('Helvetica-Bold').fontSize(10).text('JUNTA ADMINISTRADORA DE AGUA POTABLE', { align: 'center' });
+        doc.fontSize(9).font('Helvetica-Bold').text('COMUNIDAD CHALUAPAMBA', { align: 'center' });
+        doc.moveDown(0.5);
+
+        doc.moveTo(10, doc.y).lineTo(ticketWidth - 10, doc.y).dash(1, { space: 1 }).stroke('#000');
+        doc.moveDown(0.5);
+
+        // Header Info
+        doc.fontSize(10).font('Helvetica-Bold').text('RECIBO DE ABONO / PAGO', { align: 'center' });
+        doc.moveDown(0.4);
+
+        doc.fontSize(9).font('Helvetica');
+        const drawHeaderLine = (label, value) => {
+            const y = doc.y;
+            doc.font('Helvetica-Bold').fontSize(9).text(label, 10, y);
+            doc.font('Helvetica').fontSize(9).text(value, 55, y, { align: 'right', width: ticketWidth - 65 });
+            doc.moveDown(0.1);
+        };
+
+        const maskedID = data.national_id.slice(-4).padStart(data.national_id.length, 'x');
+        drawHeaderLine('FECHA:', new Date(data.payment_date).toLocaleString());
+        drawHeaderLine('CLIENTE:', `${data.first_name} ${data.last_name}`);
+        drawHeaderLine('CI/RUC:', maskedID);
+        doc.moveDown(0.4);
+
+        doc.moveTo(10, doc.y).lineTo(ticketWidth - 10, doc.y).dash(1, { space: 1 }).stroke('#000');
+        doc.moveDown(0.5);
+
+        // Concepto
+        doc.font('Helvetica-Bold').fontSize(10).fillColor('#000').text(`CONCEPTO DE PAGO`, { align: 'center' });
+        doc.moveDown(0.3);
+        
+        doc.font('Helvetica').fontSize(9).text(data.description.toUpperCase(), { align: 'center' });
+        doc.moveDown(0.5);
+
+        const drawRow = (label, value, isBig = false, color = '#000') => {
+            const currentY = doc.y;
+            doc.fillColor(color).fontSize(isBig ? 11 : 10).font(isBig ? 'Helvetica-Bold' : 'Helvetica').text(label, 10, currentY);
+            doc.text(value, 10, currentY, { align: 'right', width: ticketWidth - 20 });
+            doc.moveDown(0.2);
+        };
+
+        drawRow('DEUDA TOTAL:', `$${parseFloat(data.total_amount).toFixed(2)}`);
+        drawRow('TOTAL ABONADO HOY:', `$${parseFloat(data.amount_paid).toFixed(2)}`, true);
+        drawRow('SALDO RESTANTE:', `$${parseFloat(data.remaining_amount).toFixed(2)}`);
+        
+        doc.moveDown(0.7);
+        doc.moveTo(10, doc.y).lineTo(ticketWidth - 10, doc.y).dash(1, { space: 1 }).stroke('#000');
+        doc.moveDown(0.5);
+
+        doc.fontSize(9).font('Helvetica-Bold').text('¡GRACIAS POR SU PAGO!', { align: 'center' });
+        doc.fontSize(8).font('Helvetica').text('Conserve este ticket para cualquier reclamo', { align: 'center' });
+        doc.moveDown(0.5);
+
+        doc.fontSize(8).font('Helvetica').text(`Nro Control Abono: ${data.debt_payment_id.toString().padStart(6, '0')}`, { align: 'center' });
+
+        doc.end();
+
+    } catch (error) {
+        console.error('Error generating Debt Ticket PDF:', error);
+        res.status(500).json({ message: 'Internal server error generating Ticket' });
+    }
+};
+
 module.exports = {
     generateReceiptPdf,
+    generateDebtReceiptPdf
 };

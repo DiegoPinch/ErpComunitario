@@ -2,7 +2,8 @@ const boardModel = require('../models/boardMembersModel');
 
 const getBoardMembers = async (req, res, next) => {
   try {
-    const items = await boardModel.getAllBoardMembers();
+    const { administration_id } = req.query;
+    const items = await boardModel.getAllBoardMembers(administration_id);
     res.json(items);
   } catch (err) {
     next(err);

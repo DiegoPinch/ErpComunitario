@@ -1,0 +1,111 @@
+<div class="container mx-auto p-4">
+    <div class="mb-4">
+        <a routerLink="/layout/inventario" class="text-blue-600 hover:text-blue-800 font-bold text-sm flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Volver al Inventario
+        </a>
+    </div>
+
+    <div *ngIf="item" class="bg-gray-800 text-white shadow-lg rounded-lg px-6 py-4 mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold">{{ item.name }}</h1>
+            <p class="text-gray-300 text-sm">Código: {{ item.code }} | Categoría: {{ item.category }} | Unidad: {{ item.unit_measure }}</p>
+        </div>
+        <div class="text-right">
+            <div class="text-sm text-gray-300">Stock Actual</div>
+            <div class="text-3xl font-bold" [ngClass]="{'text-red-400': (item.current_stock ?? 0) <= item.minimum_stock, 'text-green-400': (item.current_stock ?? 0) > item.minimum_stock}">
+                {{ item.current_stock }}
+            </div>
+        </div>
+    </div>
+
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-gray-800">Movimientos (Kardex)</h2>
+        <button (click)="showForm = !showForm" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded shadow">
+            {{ showForm ? 'Cancelar' : 'Registrar Entrada / Salida' }}
+        </button>
+    </div>
+
+    <div *ngIf="showForm" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-6 border-t-4 border-indigo-500">
+        <form [formGroup]="form" (ngSubmit)="onSubmit()">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Tipo de Movimiento</label>
+                    <select formControlName="movement_type" class="shadow appearance-none border rounded w-full py-2 px-3">
+                        <option value="in">Entrada (+)</option>
+                        <option value="out">Salida (-)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Cantidad</label>
+                    <input formControlName="quantity" type="number" min="1" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Costo Unitario ($)</label>
+                    <input formControlName="unit_cost" type="number" step="0.01" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Referencia / Factura N°</label>
+                    <input formControlName="reference" type="text" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+                <div class="col-span-full">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Descripción / Motivo</label>
+                    <input formControlName="description" type="text" class="shadow appearance-none border rounded w-full py-2 px-3" placeholder="Ej: Compra de materiales, Entrega para instalación Mz-1...">
+                </div>
+            </div>
+            
+            <button type="submit" [disabled]="form.invalid" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50">
+                Guardar Movimiento
+            </button>
+        </form>
+    </div>
+
+    <div class="bg-white shadow-md rounded my-6 overflow-hidden">
+        <table class="min-w-full bg-white">
+            <thead class="bg-gray-100 text-gray-600 uppercase text-xs leading-normal">
+                <tr>
+                    <th class="py-3 px-6 text-left">Fecha</th>
+                    <th class="py-3 px-6 text-center">Tipo</th>
+                    <th class="py-3 px-6 text-left">Descripción / Ref</th>
+                    <th class="py-3 px-6 text-center">Cant.</th>
+                    <th class="py-3 px-6 text-right">Costo Unit</th>
+                    <th class="py-3 px-6 text-right">Costo Total</th>
+                    <th class="py-3 px-6 text-center">Registrado Por</th>
+                </tr>
+            </thead>
+            <tbody class="text-gray-600 text-sm font-light">
+                <tr *ngFor="let mov of movements" class="border-b border-gray-200 hover:bg-gray-50">
+                    <td class="py-3 px-6 text-left whitespace-nowrap">
+                        {{ mov.movement_date | date:'short' }}
+                    </td>
+                    <td class="py-3 px-6 text-center">
+                        <span [ngClass]="{'bg-green-100 text-green-800': mov.movement_type === 'in', 'bg-red-100 text-red-800': mov.movement_type === 'out'}" class="py-1 px-3 rounded text-xs font-bold">
+                            {{ mov.movement_type === 'in' ? 'ENTRADA' : 'SALIDA' }}
+                        </span>
+                    </td>
+                    <td class="py-3 px-6 text-left">
+                        <div class="font-medium">{{ mov.description }}</div>
+                        <div class="text-xs text-gray-400">Ref: {{ mov.reference || 'N/A' }}</div>
+                    </td>
+                    <td class="py-3 px-6 text-center font-bold" [ngClass]="{'text-green-600': mov.movement_type === 'in', 'text-red-600': mov.movement_type === 'out'}">
+                        {{ mov.movement_type === 'in' ? '+' : '-' }}{{ mov.quantity }}
+                    </td>
+                    <td class="py-3 px-6 text-right">
+                        ${{ mov.unit_cost }}
+                    </td>
+                    <td class="py-3 px-6 text-right font-medium">
+                        ${{ mov.total_cost }}
+                    </td>
+                    <td class="py-3 px-6 text-center text-xs">
+                        {{ mov.username }}
+                    </td>
+                </tr>
+                <tr *ngIf="movements.length === 0">
+                    <td colspan="7" class="py-6 text-center text-gray-500">No hay movimientos registrados para este ítem.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

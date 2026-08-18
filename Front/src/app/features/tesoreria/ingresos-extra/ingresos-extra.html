@@ -1,0 +1,60 @@
+<div class="container mx-auto p-4 relative">
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800 mb-4 md:mb-0">Ingresos Extraordinarios / Capital Inicial</h1>
+        
+        <div class="flex items-center space-x-4">
+            <button (click)="showForm = true" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow">
+                Registrar Ingreso / Saldo
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal/Formulario -->
+    <p-dialog header="Registrar Saldo Inicial o Ingreso Extraordinario" [(visible)]="showForm" [modal]="true" [style]="{width: '50vw'}" [breakpoints]="{'960px': '75vw', '640px': '90vw'}" [draggable]="false" [resizable]="false">
+        <p class="text-sm text-gray-600 mb-4 mt-2">Utiliza esta pantalla para registrar dineros que la Junta ya posee (ej. saldos en banco de años anteriores) o donaciones/aportes que no corresponden al cobro de agua a un usuario específico.</p>
+        
+        <form [formGroup]="form" (ngSubmit)="onSubmit($event)">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="col-span-1 md:col-span-2">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Concepto / Descripción (Ej: Saldo en cuenta bancaria 2023)</label>
+                    <input formControlName="description" type="text" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Monto Total ($)</label>
+                    <p-inputNumber formControlName="amount" mode="decimal" [minFractionDigits]="2" [maxFractionDigits]="2" inputStyleClass="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700" styleClass="w-full"></p-inputNumber>
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Fecha del Saldo/Ingreso</label>
+                    <input formControlName="income_date" type="date" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Método (Dónde está el dinero)</label>
+                    <select formControlName="payment_method" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700">
+                        <option value="cash">Efectivo (Caja Fuerte)</option>
+                        <option value="deposit">Depósito Bancario</option>
+                        <option value="transfer">Transferencia / Cuenta Bancaria</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Número de Referencia / Cuenta (Opcional)</label>
+                    <input formControlName="reference_number" type="text" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700">
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-2 mt-6">
+                <p-button label="Cancelar" styleClass="p-button-text" (onClick)="showForm = false"></p-button>
+                <p-button label="Guardar Ingreso" type="submit" [disabled]="form.invalid" styleClass="p-button-success"></p-button>
+            </div>
+        </form>
+    </p-dialog>
+    <p-confirmDialog></p-confirmDialog>
+
+    <div class="bg-white shadow-md rounded my-6 p-4">
+        <app-custom-table 
+            [data]="incomes" 
+            [columns]="columns" 
+            title="Historial de Ingresos Extraordinarios" 
+            [globalFilterFields]="['description', 'reference_number']">
+        </app-custom-table>
+    </div>
+</div>

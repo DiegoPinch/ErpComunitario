@@ -6,13 +6,34 @@ const pool = require('../config/db');
 const getCurrentBalance = async () => {
     // 1. Ingresos Pagos de facturas
     const [incomeResult] = await pool.query('SELECT SUM(invoice_amount) as total_income FROM payments');
-    const totalIncome = parseFloat(incomeResult[0]?.total_income || 0);
+    const totalPayments = parseFloat(incomeResult[0]?.total_income || 0);
 
-    // 2. Egresos totales (Gastos registrados)
+    // 2. Ingresos por abonos a deudas
+    const [debtIncomeResult] = await pool.query('SELECT SUM(amount_paid) as total_income FROM debt_payments');
+    const totalDebtPayments = parseFloat(debtIncomeResult[0]?.total_income || 0);
+
+    // 3. Ingresos extraordinarios / Saldos Iniciales
+    const [otherIncomeResult] = await pool.query('SELECT SUM(amount) as total_income FROM other_incomes');
+    const totalOtherIncomes = parseFloat(otherIncomeResult[0]?.total_income || 0);
+
+    // 4. Egresos totales (Gastos registrados)
     const [expenseResult] = await pool.query('SELECT SUM(amount) as total_expense FROM expenses');
     const totalExpense = parseFloat(expenseResult[0]?.total_expense || 0);
 
+    const totalIncome = totalPayments + totalDebtPayments + totalOtherIncomes;
     return totalIncome - totalExpense;
+};
+
+/**
+ * Obtiene la suma total de dinero pendiente de cobrar a favor de la Junta.
+ */
+const getGlobalDebt = async () => {
+    const [globalDebtResult] = await pool.query(`
+        SELECT 
+            (SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE status = 'pending') +
+            (SELECT COALESCE(SUM(remaining_amount), 0) FROM payment_agreements WHERE status = 'active') as global_debt
+    `);
+    return parseFloat(globalDebtResult[0]?.global_debt || 0);
 };
 
 /**
@@ -57,7 +78,7 @@ const getAllExpenses = async () => {
 };
 
 const createExpense = async (expenseData) => {
-    const { category_id, amount, expense_date, description, payment_method, reference_number } = expenseData;
+    const { category_id, amount, expense_date, description, payment_method, reference_number, system_user_id } = expenseData;
     const expenseAmount = parseFloat(amount);
 
     // --- SALDO SHIELD: Validación de fondos antes de proceder ---
@@ -70,9 +91,9 @@ const createExpense = async (expenseData) => {
     }
 
     const [result] = await pool.query(
-        `INSERT INTO expenses (category_id, amount, expense_date, description, payment_method, reference_number) 
-     VALUES (?, ?, ?, ?, ?, ?)`,
-        [category_id, expenseAmount, expense_date, description, payment_method || 'cash', reference_number]
+        `INSERT INTO expenses (category_id, system_user_id, amount, expense_date, description, payment_method, reference_number) 
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [category_id, system_user_id, expenseAmount, expense_date, description, payment_method || 'cash', reference_number]
     );
 
     return result.insertId;
@@ -112,6 +133,7 @@ const deleteExpense = async (id) => {
 
 module.exports = {
     getCurrentBalance,
+    getGlobalDebt,
     getCollectionByConcept,
     getAllExpenses,
     createExpense,

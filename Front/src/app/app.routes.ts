@@ -20,6 +20,15 @@ export const routes: Routes = [
       { path: 'registro-egresos', loadComponent: () => import('./features/caja/registro-egresos/registro-egresos').then(c => c.RegistroEgresos) },
       { path: 'estado-caja', loadComponent: () => import('./features/caja/estado-caja/estado-caja').then(c => c.EstadoCaja) },
       { path: 'reportes', loadComponent: () => import('./features/reportes/reporte-general/reporte-general').then(c => c.ReporteGeneral) },
+      { path: 'ingresos-extra', loadComponent: () => import('./features/tesoreria/ingresos-extra/ingresos-extra').then(c => c.IngresosExtraordinarios) },
+      // Nuevas Rutas (Directiva, Convenios, Cortes, Inventario)
+      { path: 'directiva', loadComponent: () => import('./features/directiva/list-directiva/list-directiva').then(c => c.ListDirectiva) },
+      { path: 'directiva/nueva', loadComponent: () => import('./features/directiva/form-directiva/form-directiva').then(c => c.FormDirectiva) },
+      { path: 'directiva/:id', loadComponent: () => import('./features/directiva/form-directiva/form-directiva').then(c => c.FormDirectiva) },
+      { path: 'convenios', loadComponent: () => import('./features/usuarios/convenios/convenios').then(c => c.Convenios) },
+      { path: 'cortes-caja', loadComponent: () => import('./features/caja/cortes-caja/cortes-caja').then(c => c.CortesCaja) },
+      { path: 'inventario', loadComponent: () => import('./features/inventario/list-inventario/list-inventario').then(c => c.ListInventario) },
+      { path: 'inventario/kardex/:id', loadComponent: () => import('./features/inventario/kardex/kardex').then(c => c.Kardex) },
 
     ]
   },

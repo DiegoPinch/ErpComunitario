@@ -4,6 +4,7 @@ const expenseController = require('../controllers/expenseController');
 
 // Rutas de información financiera
 router.get('/balance', expenseController.getCurrentBalance);
+router.get('/global-debt', expenseController.getGlobalDebt);
 router.get('/collection-by-concept', expenseController.getCollectionByConcept);
 
 // Rutas CRUD de gastos

@@ -21,9 +21,7 @@ export class SidebarComponent implements OnInit {
             {
                 label: 'Dashboard',
                 icon: 'pi pi-home',
-                command: () => {
-                    this.router.navigate(['/layout/dashboard']);
-                }
+                routerLink: ['/layout/dashboard']
             },
             // Gestión de Usuarios/Clientes
             {
@@ -33,10 +31,8 @@ export class SidebarComponent implements OnInit {
                     {
                         label: 'Lista de Usuarios',
                         icon: 'pi pi-list',
-                        command: () => {
-                            this.router.navigate(['/layout/usuarios']);
-                        }
-                    },
+                        routerLink: ['/layout/usuarios']
+                    }
                 ]
             },
             // Gestión de Medidores
@@ -47,16 +43,12 @@ export class SidebarComponent implements OnInit {
                     {
                         label: 'Lista de Medidores',
                         icon: 'pi pi-list',
-                        command: () => {
-                            this.router.navigate(['/layout/medidores']);
-                        }
+                        routerLink: ['/layout/medidores']
                     },
                     {
                         label: 'Asignar Medidor',
                         icon: 'pi pi-plus-circle',
-                        command: () => {
-                            this.router.navigate(['/layout/asignar-medidores']);
-                        }
+                        routerLink: ['/layout/asignar-medidores']
                     },
                 ]
             },
@@ -68,9 +60,7 @@ export class SidebarComponent implements OnInit {
                     {
                         label: 'Registrar Lectura',
                         icon: 'pi pi-pencil',
-                        command: () => {
-                            this.router.navigate(['/layout/ingreso-lecturas']);
-                        }
+                        routerLink: ['/layout/ingreso-lecturas']
                     },
                 ]
             },
@@ -82,9 +72,12 @@ export class SidebarComponent implements OnInit {
                     {
                         label: 'Facturas Emitidas',
                         icon: 'pi pi-plus',
-                        command: () => {
-                            this.router.navigate(['/layout/facturas']);
-                        }
+                        routerLink: ['/layout/facturas']
+                    },
+                    {
+                        label: 'Cuentas por cobrar',
+                        icon: 'pi pi-handshake',
+                        routerLink: ['/layout/convenios']
                     }
                 ]
             },
@@ -96,16 +89,22 @@ export class SidebarComponent implements OnInit {
                     {
                         label: 'Registrar Egreso',
                         icon: 'pi pi-minus-circle',
-                        command: () => {
-                            this.router.navigate(['/layout/registro-egresos']);
-                        }
+                        routerLink: ['/layout/registro-egresos']
                     },
                     {
-                        label: 'Estado de Caja',
+                        label: 'Dashboard',
                         icon: 'pi pi-calculator',
-                        command: () => {
-                            this.router.navigate(['/layout/estado-caja']);
-                        }
+                        routerLink: ['/layout/estado-caja']
+                    },
+                    {
+                        label: 'Ingresos Extraordinarios',
+                        icon: 'pi pi-wallet',
+                        routerLink: ['/layout/ingresos-extra']
+                    },
+                    {
+                        label: 'Cortes Contables',
+                        icon: 'pi pi-chart-pie',
+                        routerLink: ['/layout/cortes-caja']
                     },
                 ]
             },
@@ -117,9 +116,7 @@ export class SidebarComponent implements OnInit {
                     {
                         label: 'Definir Rubros',
                         icon: 'pi pi-list',
-                        command: () => {
-                            this.router.navigate(['/layout/rubros-adicionales']);
-                        }
+                        routerLink: ['/layout/rubros-adicionales']
                     }
                 ]
             },
@@ -131,16 +128,29 @@ export class SidebarComponent implements OnInit {
                     {
                         label: 'Tarifas',
                         icon: 'pi pi-dollar',
-                        command: () => {
-                            this.router.navigate(['/layout/tarifas']);
-                        }
+                        routerLink: ['/layout/tarifas']
                     },
                     {
                         label: 'Categorías Egresos',
                         icon: 'pi pi-tags',
-                        command: () => {
-                            this.router.navigate(['/layout/categorias-egresos']);
-                        }
+                        routerLink: ['/layout/categorias-egresos']
+                    },
+                    {
+                        label: 'Directivas',
+                        icon: 'pi pi-id-card',
+                        routerLink: ['/layout/directiva']
+                    }
+                ]
+            },
+            // Inventario
+            {
+                label: 'Inventario y Bienes',
+                icon: 'pi pi-box',
+                items: [
+                    {
+                        label: 'Administrar Inventario',
+                        icon: 'pi pi-wrench',
+                        routerLink: ['/layout/inventario']
                     }
                 ]
             },
@@ -152,9 +162,7 @@ export class SidebarComponent implements OnInit {
                     {
                         label: 'General',
                         icon: 'pi pi-user',
-                        command: () => {
-                            this.router.navigate(['/layout/reportes']);
-                        }
+                        routerLink: ['/layout/reportes']
                     }
                 ]
             }

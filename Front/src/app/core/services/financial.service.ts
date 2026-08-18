@@ -16,6 +16,10 @@ export class FinancialService {
         return this.http.get<FinancialBalance>(`${this.apiUrl}/balance`);
     }
 
+    getGlobalDebt(): Observable<{ globalDebt: number }> {
+        return this.http.get<{ globalDebt: number }>(`${this.apiUrl}/global-debt`);
+    }
+
     getCollectionByConcept(): Observable<ConceptCollection[]> {
         return this.http.get<ConceptCollection[]>(`${this.apiUrl}/collection-by-concept`);
     }

@@ -33,7 +33,7 @@ const existsUsername = async (username, excludeId = null) => {
 };
 
 const createSystemUser = async (su) => {
-  const { user_id, username, password, role } = su;
+  const { user_id, username, password, role, status } = su;
   const exists = await existsUsername(username);
   if (exists) throw new Error('El nombre de usuario ya existe');
 
@@ -42,21 +42,21 @@ const createSystemUser = async (su) => {
     if (!user_id) throw new Error('Password o user_id requerido para obtener cédula');
     const [rows] = await pool.query('SELECT * FROM users WHERE user_id = ?', [user_id]);
     const userRow = rows && rows[0];
-    const cedula = userRow && (userRow.cedula || userRow.dni || userRow.identification || userRow.document || userRow.ci || userRow.id_number);
+    const cedula = userRow && (userRow.cedula || userRow.dni || userRow.identification || userRow.document || userRow.ci || userRow.id_number || userRow.national_id);
     if (!cedula) throw new Error('No se encontró cédula/dni del usuario para usar como password');
     pwd = String(cedula);
   }
 
   const hashed = await bcrypt.hash(pwd, 10);
   const [result] = await pool.query(
-    `INSERT INTO system_users (user_id, username, password, role) VALUES (?, ?, ?, ?)`,
-    [user_id, username, hashed, role || 'user']
+    `INSERT INTO system_users (user_id, username, password, role, status) VALUES (?, ?, ?, ?, ?)`,
+    [user_id, username, hashed, role || 'user', status !== undefined ? status : true]
   );
   return result.insertId;
 };
 
 const updateSystemUser = async (id, su) => {
-  const { user_id, username, password, role } = su;
+  const { user_id, username, password, role, status } = su;
   const exists = await existsUsername(username, id);
   if (exists) throw new Error('El nombre de usuario ya existe');
 
@@ -70,8 +70,8 @@ const updateSystemUser = async (id, su) => {
   }
 
   const [result] = await pool.query(
-    `UPDATE system_users SET user_id=?, username=?, password=?, role=? WHERE system_user_id=?`,
-    [user_id, username, hashed, role, id]
+    `UPDATE system_users SET user_id=?, username=?, password=?, role=?, status=? WHERE system_user_id=?`,
+    [user_id, username, hashed, role, status !== undefined ? status : true, id]
   );
   return result.affectedRows;
 };

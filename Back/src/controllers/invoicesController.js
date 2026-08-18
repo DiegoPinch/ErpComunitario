@@ -29,8 +29,18 @@ const getInvoiceDetails = async (req, res, next) => {
   }
 };
 
+const createInvoice = async (req, res, next) => {
+  try {
+    const id = await invoicesModel.createInvoice(req.body);
+    res.status(201).json({ id, message: 'Factura/Cargo creado correctamente' });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getPendingUsersSummary,
   getInvoicesByUserId,
   getInvoiceDetails,
+  createInvoice,
 };

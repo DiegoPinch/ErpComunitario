@@ -1,0 +1,67 @@
+<div class="container mx-auto p-4">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Inventario (Bienes y Suministros)</h1>
+        <button (click)="showForm = !showForm" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            {{ showForm ? 'Cancelar' : 'Nuevo Ítem' }}
+        </button>
+    </div>
+
+    <div *ngIf="showForm" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-6 border-t-4 border-blue-500">
+        <h2 class="text-xl font-bold mb-4">{{ isEditMode ? 'Editar Ítem' : 'Registrar Nuevo Ítem' }}</h2>
+        <form [formGroup]="form" (ngSubmit)="onSubmit()">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Código</label>
+                    <input formControlName="code" type="text" class="shadow appearance-none border rounded w-full py-2 px-3 uppercase">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Nombre del Bien/Suministro</label>
+                    <input formControlName="name" type="text" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Categoría</label>
+                    <select formControlName="category" class="shadow appearance-none border rounded w-full py-2 px-3">
+                        <option value="tools">Herramienta</option>
+                        <option value="materials">Material de Construcción</option>
+                        <option value="equipment">Equipos/Maquinaria</option>
+                        <option value="office">Suministros de Oficina</option>
+                        <option value="other">Otro</option>
+                    </select>
+                </div>
+                <div class="col-span-full">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Descripción</label>
+                    <input formControlName="description" type="text" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Unidad de Medida</label>
+                    <select formControlName="unit_measure" class="shadow appearance-none border rounded w-full py-2 px-3">
+                        <option value="unit">Unidad(es)</option>
+                        <option value="meter">Metro(s)</option>
+                        <option value="kg">Kilogramo(s)</option>
+                        <option value="liter">Litro(s)</option>
+                        <option value="box">Caja(s)</option>
+                    </select>
+                </div>
+                <div *ngIf="!isEditMode">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Stock Inicial</label>
+                    <input formControlName="initial_stock" type="number" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Stock Mínimo (Alerta)</label>
+                    <input formControlName="minimum_stock" type="number" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+            </div>
+            
+            <button type="submit" [disabled]="form.invalid" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50">
+                Guardar
+            </button>
+        </form>
+    </div>
+
+    <app-custom-table 
+        [data]="items" 
+        [columns]="columns" 
+        [actions]="actions"
+        [globalFilterFields]="['code', 'name_desc']">
+    </app-custom-table>
+</div>

@@ -1,0 +1,51 @@
+<div class="container mx-auto p-4">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Administración (Directivas)</h1>
+        <button (click)="openNew()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Nueva Directiva
+        </button>
+    </div>
+
+    <app-custom-table 
+        [data]="administrations" 
+        [columns]="columns" 
+        [actions]="actions"
+        [globalFilterFields]="['name']">
+    </app-custom-table>
+</div>
+
+<!-- Modal Formulario -->
+<p-dialog [(visible)]="showForm" [style]="{width: '50vw', minWidth: '400px'}" [header]="isEditMode ? 'Editar Directiva' : 'Nueva Directiva'" [modal]="true" styleClass="p-fluid">
+    <ng-template pTemplate="content">
+        <form [formGroup]="form" (ngSubmit)="onSubmit()">
+            <div class="mb-4 mt-2">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Nombre del Período / Directiva</label>
+                <input formControlName="name" type="text" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="Ej: Período 2026-2027">
+            </div>
+
+            <div class="flex flex-wrap -mx-3 mb-4">
+                <div class="w-full md:w-1/2 px-3 mb-6 md:mb-0">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Fecha Inicio</label>
+                    <input formControlName="start_date" type="date" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <div class="w-full md:w-1/2 px-3">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Fecha Fin (Opcional)</label>
+                    <input formControlName="end_date" type="date" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Estado</label>
+                <select formControlName="status" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    <option value="active">Activa</option>
+                    <option value="completed">Completada</option>
+                </select>
+            </div>
+        </form>
+    </ng-template>
+
+    <ng-template pTemplate="footer">
+        <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text" (click)="hideDialog()"></button>
+        <button pButton pRipple label="Guardar" icon="pi pi-check" class="p-button-primary" (click)="onSubmit()" [disabled]="form.invalid"></button>
+    </ng-template>
+</p-dialog>

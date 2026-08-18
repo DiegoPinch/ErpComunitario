@@ -11,6 +11,10 @@ const login = async (req, res, next) => {
     const user = await systemUsersModel.getSystemUserByUsername(username);
     if (!user) return res.status(401).json({ message: 'Credenciales inválidas' });
 
+    if (user.status === 0 || user.status === false) {
+      return res.status(403).json({ message: 'Usuario desactivado. Comuníquese con el administrador.' });
+    }
+
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) return res.status(401).json({ message: 'Credenciales inválidas' });
 

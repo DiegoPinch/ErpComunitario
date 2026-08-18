@@ -32,10 +32,15 @@ app.use('/api/payments', require('./routes/paymentsRoutes'));
 app.use('/api/meetings', require('./routes/meetingsRoutes'));
 app.use('/api/attendance', require('./routes/attendanceRoutes'));
 app.use('/api/board-members', require('./routes/boardMembersRoutes'));
+app.use('/api/administrations', require('./routes/administrationsRoutes'));
 app.use('/api/system-users', require('./routes/systemUsersRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
 app.use('/api/financial', require('./routes/financialRoutes'));
+app.use('/api/payment-agreements', require('./routes/paymentAgreementsRoutes'));
+app.use('/api/accounting-periods', require('./routes/accountingPeriodsRoutes'));
+app.use('/api/inventory', require('./routes/inventoryRoutes'));
 app.use('/api/reports', require('./routes/reportsRoutes'));
+app.use('/api/other-incomes', require('./routes/otherIncomesRoutes'));
 
 // Manejo de rutas no encontradas
 app.use((req, res, next) => {
