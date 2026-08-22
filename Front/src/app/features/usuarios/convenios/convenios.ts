@@ -1,7 +1,9 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { SelectModule } from 'primeng/select';
 import { PaymentAgreementsService, PaymentAgreement } from '../../../core/services/payment-agreements';
+import { BankAccountsService, BankAccount } from '../../../core/services/bank-accounts.service';
 import { UserService } from '../../../core/services/user.service';
 import { CustomTable } from '../../../shared/components/tables/custom-table/custom-table';
 import { TableAction } from '../../../shared/components/tables/custom-table/table-action.model';
@@ -9,7 +11,7 @@ import { TableAction } from '../../../shared/components/tables/custom-table/tabl
 @Component({
   selector: 'app-convenios',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, CustomTable],
+  imports: [CommonModule, ReactiveFormsModule, CustomTable, SelectModule],
   templateUrl: './convenios.html',
   styleUrls: ['./convenios.css']
 })
@@ -25,9 +27,17 @@ export class Convenios implements OnInit {
   selectedDebtName = '';
   form: FormGroup;
   paymentForm: FormGroup;
+  
+  activeAccounts: any[] = [];
+  paymentMethods = [
+    { label: 'Efectivo', value: 'cash' },
+    { label: 'Transferencia', value: 'transfer' },
+    { label: 'Depósito', value: 'deposit' }
+  ];
 
   constructor(
     private agreementsService: PaymentAgreementsService,
+    private bankAccountService: BankAccountsService,
     private userService: UserService,
     private fb: FormBuilder,
     private cdr: ChangeDetectorRef
@@ -39,15 +49,28 @@ export class Convenios implements OnInit {
     });
 
     this.paymentForm = this.fb.group({
-      amount_paid: ['', [Validators.required, Validators.min(0.01)]]
+      amount_paid: ['', [Validators.required, Validators.min(0.01)]],
+      payment_method: ['cash'],
+      account_id: [null],
+      reference_number: ['']
     });
   }
 
   ngOnInit(): void {
     this.setupTable();
     this.loadUsers();
+    this.loadAccounts();
     // Use setTimeout to ensure change detection cycles if there are double-click issues
     setTimeout(() => this.loadAgreements(), 0);
+  }
+  
+  loadAccounts() {
+    this.bankAccountService.getActiveAccounts().subscribe(accs => {
+      this.activeAccounts = accs.map(a => ({ 
+        label: `${a.bank_name} - ${a.account_number}`, 
+        value: a.account_id 
+      }));
+    });
   }
 
   setupTable() {
@@ -111,13 +134,25 @@ export class Convenios implements OnInit {
     }
     this.selectedDebtId = row.agreement_id;
     this.selectedDebtName = `${row.description} - Faltante: $${row.remaining_amount}`;
-    this.paymentForm.reset();
+    this.paymentForm.reset({
+      payment_method: 'cash',
+      account_id: null,
+      reference_number: ''
+    });
     this.showPaymentForm = true;
   }
 
   onPaymentSubmit() {
+    if (this.paymentForm.invalid) return;
+    
+    if (this.paymentForm.value.payment_method !== 'cash' && !this.paymentForm.value.account_id) {
+      alert('Debe seleccionar una cuenta bancaria');
+      return;
+    }
+
     if (this.paymentForm.valid && this.selectedDebtId) {
-      this.agreementsService.addDebtPayment(this.selectedDebtId, this.paymentForm.value.amount_paid).subscribe({
+      const { amount_paid, payment_method, account_id, reference_number } = this.paymentForm.value;
+      this.agreementsService.addDebtPayment(this.selectedDebtId, amount_paid, payment_method, account_id, reference_number).subscribe({
         next: (res) => {
           alert('Abono registrado correctamente. Nuevo saldo: $' + res.remaining);
           this.showPaymentForm = false;

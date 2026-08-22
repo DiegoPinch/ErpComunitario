@@ -11,10 +11,10 @@ const getAll = async () => {
 };
 
 const create = async (incomeData) => {
-    const { system_user_id, amount, income_date, description, payment_method, reference_number } = incomeData;
+    const { system_user_id, amount, income_date, description, payment_method, reference_number, account_id } = incomeData;
     const [result] = await pool.query(
-        'INSERT INTO other_incomes (system_user_id, amount, income_date, description, payment_method, reference_number) VALUES (?, ?, ?, ?, ?, ?)',
-        [system_user_id, amount, income_date, description, payment_method || 'cash', reference_number || null]
+        'INSERT INTO other_incomes (system_user_id, amount, income_date, description, payment_method, reference_number, account_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [system_user_id, amount, income_date, description, payment_method || 'cash', reference_number || null, account_id || null]
     );
     return result.insertId;
 };

@@ -2,7 +2,7 @@ const paymentsModel = require('../models/paymentsModel');
 
 const collectPayments = async (req, res, next) => {
   try {
-    const { invoice_ids, amount_paid, change_amount } = req.body;
+    const { invoice_ids, amount_paid, change_amount, payment_method, account_id, reference_number } = req.body;
     if (!invoice_ids || !Array.isArray(invoice_ids)) {
       return res.status(400).json({ message: 'Se requiere un array de invoice_ids' });
     }
@@ -11,7 +11,7 @@ const collectPayments = async (req, res, next) => {
     const change = parseFloat(change_amount) || 0;
     const systemUserId = req.user?.id || 1; // Fallback to 1 if auth is disabled
 
-    await paymentsModel.collectPayments(invoice_ids, paid, change, systemUserId);
+    await paymentsModel.collectPayments(invoice_ids, paid, change, systemUserId, payment_method, account_id, reference_number);
     res.json({ message: 'Pagos procesados correctamente' });
   } catch (err) {
     next(err);

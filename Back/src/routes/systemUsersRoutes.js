@@ -7,6 +7,9 @@ const {
   updateSystemUser,
   deleteSystemUser
 } = require('../controllers/systemUsersController');
+const { authorize } = require('../middlewares/auth');
+
+router.use(authorize(['admin']));
 
 router.get('/', getSystemUsers);
 router.get('/:id', getSystemUser);

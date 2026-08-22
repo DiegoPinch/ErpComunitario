@@ -12,12 +12,22 @@ const getAllSystemUsers = async () => {
 };
 
 const getSystemUserById = async (id) => {
-  const [rows] = await pool.query('SELECT * FROM system_users WHERE system_user_id = ?', [id]);
+  const [rows] = await pool.query(`
+    SELECT su.*, u.first_name, u.last_name, u.national_id
+    FROM system_users su
+    LEFT JOIN users u ON su.user_id = u.user_id
+    WHERE su.system_user_id = ?
+  `, [id]);
   return rows[0];
 };
 
 const getSystemUserByUsername = async (username) => {
-  const [rows] = await pool.query('SELECT * FROM system_users WHERE username = ?', [username]);
+  const [rows] = await pool.query(`
+    SELECT su.*, u.first_name, u.last_name, u.national_id
+    FROM system_users su
+    LEFT JOIN users u ON su.user_id = u.user_id
+    WHERE su.username = ?
+  `, [username]);
   return rows[0];
 };
 

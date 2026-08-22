@@ -1,0 +1,9 @@
+/* Estilos específicos para la gestión de usuarios del sistema */
+.p-dialog .p-fluid {
+    margin-top: 1rem;
+}
+input:disabled, select:disabled {
+    background-color: #f3f4f6;
+    cursor: not-allowed;
+    color: #9ca3af;
+}

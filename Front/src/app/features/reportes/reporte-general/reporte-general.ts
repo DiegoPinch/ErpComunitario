@@ -5,9 +5,13 @@ import { Listbox } from 'primeng/listbox';
 import { Button } from 'primeng/button';
 import { Card } from 'primeng/card';
 import { ToastModule } from 'primeng/toast';
+import { SelectModule } from 'primeng/select';
 import { MessageService } from 'primeng/api';
 import { Observable } from 'rxjs';
+import { ActivatedRoute } from '@angular/router';
 import { ReportsService } from '../../../core/services/reports.service';
+import { AccountingPeriodsService, AccountingPeriod } from '../../../core/services/accounting-periods';
+import { PdfPreview } from '../../../shared/components/pdf-preview/pdf-preview';
 
 interface ReportType {
   id: string;
@@ -17,6 +21,7 @@ interface ReportType {
   gradientFrom: string;
   gradientTo: string;
   filters: string[];
+  category: string;
 }
 
 @Component({
@@ -28,7 +33,9 @@ interface ReportType {
     Listbox,
     Button,
     Card,
-    ToastModule
+    ToastModule,
+    SelectModule,
+    PdfPreview
   ],
   providers: [MessageService],
   templateUrl: './reporte-general.html',
@@ -37,17 +44,24 @@ interface ReportType {
 export class ReporteGeneral implements OnInit {
   private reportsService = inject(ReportsService);
   private messageService = inject(MessageService);
+  private route = inject(ActivatedRoute);
 
   constructor() { }
+  previewVisible = false;
+  previewUrl = '';
+  previewTitle = '';
   dateRange: Date[] = [];
   selectedReport: ReportType | null = null;
   selectedMonthStart: string = '';
   selectedMonthEnd: string = '';
   selectedDate: string = '';
+  selectedDateStart: string = '';
+  selectedDateEnd: string = '';
   minMonth: string = '';
   maxMonth: string = '';
+  reportCategoryTitle: string = 'Reportes Generales';
 
-  reportTypes: ReportType[] = [
+  allReportTypes: ReportType[] = [
     {
       id: 'users-meters',
       title: 'Directorio de Usuarios y Medidores',
@@ -55,7 +69,8 @@ export class ReporteGeneral implements OnInit {
       icon: 'pi-users',
       gradientFrom: '#6366f1',
       gradientTo: '#4f46e5',
-      filters: []
+      filters: [],
+      category: 'general'
     },
     {
       id: 'readings',
@@ -64,34 +79,8 @@ export class ReporteGeneral implements OnInit {
       icon: 'pi-chart-line',
       gradientFrom: '#3b82f6',
       gradientTo: '#1d4ed8',
-      filters: ['monthRange']
-    },
-    {
-      id: 'recollection',
-      title: 'Reporte de Recaudación',
-      description: 'Facturas pagadas por periodo con detalle de usuarios, incluye rubros adicionales en caso de existir.',
-      icon: 'pi-dollar',
-      gradientFrom: '#10b981',
-      gradientTo: '#059669',
-      filters: ['monthRange']
-    },
-    {
-      id: 'delinquency',
-      title: 'Reporte de Morosidad',
-      description: 'Facturas pendientes de pago por periodo, usuarios morosos, incluye rubros adicionales en caso de existir.',
-      icon: 'pi-exclamation-triangle',
-      gradientFrom: '#f59e0b',
-      gradientTo: '#d97706',
-      filters: ['monthRange']
-    },
-    {
-      id: 'additional-charges',
-      title: 'Reporte de Rubros Adicionales',
-      description: 'Detalle de rubros adicionales pagados por mes, listado de usuarios y totales recaudados por concepto.',
-      icon: 'pi-receipt',
-      gradientFrom: '#8b5cf6',
-      gradientTo: '#7c3aed',
-      filters: ['monthRange']
+      filters: ['monthRange'],
+      category: 'general'
     },
     {
       id: 'active-users',
@@ -100,29 +89,102 @@ export class ReporteGeneral implements OnInit {
       icon: 'pi-user-check',
       gradientFrom: '#f43f5e',
       gradientTo: '#e11d48',
-      filters: []
+      filters: [],
+      category: 'general'
+    },
+    {
+      id: 'recollection',
+      title: 'Recaudación por Periodo de Emisión',
+      description: 'Muestra los cobros recibidos agrupados según el mes en que se emitió la factura de agua. Útil para analizar la efectividad del cobro de un mes, no para cuadrar el dinero físico diario del tesorero.',
+      icon: 'pi-dollar',
+      gradientFrom: '#10b981',
+      gradientTo: '#059669',
+      filters: ['monthRange'],
+      category: 'financiero'
+    },
+    {
+      id: 'delinquency',
+      title: 'Reporte de Morosidad (Cartera Vencida)',
+      description: 'Facturas pendientes de pago por periodo y usuarios morosos.',
+      icon: 'pi-exclamation-triangle',
+      gradientFrom: '#f59e0b',
+      gradientTo: '#d97706',
+      filters: ['monthRange'],
+      category: 'financiero'
+    },
+    {
+      id: 'additional-charges',
+      title: 'Reporte de Rubros Adicionales',
+      description: 'Detalle de rubros adicionales pagados por mes, listado de usuarios y totales recaudados por concepto.',
+      icon: 'pi-receipt',
+      gradientFrom: '#8b5cf6',
+      gradientTo: '#7c3aed',
+      filters: ['monthRange'],
+      category: 'financiero'
     },
     {
       id: 'daily-collections',
-      title: 'Recaudación Diaria / Cuadre de Caja',
-      description: 'Detalle de todos los cobros realizados en una fecha específica, útil para el cuadre de caja diario.',
+      title: 'Cuadre de Caja y Arqueo de Recaudación',
+      description: 'Detalla el dinero total esperado en efectivo físico (Caja Chica) y depósitos (Bancos) según la Fecha de Pago. Desglosa los cobros en Agua, Multas, Convenios e Ingresos Extraordinarios.',
       icon: 'pi-wallet',
       gradientFrom: '#0ea5e9',
       gradientTo: '#0284c7',
-      filters: ['singleDate']
+      filters: ['singleDate'],
+      category: 'financiero'
     },
     {
-      id: 'cash-balance',
-      title: 'Estado de Caja Consolidado',
-      description: 'Reporte gerencial mensual detallado mostrando las entradas, salidas y el saldo neto, junto al listado de egresos.',
-      icon: 'pi-building',
-      gradientFrom: '#047857',
-      gradientTo: '#064e3b',
-      filters: ['monthRange']
+      id: 'incomes',
+      title: 'Reporte Detallado de Ingresos',
+      description: 'Detalla cronológicamente todas las recaudaciones y cobros (consumo de agua, multas, rubros, venta de ramal, donaciones y colaboraciones) en un rango de meses.',
+      icon: 'pi-plus-circle',
+      gradientFrom: '#10b981',
+      gradientTo: '#059669',
+      filters: ['monthRange'],
+      category: 'financiero'
+    },
+    {
+      id: 'expenses',
+      title: 'Reporte Detallado de Egresos',
+      description: 'Detalla todos los egresos y gastos realizados por la Junta en un rango de meses, incluyendo fecha, categoría, descripción y forma de pago.',
+      icon: 'pi-minus-circle',
+      gradientFrom: '#ef4444',
+      gradientTo: '#991b1b',
+      filters: ['monthRange'],
+      category: 'financiero'
+    },
+    {
+      id: 'bank-accounts',
+      title: 'Auxiliar de Cuentas Bancarias',
+      description: 'Muestra los movimientos de cada cuenta bancaria activa (depósitos, transferencias, egresos), incluyendo origen, concepto, número de transferencia y saldos.',
+      icon: 'pi-credit-card',
+      gradientFrom: '#10b981',
+      gradientTo: '#0284c7',
+      filters: ['monthRange'],
+      category: 'financiero'
+    },
+    {
+      id: 'comprehensive',
+      title: 'Reporte Integral Contable',
+      description: 'Reporte financiero definitivo que muestra ingresos por concepto, egresos por categoría, saldos en bancos y cuentas por cobrar.',
+      icon: 'pi-book',
+      gradientFrom: '#8b5cf6',
+      gradientTo: '#4c1d95',
+      filters: ['accountingPeriod'],
+      category: 'financiero'
     }
   ];
 
+  reportTypes: ReportType[] = [];
+
+  private accountingPeriodsService = inject(AccountingPeriodsService);
+  accountingPeriods: any[] = [];
+  selectedPeriodId: any = null;
+
   ngOnInit() {
+    // Determine category from route data
+    const category = this.route.snapshot.data['type'] || 'general';
+    this.reportCategoryTitle = category === 'financiero' ? 'Reportes Financieros' : 'Reportes Generales';
+    this.reportTypes = this.allReportTypes.filter(r => r.category === category);
     // Inicializar con el mes y fecha actual
     const now = new Date();
     const year = now.getFullYear();
@@ -136,6 +198,18 @@ export class ReporteGeneral implements OnInit {
     // Permitir desde 5 años atrás hasta 2 años adelante
     this.minMonth = `${year - 5}-01`;
     this.maxMonth = `${year + 2}-12`;
+
+    // Cargar periodos contables
+    this.accountingPeriodsService.getAll().subscribe({
+      next: (periods) => {
+        this.accountingPeriods = [
+          { period_id: null, title: 'Periodo Actual (En Curso)' },
+          ...periods
+        ];
+        this.selectedPeriodId = null;
+      },
+      error: (err) => console.error('Error al cargar periodos', err)
+    });
   }
 
   selectReport(report: ReportType) {
@@ -177,6 +251,15 @@ export class ReporteGeneral implements OnInit {
       return;
     }
 
+    if (this.needsDateRangeFilter() && (!this.selectedDateStart || !this.selectedDateEnd)) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Atención',
+        detail: 'Por favor seleccione un rango de fechas.'
+      });
+      return;
+    }
+
     let reportObservable: Observable<any[]>;
 
     switch (this.selectedReport.id) {
@@ -201,9 +284,28 @@ export class ReporteGeneral implements OnInit {
       case 'daily-collections':
         reportObservable = this.reportsService.getDailyCollectionsReport(this.selectedDate);
         break;
-      case 'cash-balance':
-        reportObservable = this.reportsService.getCashBalanceReport(this.selectedMonthStart, this.selectedMonthEnd);
+      case 'incomes':
+        reportObservable = this.reportsService.getIncomesReport(this.selectedMonthStart, this.selectedMonthEnd);
         break;
+      case 'expenses':
+        reportObservable = this.reportsService.getExpensesReport(this.selectedMonthStart, this.selectedMonthEnd);
+        break;
+      case 'bank-accounts':
+        reportObservable = this.reportsService.getBankAccountsLedgerReport(this.selectedMonthStart, this.selectedMonthEnd);
+        break;
+
+      case 'comprehensive':
+        const pdfUrl = this.reportsService.getReportPdfUrl(
+          this.selectedReport.id,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          this.selectedPeriodId
+        );
+        window.open(pdfUrl, '_blank');
+        return;
       default:
         console.error('Reporte no reconocido');
         return;
@@ -247,6 +349,62 @@ export class ReporteGeneral implements OnInit {
     });
   }
 
+  previewPdf() {
+    if (!this.selectedReport) return;
+
+    if (this.needsMonthFilter() && (!this.selectedMonthStart || !this.selectedMonthEnd)) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Atención',
+        detail: 'Por favor seleccione un rango de meses.'
+      });
+      return;
+    }
+
+    if (this.needsDateFilter() && !this.selectedDate) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Atención',
+        detail: 'Por favor seleccione una fecha.'
+      });
+      return;
+    }
+
+    if (this.needsDateRangeFilter() && (!this.selectedDateStart || !this.selectedDateEnd)) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Atención',
+        detail: 'Por favor seleccione un rango de fechas.'
+      });
+      return;
+    }
+
+    let pdfUrl = '';
+
+    if (this.selectedReport!.id === 'comprehensive') {
+      pdfUrl = this.reportsService.getReportPdfUrl(
+        this.selectedReport!.id,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        this.selectedPeriodId
+      );
+    } else {
+      pdfUrl = this.reportsService.getReportPdfUrl(
+        this.selectedReport!.id,
+        this.needsMonthFilter() ? this.selectedMonthStart : undefined,
+        this.needsMonthFilter() ? this.selectedMonthEnd : undefined,
+        this.needsDateFilter() ? this.selectedDate : undefined
+      );
+    }
+
+    this.previewUrl = pdfUrl;
+    this.previewTitle = `Vista Previa: ${this.selectedReport!.title}`;
+    this.previewVisible = true;
+  }
+
   private downloadCSV(data: any[], title: string) {
     if (data.length === 0) return;
 
@@ -280,5 +438,13 @@ export class ReporteGeneral implements OnInit {
 
   needsMonthFilter(): boolean {
     return this.selectedReport?.filters.includes('monthRange') || false;
+  }
+
+  needsDateRangeFilter(): boolean {
+    return this.selectedReport?.filters.includes('dateRange') || false;
+  }
+
+  needsAccountingPeriodFilter(): boolean {
+    return this.selectedReport?.filters.includes('accountingPeriod') || false;
   }
 }

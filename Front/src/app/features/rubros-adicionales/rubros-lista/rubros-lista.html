@@ -112,13 +112,13 @@
                     <div *ngFor="let inv of userInvoices"
                         class="flex justify-between items-center p-4 bg-white border border-gray-200 rounded-lg hover:border-blue-300 transition-all">
                         <div class="flex items-center gap-4">
-                            <i class="pi pi-file-pdf text-2xl text-gray-300"></i>
+                            <i class="pi pi-file-pdf text-2xl" [ngClass]="inv.is_mock ? 'text-yellow-400' : 'text-gray-300'"></i>
                             <div>
-                                <span class="block font-bold text-gray-800">Factura #{{inv.invoice_id}}</span>
+                                <span class="block font-bold text-gray-800">{{ inv.is_mock ? 'Factura Borrador (Se creará al vincular)' : 'Factura #' + inv.invoice_id }}</span>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-[11px] text-gray-500 font-medium">Total: ${{inv.total_amount |
-                                        number:'1.2-2'}}</span>
-                                    <p-tag [severity]="inv.status === 'paid' ? 'success' : 'warn'"
+                                    <span class="text-[11px] text-gray-500 font-medium">Total: ${{ (inv.is_mock ? 0 : inv.total_amount) | number:'1.2-2'}}</span>
+                                    <p-tag severity="warn" value="PENDIENTE" *ngIf="inv.is_mock" class="text-[8px]"></p-tag>
+                                    <p-tag *ngIf="!inv.is_mock" [severity]="inv.status === 'paid' ? 'success' : 'warn'"
                                         [value]="inv.status === 'paid' ? 'COBRADA' : 'PENDIENTE'"
                                         class="text-[8px]"></p-tag>
                                 </div>
@@ -129,7 +129,7 @@
                             <p-tag *ngIf="inv.is_linked" severity="success" value="VINCULADO" icon="pi pi-check-circle"
                                 class="text-[10px]"></p-tag>
 
-                            <p-button *ngIf="!inv.is_linked && inv.status === 'pending'" label="VINCULAR"
+                            <p-button *ngIf="!inv.is_linked && (inv.status === 'pending' || inv.is_mock)" label="VINCULAR"
                                 icon="pi pi-link" [text]="true" severity="info" size="small"
                                 (click)="assignToInvoice(inv)"></p-button>
 

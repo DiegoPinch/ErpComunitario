@@ -560,8 +560,23 @@
 
         <!-- Inputs Compactos -->
         <div class="space-y-4">
-            <!-- Efectivo Recibido -->
+            <!-- Método de Pago -->
             <div class="flex flex-col gap-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Método de Pago</label>
+                <p-select [options]="paymentMethods" [(ngModel)]="paymentMethod" styleClass="w-full" appendTo="body"></p-select>
+            </div>
+
+            <!-- Cuenta Bancaria (condicional) -->
+            <div *ngIf="paymentMethod !== 'cash'" class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Cuenta Bancaria Destino</label>
+                <p-select [options]="activeAccounts" [(ngModel)]="accountId" placeholder="Seleccione la cuenta" styleClass="w-full" appendTo="body"></p-select>
+
+                <label class="block text-gray-700 text-sm font-bold mt-3 mb-2">No. de Comprobante / Referencia</label>
+                <input type="text" pInputText [(ngModel)]="referenceNumber" class="w-full" placeholder="Ej: 000123456" />
+            </div>
+
+            <!-- Efectivo Recibido (solo visible si es cash) -->
+            <div class="flex flex-col gap-2" *ngIf="paymentMethod === 'cash'">
                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Efectivo
                     Recibido</label>
                 <div class="relative group">
@@ -571,8 +586,8 @@
                 </div>
             </div>
 
-            <!-- Vuelto Compacto -->
-            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+            <!-- Vuelto Compacto (solo visible si es cash) -->
+            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100" *ngIf="paymentMethod === 'cash'">
                 <div class="flex items-center gap-3">
                     <div class="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
                         <i class="pi pi-undo text-xs"></i>
@@ -586,7 +601,7 @@
 
         <!-- Acciones Compactas -->
         <div class="flex flex-col gap-2 mt-1">
-            <p-button (click)="onConfirmPayment()" [disabled]="!amountReceived || amountReceived < totalToPay"
+            <p-button (click)="onConfirmPayment()" [disabled]="(paymentMethod === 'cash' && (!amountReceived || amountReceived < totalToPay)) || (paymentMethod !== 'cash' && !accountId)"
                 label="Procesar Cobro" icon="pi pi-check" severity="info"
                 styleClass="w-full py-4 border-none rounded-2xl font-black text-xs uppercase tracking-widest shadow-md active:scale-[0.98] disabled:opacity-20">
             </p-button>

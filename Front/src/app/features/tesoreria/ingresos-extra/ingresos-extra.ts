@@ -6,13 +6,15 @@ import { ConfirmationService } from 'primeng/api';
 import { DialogModule } from 'primeng/dialog';
 import { ButtonModule } from 'primeng/button';
 import { InputNumberModule } from 'primeng/inputnumber';
+import { SelectModule } from 'primeng/select';
 import { OtherIncome, OtherIncomesService } from '../../../core/services/other-incomes.service';
+import { BankAccountsService, BankAccount } from '../../../core/services/bank-accounts.service';
 import { CustomTable } from '../../../shared/components/tables/custom-table/custom-table';
 
 @Component({
   selector: 'app-ingresos-extraordinarios',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, CustomTable, ConfirmDialogModule, DialogModule, ButtonModule, InputNumberModule],
+  imports: [CommonModule, ReactiveFormsModule, CustomTable, ConfirmDialogModule, DialogModule, ButtonModule, InputNumberModule, SelectModule],
   providers: [ConfirmationService],
   templateUrl: './ingresos-extra.html'
 })
@@ -22,9 +24,17 @@ export class IngresosExtraordinarios implements OnInit {
   
   showForm = false;
   form: FormGroup;
+  
+  activeAccounts: any[] = [];
+  paymentMethods = [
+    { label: 'Efectivo', value: 'cash' },
+    { label: 'Transferencia', value: 'transfer' },
+    { label: 'Depósito', value: 'deposit' }
+  ];
 
   constructor(
     private incomesService: OtherIncomesService,
+    private bankAccountService: BankAccountsService,
     private fb: FormBuilder,
     private confirmationService: ConfirmationService,
     private cdr: ChangeDetectorRef
@@ -34,13 +44,26 @@ export class IngresosExtraordinarios implements OnInit {
       income_date: [new Date().toISOString().split('T')[0], Validators.required],
       description: ['', Validators.required],
       payment_method: ['cash', Validators.required],
+      account_id: [null],
       reference_number: ['']
     });
   }
 
   ngOnInit(): void {
     this.setupTable();
-    this.loadIncomes();
+    setTimeout(() => {
+      this.loadIncomes();
+      this.loadAccounts();
+    }, 0);
+  }
+  
+  loadAccounts() {
+    this.bankAccountService.getActiveAccounts().subscribe(accs => {
+      this.activeAccounts = accs.map(a => ({ 
+        label: `${a.bank_name} - ${a.account_number}`, 
+        value: a.account_id 
+      }));
+    });
   }
 
   setupTable() {
@@ -64,6 +87,13 @@ export class IngresosExtraordinarios implements OnInit {
   }
 
   onSubmit(event: Event) {
+    if (this.form.invalid) return;
+    
+    if (this.form.value.payment_method !== 'cash' && !this.form.value.account_id) {
+      alert('Debe seleccionar una cuenta bancaria');
+      return;
+    }
+    
     if (this.form.valid) {
       this.confirmationService.confirm({
         target: event.target as EventTarget,

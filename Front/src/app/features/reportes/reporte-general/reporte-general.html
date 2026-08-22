@@ -6,7 +6,7 @@
         <div class="p-5 border-b border-gray-100 bg-white">
             <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2 mb-4">
                 <i class="pi pi-chart-bar text-blue-500"></i>
-                Reportes
+                {{reportCategoryTitle}}
             </h2>
 
             <div class="grid grid-cols-2 gap-2">
@@ -132,6 +132,39 @@
                                     </div>
                                 </div>
 
+                                <!-- Filtro de Rango de Fechas -->
+                                <div *ngIf="needsDateRangeFilter()">
+                                    <label class="text-[9px] font-bold text-gray-400 uppercase mb-2 block">Rango de Fechas</label>
+                                    <div class="flex flex-col gap-2">
+                                        <div>
+                                            <label class="text-[8px] text-gray-500 mb-1 block">Fecha Inicio</label>
+                                            <input type="date" [(ngModel)]="selectedDateStart"
+                                                class="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none">
+                                        </div>
+                                        <div>
+                                            <label class="text-[8px] text-gray-500 mb-1 block">Fecha Fin</label>
+                                            <input type="date" [(ngModel)]="selectedDateEnd"
+                                                class="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Filtro de Corte Contable -->
+                                <div *ngIf="needsAccountingPeriodFilter()">
+                                    <label class="text-[9px] font-bold text-gray-400 uppercase mb-2 block">Corte Contable</label>
+                                    <div class="flex flex-col gap-2">
+                                        <div>
+                                            <label class="text-[8px] text-gray-500 mb-1 block">Seleccione el Corte</label>
+                                            <p-select [options]="accountingPeriods" [(ngModel)]="selectedPeriodId" 
+                                                optionLabel="title" optionValue="period_id"
+                                                styleClass="w-full h-10 rounded-lg border border-slate-200 text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+                                                [style]="{'width':'100%'}"
+                                                [placeholder]="'Seleccionar corte...'">
+                                            </p-select>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <!-- Info del Reporte -->
                                 <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
                                     <h4 class="text-[9px] font-bold text-slate-400 uppercase mb-2">Información</h4>
@@ -183,14 +216,20 @@
 
                                 <!-- Botones de Descarga -->
                                 <div class="flex flex-col gap-2">
-                                    <p-button (click)="exportReport('pdf')" label="Descargar PDF" icon="pi pi-file-pdf"
-                                        severity="danger"
+                                    <p-button (click)="previewPdf()" label="Ver" icon="pi pi-eye"
+                                        severity="info"
                                         styleClass="w-full p-3 text-sm font-bold rounded-xl shadow-md">
                                     </p-button>
-                                    <p-button (click)="exportReport('excel')" label="Descargar Excel"
-                                        icon="pi pi-file-excel" severity="success"
-                                        styleClass="w-full p-3 text-sm font-bold rounded-xl shadow-md">
-                                    </p-button>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <p-button (click)="exportReport('pdf')" label="PDF" icon="pi pi-file-pdf"
+                                            severity="danger"
+                                            styleClass="w-full p-2 text-xs font-bold rounded-xl shadow-md">
+                                        </p-button>
+                                        <p-button (click)="exportReport('excel')" label="Excel"
+                                            icon="pi pi-file-excel" severity="success"
+                                            styleClass="w-full p-2 text-xs font-bold rounded-xl shadow-md">
+                                        </p-button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -201,3 +240,9 @@
         </div>
     </div>
 </div>
+
+<app-pdf-preview 
+  [(visible)]="previewVisible" 
+  [url]="previewUrl" 
+  [title]="previewTitle"
+></app-pdf-preview>

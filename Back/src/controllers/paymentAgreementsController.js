@@ -41,10 +41,14 @@ const addDebtPayment = async (req, res, next) => {
     try {
         const system_user_id = req.user?.system_user_id || req.user?.id || 1; // fallback to 1
         const amount_paid = req.body.amount_paid;
+        const payment_method = req.body.payment_method;
+        const account_id = req.body.account_id;
+        const reference_number = req.body.reference_number;
+        
         if (!amount_paid || amount_paid <= 0) {
             return res.status(400).json({ message: 'Monto inválido' });
         }
-        const result = await paymentAgreementsModel.addDebtPayment(req.params.id, system_user_id, amount_paid);
+        const result = await paymentAgreementsModel.addDebtPayment(req.params.id, system_user_id, amount_paid, payment_method, account_id, reference_number);
         res.json({ 
             message: 'Abono registrado correctamente', 
             remaining: result.new_remaining,

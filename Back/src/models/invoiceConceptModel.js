@@ -1,23 +1,97 @@
 const pool = require('../config/db');
 
 const createInvoiceConcept = async (ic) => {
-  const { invoice_id, concept_id } = ic;
+  let { invoice_id, concept_id, user_id, billing_month } = ic;
 
-  const [inv] = await pool.query('SELECT status FROM invoices WHERE invoice_id = ?', [invoice_id]);
-  if (inv[0]?.status === 'paid') {
-    throw new Error('No se puede asignar rubros a una factura ya cobrada.');
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // 1. Get the concept details
+    const [conceptRows] = await connection.query(
+      'SELECT applies_to, application_month FROM additional_concepts WHERE concept_id = ?',
+      [concept_id]
+    );
+    if (conceptRows.length === 0) {
+      throw new Error('Concepto no encontrado.');
+    }
+
+    // 2. If user_id and billing_month are provided instead of invoice_id (used when assigning directly to user)
+    if (!invoice_id && user_id && billing_month) {
+      // Shield: Check if user is exempt from contributions and fines
+      const [userRows] = await connection.query(
+        'SELECT exempt_from_fines FROM users WHERE user_id = ?',
+        [user_id]
+      );
+      
+      if (userRows.length > 0 && userRows[0].exempt_from_fines) {
+        throw new Error('No se pueden asignar rubros o aportes a un usuario exento (escuelas, iglesias, etc.).');
+      }
+
+      // Check if pending invoice already exists for that user and month
+      const [invoiceRows] = await connection.query(
+        'SELECT invoice_id, status FROM invoices WHERE user_id = ? AND billing_month = ? LIMIT 1',
+        [user_id, billing_month]
+      );
+
+      if (invoiceRows.length > 0) {
+        if (invoiceRows[0].status === 'paid') {
+          throw new Error('No se puede asignar rubros a una factura ya cobrada.');
+        }
+        invoice_id = invoiceRows[0].invoice_id;
+      } else {
+        // Create pending invoice shell ($0)
+        const [invoiceResult] = await connection.query(`
+          INSERT INTO invoices (user_id, invoice_type, billing_month, description, total_amount, issue_date, status)
+          VALUES (?, 'water', ?, 'Factura Mensual', 0.00, CURRENT_DATE, 'pending')
+        `, [user_id, billing_month]);
+        
+        invoice_id = invoiceResult.insertId;
+
+        // Auto-link any other global concepts for that month (excluding exempt users)
+        await connection.query(`
+          INSERT IGNORE INTO invoice_concept (invoice_id, concept_id)
+          SELECT ?, ac.concept_id
+          FROM additional_concepts ac
+          JOIN users u ON u.user_id = ?
+          WHERE ac.application_month = ? 
+            AND ac.applies_to = 'all'
+            AND u.exempt_from_fines = FALSE
+            AND ac.concept_id != ?
+        `, [invoice_id, user_id, billing_month, concept_id]);
+      }
+    }
+
+    // 3. Double check the invoice status if we have the ID
+    if (invoice_id) {
+      const [inv] = await connection.query('SELECT status FROM invoices WHERE invoice_id = ?', [invoice_id]);
+      if (inv.length === 0) {
+        throw new Error('Factura no encontrada.');
+      }
+      if (inv[0]?.status === 'paid') {
+        throw new Error('No se puede asignar rubros a una factura ya cobrada.');
+      }
+    } else {
+      throw new Error('Factura no identificada.');
+    }
+
+    // 4. Link the concept (IGNORE to prevent duplicate links)
+    const [result] = await connection.query(
+      `INSERT IGNORE INTO invoice_concept (invoice_id, concept_id) VALUES (?, ?)`,
+      [invoice_id, concept_id]
+    );
+
+    // 5. Update invoice total
+    await connection.query('CALL sp_update_invoice_total(?)', [invoice_id]);
+
+    await connection.commit();
+    return result.insertId || invoice_id; // Return insert ID or invoice ID
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
   }
-
-  const [result] = await pool.query(
-    `INSERT INTO invoice_concept (invoice_id, concept_id) VALUES (?, ?)`,
-    [invoice_id, concept_id]
-  );
-
-
-  // Update invoice total
-  await pool.query('CALL sp_update_invoice_total(?)', [invoice_id]);
-
-  return result.insertId;
 };
 
 const deleteInvoiceConcept = async (id) => {

@@ -2,6 +2,15 @@ const reportsModel = require('../models/reportsModel');
 const PDFDocument = require('pdfkit');
 
 /**
+ * Helper para formatear valores monetarios con formato internacional (puntos para decimales y comas para miles)
+ */
+const formatCurrency = (val) => {
+    const num = parseFloat(val);
+    if (isNaN(num)) return '$ 0.00';
+    return '$ ' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+/**
  * Helper para formatear periodos YYYY-MM a YYYY-MES (Español)
  */
 const formatPeriod = (period) => {
@@ -98,7 +107,7 @@ const generatePDF = (res, title, data, columns, period = null, totalKey = null) 
 
         // El subtotal se alinea con la última columna
         const lastCol = columnDefinitions[columnDefinitions.length - 1];
-        doc.text(`$ ${total.toFixed(2)}`, lastCol.x, y, { width: lastCol.width, align: 'left', bold: true });
+        doc.text(formatCurrency(total), lastCol.x, y, { width: lastCol.width, align: 'left', bold: true });
         y += 25;
     };
 
@@ -188,7 +197,7 @@ const generatePDF = (res, title, data, columns, period = null, totalKey = null) 
         doc.fillColor('#ffffff').fontSize(10).text('TOTAL FINAL:', 40, y + 5, { bold: true });
 
         const lastCol = columnDefinitions[columnDefinitions.length - 1];
-        doc.text(`$ ${grandTotal.toFixed(2)}`, lastCol.x, y + 5, { width: lastCol.width, align: 'left', bold: true });
+        doc.text(formatCurrency(grandTotal), lastCol.x, y + 5, { width: lastCol.width, align: 'left', bold: true });
     }
 
     // Footer
@@ -286,18 +295,23 @@ const getDelinquency = async (req, res, next) => {
         }
         const data = await reportsModel.getDelinquencyReport(startMonth, endMonth);
 
+        // Pre-formatear para el PDF / Excel
+        const formattedData = data.map(row => ({
+            ...row,
+            total_debt_str: formatCurrency(row.total_debt)
+        }));
+
         if (format === 'pdf') {
             const cols = [
-                { label: 'Usuario', key: 'user_name', width: 200 },
-                { label: 'Cédula', key: 'national_id' },
-                { label: 'Mes Fact.', key: 'billing_month' },
-                { label: 'Estado', key: 'status' },
-                { label: 'Total $', key: 'total_debt' }
+                { label: 'Usuario / Socio', key: 'user_name', width: 140 },
+                { label: 'Cédula', key: 'national_id', width: 75 },
+                { label: 'Tipo Deuda', key: 'concept_type', width: 95 },
+                { label: 'Descripción / Concepto', key: 'description', width: 145 },
+                { label: 'Monto Pendiente', key: 'total_debt_str', width: 80 }
             ];
-            // 'total_debt' incluye deuda de agua y rubros adicionales
-            generatePDF(res, 'Reporte de Morosidad', data, cols, `${startMonth} a ${endMonth}`, 'total_debt');
+            generatePDF(res, 'Reporte de Morosidad Detallado', formattedData, cols, `${startMonth} a ${endMonth}`, 'total_debt');
         } else {
-            res.json(data);
+            res.json(formattedData);
         }
     } catch (err) {
         next(err);
@@ -471,19 +485,19 @@ const getCashBalance = async (req, res, next) => {
                 
                 doc.fillColor('#475569').fontSize(9);
                 doc.text(formatPeriod(row.mes), 40, y);
-                doc.text(`$ ${row.ingresos.toFixed(2)}`, resCols[1].x, y, { width: resCols[1].w, align: 'right' });
-                doc.text(`$ ${row.egresos.toFixed(2)}`, resCols[2].x, y, { width: resCols[2].w, align: 'right' });
+                doc.text(formatCurrency(row.ingresos), resCols[1].x, y, { width: resCols[1].w, align: 'right' });
+                doc.text(formatCurrency(row.egresos), resCols[2].x, y, { width: resCols[2].w, align: 'right' });
                 doc.fillColor(row.saldo >= 0 ? '#10b981' : '#ef4444')
-                   .text(`$ ${(row.saldo).toFixed(2)}`, resCols[3].x, y, { width: resCols[3].w, align: 'right', bold: true });
+                   .text(formatCurrency(row.saldo), resCols[3].x, y, { width: resCols[3].w, align: 'right', bold: true });
                 y += 20;
             });
 
             // Fila de Total
             doc.rect(30, y - 5, 535, 25).fill('#1e293b');
             doc.fillColor('#ffffff').fontSize(10).text('TOTAL ACUMULADO DEL PERIODO:', 40, y + 5, { bold: true });
-            doc.text(`$ ${sumIn.toFixed(2)}`, resCols[1].x, y + 5, { width: resCols[1].w, align: 'right', bold: true });
-            doc.text(`$ ${sumOut.toFixed(2)}`, resCols[2].x, y + 5, { width: resCols[2].w, align: 'right', bold: true });
-            doc.text(`$ ${sumBal.toFixed(2)}`, resCols[3].x, y + 5, { width: resCols[3].w, align: 'right', bold: true });
+            doc.text(formatCurrency(sumIn), resCols[1].x, y + 5, { width: resCols[1].w, align: 'right', bold: true });
+            doc.text(formatCurrency(sumOut), resCols[2].x, y + 5, { width: resCols[2].w, align: 'right', bold: true });
+            doc.text(formatCurrency(sumBal), resCols[3].x, y + 5, { width: resCols[3].w, align: 'right', bold: true });
             
             doc.moveDown(3);
 
@@ -533,7 +547,7 @@ const getCashBalance = async (req, res, next) => {
                     doc.text(row.category_name || 'Sin Categoría', detCols[1].x, y, { width: detCols[1].w });
                     doc.text(row.description || '-', detCols[2].x, y, { width: detCols[2].w, lineGap: 2 });
                     doc.text(row.payment_method === 'cash' ? 'Efec.' : 'Transf.', detCols[3].x, y);
-                    doc.fillColor('#ef4444').text(`$${parseFloat(row.amount).toFixed(2)}`, detCols[4].x, y, { width: detCols[4].w, align: 'right', bold: true });
+                    doc.fillColor('#ef4444').text(formatCurrency(row.amount), detCols[4].x, y, { width: detCols[4].w, align: 'right', bold: true });
 
                     y += rowH;
                 });
@@ -558,6 +572,239 @@ const getCashBalance = async (req, res, next) => {
     }
 };
 
+const getExpensesReport = async (req, res, next) => {
+    try {
+        const { startMonth, endMonth, format } = req.query;
+        if (!startMonth || !endMonth) {
+            return res.status(400).json({ message: 'Mes inicial y final son requeridos (YYYY-MM)' });
+        }
+        const data = await reportsModel.getCashExpensesDetailReport(startMonth, endMonth);
+
+        // Pre-formatear los datos para el PDF/Excel
+        const formattedData = data.map(row => {
+            const dateObj = new Date(row.expense_date);
+            const dateStr = isNaN(dateObj.getTime()) ? '' : dateObj.toLocaleDateString('es-ES', { year:'numeric', month:'2-digit', day:'2-digit' });
+            return {
+                ...row,
+                expense_date_formatted: dateStr,
+                payment_method_str: row.payment_method === 'cash' ? 'Efectivo' : 'Transferencia',
+                amount_str: formatCurrency(row.amount)
+            };
+        });
+
+        if (format === 'pdf') {
+            const cols = [
+                { label: 'Fecha Gasto', key: 'expense_date_formatted', width: 85 },
+                { label: 'Categoría', key: 'category_name', width: 125 },
+                { label: 'Descripción / Destinatario', key: 'description', width: 195 },
+                { label: 'Método Pago', key: 'payment_method_str', width: 65 },
+                { label: 'Monto Gasto', key: 'amount_str', width: 65 }
+            ];
+            generatePDF(res, 'Reporte Detallado de Egresos', formattedData, cols, `${startMonth} a ${endMonth}`, 'amount');
+        } else {
+            res.json(formattedData);
+        }
+    } catch (err) {
+        next(err);
+    }
+};
+
+const getBankReport = async (req, res, next) => {
+    try {
+        const { startMonth, endMonth, format } = req.query;
+        if (!startMonth || !endMonth) {
+            return res.status(400).json({ message: 'Mes inicial y final son requeridos (YYYY-MM)' });
+        }
+        
+        const data = await reportsModel.getBankAccountLedgerReport(startMonth, endMonth);
+
+        if (format === 'pdf') {
+            const doc = new PDFDocument({ margin: 30, size: 'A4', bufferPages: true });
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `attachment; filename=Reporte_Bancos_${startMonth}_${endMonth}.pdf`);
+            doc.pipe(res);
+
+            // Helper format period
+            const formatPeriodLocal = (ym) => {
+                if (!ym) return '';
+                const [y, m] = ym.split('-');
+                const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                return `${months[parseInt(m) - 1]} ${y}`;
+            };
+
+            // ================= HEADER GENERAL =================
+            doc.fillColor('#1d4ed8').fontSize(18).text('JUNTA ADMINISTRADORA DE AGUA POTABLE COMUNIDAD CHALUAPAMBA', { align: 'center' });
+            doc.fontSize(10).fillColor('#64748b').text('Gestión Eficiente y Transparente', { align: 'center' });
+            doc.moveDown(1.2);
+            
+            const titleY = doc.y;
+            doc.rect(30, titleY, 535, 30).fill('#f1f5f9');
+            doc.fillColor('#1e293b').fontSize(12).text('AUXILIAR DE MOVIMIENTOS Y CUENTAS BANCARIAS', 40, titleY + 9, { bold: true });
+            
+            const infoY = titleY + 35;
+            doc.fontSize(8).fillColor('#64748b');
+            doc.text(`Fecha de Emisión: ${new Date().toLocaleString()}`, 30, infoY, { width: 535, align: 'right' });
+            doc.fillColor('#1e293b').fontSize(9).text(`Periodo: ${formatPeriodLocal(startMonth)} a ${formatPeriodLocal(endMonth)}`, 30, infoY, { width: 535, align: 'left' });
+            
+            doc.y = infoY + 20;
+
+            if (data.length === 0) {
+                doc.moveDown(2);
+                doc.fontSize(10).fillColor('#475569').text('No se encontraron cuentas bancarias activas.', { align: 'center' });
+            } else {
+                data.forEach((acc, accIndex) => {
+                    if (doc.y > 600) {
+                        doc.addPage();
+                    } else if (accIndex > 0) {
+                        doc.moveDown(2.5);
+                    }
+
+                    let currentY = doc.y;
+                    
+                    // Header de la Cuenta
+                    doc.rect(30, currentY, 535, 20).fill('#1e3a8a');
+                    doc.fillColor('#ffffff').fontSize(9).font('Helvetica-Bold')
+                       .text(`BANCO: ${acc.bank_name.toUpperCase()} - Tipo: ${acc.account_type === 'savings' ? 'Ahorros' : 'Corriente'} - N° ${acc.account_number}`, 40, currentY + 5);
+                    
+                    currentY += 20;
+
+                    // Cuadro de Resumen de Saldos
+                    doc.rect(30, currentY, 535, 30).fill('#f8fafc').stroke('#cbd5e1');
+                    doc.fillColor('#475569').fontSize(8).font('Helvetica');
+                    doc.text(`Saldo Inicial: ${formatCurrency(acc.initial_balance)}`, 40, currentY + 11);
+                    doc.text(`(+) Ingresos: ${formatCurrency(acc.total_incomes)}`, 165, currentY + 11);
+                    doc.text(`(-) Egresos: ${formatCurrency(acc.total_expenses)}`, 295, currentY + 11);
+                    
+                    doc.fillColor('#1e3a8a').font('Helvetica-Bold')
+                       .text(`(=) Saldo Final: ${formatCurrency(acc.current_balance)}`, 425, currentY + 11);
+                    
+                    currentY += 35;
+
+                    // Tabla de Transacciones
+                    const cols = [
+                        { label: 'FECHA', x: 35, w: 55 },
+                        { label: 'SOCIO / ORIGEN', x: 95, w: 145 },
+                        { label: 'CONCEPTO', x: 245, w: 110 },
+                        { label: 'N° TRANSF.', x: 360, w: 65 },
+                        { label: 'INGRESO', x: 430, w: 60, align: 'right' },
+                        { label: 'EGRESO', x: 495, w: 65, align: 'right' }
+                    ];
+
+                    // Header de la Tabla
+                    doc.rect(30, currentY, 535, 18).fill('#64748b');
+                    doc.fillColor('#ffffff').fontSize(7.5).font('Helvetica-Bold');
+                    cols.forEach(c => {
+                        doc.text(c.label, c.x, currentY + 5, { width: c.w, align: c.align || 'left' });
+                    });
+                    
+                    currentY += 18;
+
+                    if (acc.transactions.length === 0) {
+                        doc.rect(30, currentY, 535, 18).stroke('#e2e8f0');
+                        doc.fillColor('#94a3b8').fontSize(8).font('Helvetica')
+                           .text('No hay movimientos en esta cuenta para el periodo seleccionado.', 40, currentY + 5);
+                        currentY += 18;
+                        doc.y = currentY;
+                    } else {
+                        acc.transactions.forEach((tx, txIndex) => {
+                            const dateObj = new Date(tx.trans_date);
+                            const dateStr = isNaN(dateObj.getTime()) ? '' : dateObj.toLocaleDateString('es-ES', { year:'numeric', month:'2-digit', day:'2-digit' });
+                            
+                            const descHeight = doc.heightOfString(tx.source_dest || '', { width: cols[1].w, fontSize: 7.5 });
+                            const rowH = Math.max(descHeight + 8, 16);
+
+                            if (currentY + rowH > 780) {
+                                doc.addPage();
+                                currentY = 50;
+                                doc.rect(30, currentY, 535, 18).fill('#64748b');
+                                doc.fillColor('#ffffff').fontSize(7.5).font('Helvetica-Bold');
+                                cols.forEach(c => doc.text(c.label, c.x, currentY + 5, { width: c.w, align: c.align || 'left' }));
+                                currentY += 18;
+                            }
+
+                            if (txIndex % 2 === 0) {
+                                doc.rect(30, currentY, 535, rowH).fill('#f8fafc');
+                            }
+                            doc.rect(30, currentY, 535, rowH).stroke('#e2e8f0');
+
+                            doc.fillColor('#475569').fontSize(7.5).font('Helvetica');
+                            doc.text(dateStr, cols[0].x, currentY + 4);
+                            doc.text(tx.source_dest || '-', cols[1].x, currentY + 4, { width: cols[1].w });
+                            doc.text(tx.concept || '-', cols[2].x, currentY + 4, { width: cols[2].w });
+                            doc.text(tx.reference_number || '-', cols[3].x, currentY + 4, { width: cols[3].w });
+
+                            if (tx.trans_type === 'ingreso') {
+                                doc.fillColor('#10b981').text(formatCurrency(tx.amount), cols[4].x, currentY + 4, { width: cols[4].w, align: 'right' });
+                                doc.text('-', cols[5].x, currentY + 4, { width: cols[5].w, align: 'right' });
+                            } else {
+                                doc.text('-', cols[4].x, currentY + 4, { width: cols[4].w, align: 'right' });
+                                doc.fillColor('#ef4444').text(formatCurrency(tx.amount), cols[5].x, currentY + 4, { width: cols[5].w, align: 'right' });
+                            }
+
+                            currentY += rowH;
+                        });
+                        doc.y = currentY;
+                    }
+                });
+            }
+
+            const pageCount = doc.bufferedPageRange().count;
+            for (let i = 0; i < pageCount; i++) {
+                doc.switchToPage(i);
+                doc.fontSize(8).fillColor('#94a3b8').text(`Página ${i + 1} de ${pageCount}`, 30, doc.page.height - 40, { align: 'center' });
+            }
+
+            doc.end();
+        } else {
+            res.json(data);
+        }
+    } catch (err) {
+        next(err);
+    }
+};
+
+const getIncomesReport = async (req, res, next) => {
+    try {
+        const { startMonth, endMonth, format } = req.query;
+        if (!startMonth || !endMonth) {
+            return res.status(400).json({ message: 'Mes inicial y final son requeridos (YYYY-MM)' });
+        }
+        const data = await reportsModel.getCashIncomesDetailReport(startMonth, endMonth);
+
+        // Pre-formatear los datos para el PDF/Excel
+        const formattedData = data.map(row => {
+            const dateObj = new Date(row.payment_date);
+            const dateStr = isNaN(dateObj.getTime()) ? '' : dateObj.toLocaleDateString('es-ES', { year:'numeric', month:'2-digit', day:'2-digit' });
+            
+            let methodStr = 'Efectivo';
+            if (row.payment_method === 'deposit') methodStr = 'Depósito';
+            else if (row.payment_method === 'transfer') methodStr = 'Transferencia';
+
+            return {
+                ...row,
+                payment_date_formatted: dateStr,
+                payment_method_str: methodStr,
+                amount_str: formatCurrency(row.amount)
+            };
+        });
+
+        if (format === 'pdf') {
+            const cols = [
+                { label: 'Fecha Recaudo', key: 'payment_date_formatted', width: 80 },
+                { label: 'Socio / Origen', key: 'client_name', width: 140 },
+                { label: 'Concepto de Ingreso', key: 'concept', width: 180 },
+                { label: 'Forma Pago', key: 'payment_method_str', width: 65 },
+                { label: 'Monto Recibido', key: 'amount_str', width: 70 }
+            ];
+            generatePDF(res, 'Reporte Detallado de Ingresos', formattedData, cols, `${startMonth} a ${endMonth}`, 'amount');
+        } else {
+            res.json(formattedData);
+        }
+    } catch (err) {
+        next(err);
+    }
+};
+
 module.exports = {
     getUsersMeters,
     getReadings,
@@ -567,6 +814,9 @@ module.exports = {
     getActiveUsers,
     getDailyCollections,
     getCashBalance,
+    getExpensesReport,
+    getBankReport,
+    getIncomesReport
 };
 
 

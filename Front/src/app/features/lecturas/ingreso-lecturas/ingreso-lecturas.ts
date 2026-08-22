@@ -117,7 +117,7 @@ export class IngresoLecturas implements OnInit {
 
     // POR DEFECTO: Seleccionar el mes anterior (si existe en la lista)
     // Si estamos en Enero (0), no hay mes anterior en el mismo año en esta lógica básica, 
-    // pero para ERPAGUA usualmente registrarán el mes cerrado.
+    // pero para YakuGest usualmente registrarán el mes cerrado.
     if (this.availableMonths.length > 1) {
       this.selectedMonth = this.availableMonths[this.availableMonths.length - 2].value;
     } else {

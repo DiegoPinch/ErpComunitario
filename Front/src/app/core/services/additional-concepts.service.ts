@@ -32,9 +32,16 @@ export class AdditionalConceptsService {
         return this.http.delete<ConceptResponse>(`${this.apiUrl}/${id}`);
     }
 
-    // Links
-    linkConceptToInvoice(invoiceId: number, conceptId: number): Observable<{ id: number }> {
-        return this.http.post<{ id: number }>(this.linkUrl, { invoice_id: invoiceId, concept_id: conceptId });
+    // Links: Supports linking directly to an invoice OR to a user + billing month (which will auto-create the invoice shell)
+    linkConceptToInvoice(invoiceId: number | null, conceptId: number, userId?: number, billingMonth?: string): Observable<{ id: number }> {
+        const payload: any = { concept_id: conceptId };
+        if (invoiceId) {
+            payload.invoice_id = invoiceId;
+        } else {
+            payload.user_id = userId;
+            payload.billing_month = billingMonth;
+        }
+        return this.http.post<{ id: number }>(this.linkUrl, payload);
     }
 
     unlinkConcept(id: number): Observable<{ message: string }> {

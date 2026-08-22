@@ -1,6 +1,6 @@
 const pool = require('../config/db');
 
-const collectPayments = async (invoiceIds, amountPaid, changeAmount, systemUserId) => {
+const collectPayments = async (invoiceIds, amountPaid, changeAmount, systemUserId, paymentMethod = 'cash', accountId = null, referenceNumber = null) => {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -24,9 +24,9 @@ const collectPayments = async (invoiceIds, amountPaid, changeAmount, systemUserI
       // Guardar amount_paid y change_amount REALES en todas las facturas de la transacción.
       // Así al re-imprimir cualquier factura individual el resumen es siempre correcto.
       await connection.query(
-        `INSERT INTO payments (invoice_id, system_user_id, payment_date, invoice_amount, amount_paid, change_amount, movement_type, payment_method)
-             VALUES (?, ?, NOW(), ?, ?, ?, "payment", "cash")`,
-        [item.id, systemUserId, item.amount, amountPaid, changeAmount]
+        `INSERT INTO payments (invoice_id, system_user_id, payment_date, invoice_amount, amount_paid, change_amount, movement_type, payment_method, account_id, reference_number)
+             VALUES (?, ?, NOW(), ?, ?, ?, "payment", ?, ?, ?)`,
+        [item.id, systemUserId, item.amount, amountPaid, changeAmount, paymentMethod, accountId || null, referenceNumber]
       );
     }
 

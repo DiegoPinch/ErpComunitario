@@ -31,33 +31,36 @@ const generateAccountingPeriod = async (periodData) => {
     );
     const previous_balance = lastPeriod.length > 0 ? parseFloat(lastPeriod[0].physical_balance) : 0;
 
-    // Calcular ingresos regulares
+    const startDateTime = `${start_date} 00:00:00`;
+    const endDateTime = `${end_date} 23:59:59`;
+
+    // Calcular ingresos regulares (utiliza invoice_amount para descontar el cambio entregado al socio)
     const [incomesResult] = await pool.query(
-        "SELECT SUM(amount_paid) as total FROM payments WHERE payment_date >= ? AND payment_date <= ?",
-        [start_date, end_date]
+        "SELECT SUM(invoice_amount) as total FROM payments WHERE payment_date >= ? AND payment_date <= ?",
+        [startDateTime, endDateTime]
     );
     const regular_incomes = parseFloat(incomesResult[0].total || 0);
 
     // Calcular abonos a deudas
     const [debtIncomesResult] = await pool.query(
         "SELECT SUM(amount_paid) as total FROM debt_payments WHERE payment_date >= ? AND payment_date <= ?",
-        [start_date, end_date]
+        [startDateTime, endDateTime]
     );
     const debt_incomes = parseFloat(debtIncomesResult[0].total || 0);
 
     // Calcular ingresos extraordinarios / saldos iniciales
     const [otherIncomesResult] = await pool.query(
         "SELECT SUM(amount) as total FROM other_incomes WHERE income_date >= ? AND income_date <= ?",
-        [start_date, end_date]
+        [startDateTime, endDateTime]
     );
     const other_incomes = parseFloat(otherIncomesResult[0].total || 0);
 
     const total_incomes = regular_incomes + debt_incomes + other_incomes;
 
-    // Calcular egresos
+    // Calcular egresos (excluyendo transferencias internas de efectivo a banco)
     const [expensesResult] = await pool.query(
-        "SELECT SUM(amount) as total FROM expenses WHERE expense_date >= ? AND expense_date <= ?",
-        [start_date, end_date]
+        "SELECT SUM(amount) as total FROM expenses WHERE (expense_date >= ? AND expense_date <= ?) AND (account_id IS NULL OR payment_method != 'cash')",
+        [startDateTime, endDateTime]
     );
     const total_expenses = parseFloat(expensesResult[0].total || 0);
 

@@ -31,6 +31,7 @@ const createUser = async (user) => {
     email,
     registration_date,
     status,
+    exempt_from_fines,
   } = user;
 
   const exists = await existsNationalIdOrEmail(national_id, email);
@@ -40,7 +41,7 @@ const createUser = async (user) => {
   let params;
   if (registration_date === undefined) {
     query =
-      'INSERT INTO users (national_id, first_name, last_name, address, phone, email, status) VALUES (?, ?, ?, ?, ?, ?, ?)';
+      'INSERT INTO users (national_id, first_name, last_name, address, phone, email, status, exempt_from_fines) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
     params = [
       national_id,
       first_name,
@@ -49,10 +50,11 @@ const createUser = async (user) => {
       phone,
       email,
       status ?? true,
+      exempt_from_fines ?? false,
     ];
   } else {
     query =
-      'INSERT INTO users (national_id, first_name, last_name, address, phone, email, registration_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+      'INSERT INTO users (national_id, first_name, last_name, address, phone, email, registration_date, status, exempt_from_fines) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
     params = [
       national_id,
       first_name,
@@ -62,6 +64,7 @@ const createUser = async (user) => {
       email,
       registration_date,
       status ?? true,
+      exempt_from_fines ?? false,
     ];
   }
 
@@ -79,6 +82,7 @@ const updateUser = async (id, user) => {
     email,
     registration_date,
     status,
+    exempt_from_fines,
   } = user;
 
   const exists = await existsNationalIdOrEmail(national_id, email, id);
@@ -88,7 +92,7 @@ const updateUser = async (id, user) => {
   let params;
   if (registration_date === undefined) {
     query =
-      'UPDATE users SET national_id=?, first_name=?, last_name=?, address=?, phone=?, email=?, status=? WHERE user_id=?';
+      'UPDATE users SET national_id=?, first_name=?, last_name=?, address=?, phone=?, email=?, status=?, exempt_from_fines=? WHERE user_id=?';
     params = [
       national_id,
       first_name,
@@ -97,11 +101,12 @@ const updateUser = async (id, user) => {
       phone,
       email,
       status,
+      exempt_from_fines ?? false,
       id,
     ];
   } else {
     query =
-      'UPDATE users SET national_id=?, first_name=?, last_name=?, address=?, phone=?, email=?, registration_date=?, status=? WHERE user_id=?';
+      'UPDATE users SET national_id=?, first_name=?, last_name=?, address=?, phone=?, email=?, registration_date=?, status=?, exempt_from_fines=? WHERE user_id=?';
     params = [
       national_id,
       first_name,
@@ -111,6 +116,7 @@ const updateUser = async (id, user) => {
       email,
       registration_date,
       status,
+      exempt_from_fines ?? false,
       id,
     ];
   }

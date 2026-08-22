@@ -84,6 +84,23 @@
   transform: translateY(-2px);
 }
 
+.error-message {
+  background-color: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgb(239, 68, 68);
+  padding: 0.5rem;
+  border-radius: 5px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  text-align: center;
+  color: #fca5a5;
+}
+
+.login-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
 @media (max-width: 768px) {
   .auth-container h1 {
     font-size: 2rem;

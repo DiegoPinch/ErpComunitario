@@ -1,0 +1,24 @@
+<p-dialog 
+  [(visible)]="visible" 
+  [modal]="true" 
+  [header]="title" 
+  [style]="{ width: '95vw', height: '95vh', 'max-width': '1200px' }" 
+  [maximizable]="true" 
+  [contentStyle]="{ height: 'calc(95vh - 60px)', padding: '0px' }"
+  (onHide)="onClose()"
+  styleClass="pdf-preview-dialog"
+>
+  <div class="w-full h-full flex flex-col overflow-hidden bg-slate-100 rounded-b-lg">
+    <ngx-extended-pdf-viewer 
+      *ngIf="currentUrl" 
+      [src]="currentUrl" 
+      [height]="'100%'"
+      [handTool]="false"
+      [showHandToolButton]="true"
+    ></ngx-extended-pdf-viewer>
+    <div *ngIf="!currentUrl && visible" class="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-2 p-10">
+      <i class="pi pi-spin pi-spinner text-3xl text-blue-500"></i>
+      <span class="font-medium text-sm">Generando vista previa del reporte...</span>
+    </div>
+  </div>
+</p-dialog>

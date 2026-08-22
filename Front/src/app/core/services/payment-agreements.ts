@@ -45,8 +45,13 @@ export class PaymentAgreementsService {
     return this.http.put(`${this.apiUrl}/${id}/status`, { status });
   }
 
-  addDebtPayment(id: number, amount_paid: number): Observable<any> {
-    return this.http.post(`${this.apiUrl}/${id}/payment`, { amount_paid });
+  addDebtPayment(id: number, amount_paid: number, paymentMethod: string = 'cash', accountId: number | null = null, referenceNumber: string | null = null): Observable<any> {
+    return this.http.post(`${this.apiUrl}/${id}/payment`, { 
+      amount_paid,
+      payment_method: paymentMethod,
+      account_id: accountId,
+      reference_number: referenceNumber
+    });
   }
 
   getDebtPayments(id: number): Observable<any[]> {

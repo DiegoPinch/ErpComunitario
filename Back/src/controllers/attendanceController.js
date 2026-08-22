@@ -20,6 +20,16 @@ const getAttendanceById = async (req, res, next) => {
   }
 };
 
+const getAttendanceByMeeting = async (req, res, next) => {
+  try {
+    const meetingId = req.params.meetingId;
+    const list = await attendanceModel.getAttendanceByMeetingId(meetingId);
+    res.json(list);
+  } catch (err) {
+    next(err);
+  }
+};
+
 const createAttendance = async (req, res, next) => {
   try {
     const id = await attendanceModel.createAttendance(req.body);
@@ -51,10 +61,23 @@ const deleteAttendance = async (req, res, next) => {
   }
 };
 
+const updateAttendanceBulk = async (req, res, next) => {
+  try {
+    const meetingId = req.params.meetingId;
+    const list = req.body;
+    await attendanceModel.updateAttendanceBulk(meetingId, list);
+    res.json({ message: 'Asistencia registrada y facturas actualizadas con éxito' });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getAttendance,
   getAttendanceById,
+  getAttendanceByMeeting,
   createAttendance,
   updateAttendance,
   deleteAttendance,
+  updateAttendanceBulk,
 };

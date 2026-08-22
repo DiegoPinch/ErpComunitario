@@ -1,10 +1,12 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
 import { ButtonModule } from 'primeng/button';
 import { AdministrationsService, Administration } from '../../../core/services/administrations';
+import { BoardMembersService } from '../../../core/services/board-members.service';
+import { UserService } from '../../../core/services/user.service';
 import { CustomTable } from '../../../shared/components/tables/custom-table/custom-table';
 import { TableAction } from '../../../shared/components/tables/custom-table/table-action.model';
 
@@ -25,6 +27,17 @@ export class ListDirectiva implements OnInit {
   editingId: number | null = null;
   form: FormGroup;
 
+  // Integrantes directiva
+  showMembers = false;
+  selectedAdminId: number | null = null;
+  selectedAdminName = '';
+  members: any[] = [];
+  users: any[] = [];
+  memberForm: FormGroup;
+
+  private boardMembersService = inject(BoardMembersService);
+  private userService = inject(UserService);
+
   constructor(
     private adminService: AdministrationsService, 
     private cdr: ChangeDetectorRef,
@@ -36,6 +49,11 @@ export class ListDirectiva implements OnInit {
       start_date: ['', Validators.required],
       end_date: [''],
       status: ['active', Validators.required]
+    });
+
+    this.memberForm = this.fb.group({
+      user_id: [null, Validators.required],
+      role: ['PRESIDENTE', Validators.required]
     });
   }
 
@@ -53,6 +71,12 @@ export class ListDirectiva implements OnInit {
     ];
 
     this.actions = [
+      {
+        icon: 'pi pi-users',
+        tooltip: 'Ver Integrantes (Directivos)',
+        styleClass: 'p-button-text p-button-success',
+        command: (row: any) => this.manageMembers(row)
+      },
       {
         icon: 'pi pi-pencil',
         tooltip: 'Editar',
@@ -121,6 +145,64 @@ export class ListDirectiva implements OnInit {
     if(confirm('¿Está seguro de eliminar esta directiva?')) {
       this.adminService.delete(id).subscribe(() => {
         this.loadAdministrations();
+      });
+    }
+  }
+
+  manageMembers(admin: any) {
+    this.selectedAdminId = admin.administration_id;
+    this.selectedAdminName = admin.name;
+    this.loadMembers();
+    this.loadUsers();
+    this.memberForm.reset({
+      user_id: null,
+      role: 'PRESIDENTE'
+    });
+    this.showMembers = true;
+  }
+
+  loadMembers() {
+    if (!this.selectedAdminId) return;
+    this.boardMembersService.getAll(this.selectedAdminId).subscribe(data => {
+      this.members = data;
+      this.cdr.detectChanges();
+    });
+  }
+
+  loadUsers() {
+    if (this.users.length > 0) return;
+    this.userService.getUsers().subscribe(data => {
+      this.users = data.filter(u => !u.exempt_from_fines);
+      this.cdr.detectChanges();
+    });
+  }
+
+  addMember() {
+    if (this.memberForm.invalid || !this.selectedAdminId) return;
+    const raw = this.memberForm.value;
+    const newMember = {
+      administration_id: this.selectedAdminId,
+      user_id: parseInt(raw.user_id),
+      role: raw.role,
+      start_date: new Date().toISOString().split('T')[0],
+      active: 1
+    };
+    this.boardMembersService.create(newMember).subscribe({
+      next: () => {
+        this.loadMembers();
+        this.memberForm.reset({ user_id: null, role: 'PRESIDENTE' });
+      },
+      error: (err) => console.error('Error al agregar integrante', err)
+    });
+  }
+
+  removeMember(boardId: number) {
+    if (confirm('¿Está seguro de quitar a este integrante de la directiva?')) {
+      this.boardMembersService.delete(boardId).subscribe({
+        next: () => {
+          this.loadMembers();
+        },
+        error: (err) => console.error('Error al eliminar integrante', err)
       });
     }
   }

@@ -32,15 +32,15 @@ const createAgreement = async (agreementData) => {
     return result.insertId;
 };
 
-const addDebtPayment = async (agreement_id, system_user_id, amount_paid) => {
+const addDebtPayment = async (agreement_id, system_user_id, amount_paid, payment_method = 'cash', account_id = null, reference_number = null) => {
     const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
 
         // Registrar el pago
         await connection.query(
-            "INSERT INTO debt_payments (agreement_id, system_user_id, amount_paid) VALUES (?, ?, ?)",
-            [agreement_id, system_user_id, amount_paid]
+            "INSERT INTO debt_payments (agreement_id, system_user_id, amount_paid, payment_method, account_id, reference_number) VALUES (?, ?, ?, ?, ?, ?)",
+            [agreement_id, system_user_id, amount_paid, payment_method, account_id, reference_number]
         );
 
         // Descontar del saldo

@@ -1,0 +1,4 @@
+::ng-deep .pdf-preview-dialog .p-dialog-content {
+  padding: 0 !important;
+  overflow: hidden !important;
+}

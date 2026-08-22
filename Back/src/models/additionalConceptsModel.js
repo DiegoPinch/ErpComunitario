@@ -1,7 +1,7 @@
 const pool = require('../config/db');
 
 const getAllConcepts = async () => {
-  const [rows] = await pool.query('SELECT * FROM additional_concepts');
+  const [rows] = await pool.query("SELECT * FROM additional_concepts WHERE concept_type != 'fine' ORDER BY concept_id DESC");
   return rows;
 };
 

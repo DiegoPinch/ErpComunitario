@@ -29,14 +29,14 @@
                 </div>
                 <div>
                     <label class="block text-gray-700 text-sm font-bold mb-2">Método (Dónde está el dinero)</label>
-                    <select formControlName="payment_method" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700">
-                        <option value="cash">Efectivo (Caja Fuerte)</option>
-                        <option value="deposit">Depósito Bancario</option>
-                        <option value="transfer">Transferencia / Cuenta Bancaria</option>
-                    </select>
+                    <p-select [options]="paymentMethods" formControlName="payment_method" styleClass="w-full" appendTo="body"></p-select>
                 </div>
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Número de Referencia / Cuenta (Opcional)</label>
+                <div *ngIf="form.get('payment_method')?.value !== 'cash'">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Cuenta Bancaria</label>
+                    <p-select [options]="activeAccounts" formControlName="account_id" placeholder="Seleccione la cuenta" styleClass="w-full" appendTo="body"></p-select>
+                </div>
+                <div [ngClass]="form.get('payment_method')?.value === 'cash' ? 'md:col-span-1' : 'md:col-span-2'">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Número de Referencia / Comprobante (Opcional)</label>
                     <input formControlName="reference_number" type="text" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700">
                 </div>
             </div>

@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { AuthService } from './auth.service';
 import {
     UsersMetersReport,
     ReadingsReport,
@@ -16,6 +17,7 @@ import {
 })
 export class ReportsService {
     private http = inject(HttpClient);
+    private authService = inject(AuthService);
     private apiUrl = `${environment.apiUrl}/reports`;
 
     getUsersMetersReport(): Observable<UsersMetersReport[]> {
@@ -50,11 +52,31 @@ export class ReportsService {
         return this.http.get<any>(`${this.apiUrl}/cash-balance`, { params: { startMonth, endMonth } });
     }
 
-    getReportPdfUrl(reportId: string, startMonth?: string, endMonth?: string, date?: string): string {
+    getIncomesReport(startMonth: string, endMonth: string): Observable<any[]> {
+        return this.http.get<any[]>(`${this.apiUrl}/incomes`, { params: { startMonth, endMonth } });
+    }
+
+    getExpensesReport(startMonth: string, endMonth: string): Observable<any[]> {
+        return this.http.get<any[]>(`${this.apiUrl}/expenses`, { params: { startMonth, endMonth } });
+    }
+
+    getBankAccountsLedgerReport(startMonth: string, endMonth: string): Observable<any[]> {
+        return this.http.get<any[]>(`${this.apiUrl}/bank-accounts`, { params: { startMonth, endMonth } });
+    }
+
+    getReportPdfUrl(reportId: string, startMonth?: string, endMonth?: string, date?: string, startDate?: string, endDate?: string, periodId?: string | null): string {
         let url = `${this.apiUrl}/${reportId}?format=pdf`;
         if (startMonth) url += `&startMonth=${startMonth}`;
         if (endMonth) url += `&endMonth=${endMonth}`;
         if (date) url += `&date=${date}`;
+        if (startDate) url += `&startDate=${startDate}`;
+        if (endDate) url += `&endDate=${endDate}`;
+        if (periodId !== undefined && periodId !== null) url += `&periodId=${periodId}`;
+        
+        const token = this.authService.getToken();
+        if (token) {
+            url += `&token=${token}`;
+        }
         return url;
     }
 }

@@ -30,7 +30,9 @@ export class EstadoCaja implements OnInit {
   private cdr = inject(ChangeDetectorRef);
 
   // Datos financieros
-  balance: number = 0;
+  balanceGlobal: number = 0;
+  balanceCash: number = 0;
+  bankAccounts: any[] = [];
   totalIncome: number = 0;
   totalExpenses: number = 0;
   globalDebt: number = 0;
@@ -60,12 +62,15 @@ export class EstadoCaja implements OnInit {
   loadDashboardData() {
     // 1. Cargar Balance y Resumen
     forkJoin({
-      balance: this.financialService.getBalance(),
+      balanceResponse: this.financialService.getBalance(),
       globalDebt: this.financialService.getGlobalDebt(),
       collections: this.financialService.getCollectionByConcept(),
       expenses: this.financialService.getExpenses()
-    }).subscribe(({ balance, globalDebt, collections, expenses }) => {
-      this.balance = balance.balance;
+    }).subscribe(({ balanceResponse, globalDebt, collections, expenses }) => {
+      this.balanceGlobal = balanceResponse.balance.global;
+      this.balanceCash = balanceResponse.balance.cash;
+      this.bankAccounts = balanceResponse.balance.accounts || [];
+      
       this.globalDebt = globalDebt.globalDebt;
       this.collectionsByConcept = collections;
 

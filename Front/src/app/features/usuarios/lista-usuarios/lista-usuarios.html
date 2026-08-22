@@ -76,6 +76,12 @@
                     <label for="phone" class="font-semibold text-gray-700">Teléfono</label>
                     <input pInputText id="phone" formControlName="phone" />
                 </div>
+
+                <!-- Exento de Multas -->
+                <div class="flex items-center gap-2 mt-4 md:col-span-2">
+                    <input type="checkbox" id="exempt_from_fines" formControlName="exempt_from_fines" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer" />
+                    <label for="exempt_from_fines" class="font-semibold text-gray-700 select-none cursor-pointer">Exento de Trabajos / Mingas y Multas de Asistencia</label>
+                </div>
             </div>
 
             <!-- Botones -->

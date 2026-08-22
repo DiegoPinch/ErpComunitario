@@ -8,12 +8,14 @@ import { TagModule } from 'primeng/tag';
 import { InputTextModule } from 'primeng/inputtext';
 import { DialogModule } from 'primeng/dialog';
 import { CheckboxModule } from 'primeng/checkbox';
+import { SelectModule } from 'primeng/select';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { forkJoin } from 'rxjs';
 import { InvoicesService } from '../../../core/services/invoices.service';
 import { PaymentAgreementsService, PaymentAgreement } from '../../../core/services/payment-agreements';
+import { BankAccountsService, BankAccount } from '../../../core/services/bank-accounts.service';
 import { UserPendingSummary, Invoice } from '../../../core/models/invoice.model';
 import { CustomTable } from '../../../shared/components/tables/custom-table/custom-table';
 import { TableAction } from '../../../shared/components/tables/custom-table/table-action.model';
@@ -33,7 +35,8 @@ import { TableAction } from '../../../shared/components/tables/custom-table/tabl
     CheckboxModule,
     ToastModule,
     ConfirmDialogModule,
-    CustomTable
+    CustomTable,
+    SelectModule
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './facturas-general.html',
@@ -43,6 +46,7 @@ export class FacturasGeneral implements OnInit {
   private cdr = inject(ChangeDetectorRef);
   private invoicesService = inject(InvoicesService);
   private agreementsService = inject(PaymentAgreementsService);
+  private bankAccountService = inject(BankAccountsService);
   private messageService = inject(MessageService);
   private confirmationService = inject(ConfirmationService);
 
@@ -65,6 +69,16 @@ export class FacturasGeneral implements OnInit {
   changeAmount: number = 0;
   totalToPay: number = 0;
   invoicesToCollect: number[] = [];
+  
+  paymentMethod: string = 'cash';
+  accountId: number | null = null;
+  referenceNumber: string = '';
+  activeAccounts: any[] = [];
+  paymentMethods = [
+    { label: 'Efectivo', value: 'cash' },
+    { label: 'Transferencia', value: 'transfer' },
+    { label: 'Depósito', value: 'deposit' }
+  ];
 
   stats = {
     total_pending: 0,
@@ -106,6 +120,16 @@ export class FacturasGeneral implements OnInit {
 
   ngOnInit(): void {
     this.loadPendingUsers();
+    this.loadAccounts();
+  }
+
+  loadAccounts() {
+    this.bankAccountService.getActiveAccounts().subscribe(accs => {
+      this.activeAccounts = accs.map(a => ({ 
+        label: `${a.bank_name} - ${a.account_number}`, 
+        value: a.account_id 
+      }));
+    });
   }
 
   loadPendingUsers() {
@@ -305,6 +329,9 @@ export class FacturasGeneral implements OnInit {
   openPaymentDialog() {
     this.amountReceived = null;
     this.changeAmount = 0;
+    this.paymentMethod = 'cash';
+    this.accountId = null;
+    this.referenceNumber = '';
     this.showPaymentDialog = true;
     this.cdr.detectChanges();
   }
@@ -319,12 +346,22 @@ export class FacturasGeneral implements OnInit {
   }
 
   onConfirmPayment() {
-    if (this.amountReceived === null || this.amountReceived < this.totalToPay) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Atención',
-        detail: 'El monto recibido debe ser mayor o igual al total a pagar.'
-      });
+    if (this.paymentMethod === 'cash') {
+      if (this.amountReceived === null || this.amountReceived < this.totalToPay) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Atención',
+          detail: 'El monto recibido en efectivo debe ser mayor o igual al total a pagar.'
+        });
+        return;
+      }
+    } else {
+      this.amountReceived = this.totalToPay;
+      this.changeAmount = 0;
+    }
+    
+    if (this.paymentMethod !== 'cash' && !this.accountId) {
+      this.messageService.add({severity:'warn', summary:'Atención', detail:'Debe seleccionar una cuenta bancaria'});
       return;
     }
 
@@ -333,13 +370,13 @@ export class FacturasGeneral implements OnInit {
     // 1. Process Water Invoices
     if (this.invoicesToCollect.length > 0) {
       // Si hay abonos a deudas, el vuelto se lo asignamos a la factura de agua (por simplicidad contable en la BD).
-      requests.push(this.invoicesService.collectPayments(this.invoicesToCollect, this.totalSelectedInvoicesAmount + this.changeAmount, this.changeAmount));
+      requests.push(this.invoicesService.collectPayments(this.invoicesToCollect, this.totalSelectedInvoicesAmount + this.changeAmount, this.changeAmount, this.paymentMethod, this.accountId, this.referenceNumber));
     }
 
     // 2. Process Debt Payments
     if (this.selectedDebts.length > 0) {
       for (const debt of this.selectedDebts) {
-        requests.push(this.agreementsService.addDebtPayment(debt.agreement.agreement_id!, debt.amountToPay));
+        requests.push(this.agreementsService.addDebtPayment(debt.agreement.agreement_id!, debt.amountToPay, this.paymentMethod, this.accountId, this.referenceNumber));
       }
     }
 

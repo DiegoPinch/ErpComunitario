@@ -24,5 +24,9 @@ export interface ConceptCollection {
 }
 
 export interface FinancialBalance {
-    balance: number;
+    balance: {
+        global: number;
+        cash: number;
+        accounts: any[];
+    };
 }

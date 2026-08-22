@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { DialogModule } from 'primeng/dialog';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { InputNumberModule } from 'primeng/inputnumber';
 import { ConfirmationService } from 'primeng/api';
 import { AccountingPeriodsService, AccountingPeriod } from '../../../core/services/accounting-periods';
 import { AdministrationsService, Administration } from '../../../core/services/administrations';
@@ -12,7 +13,7 @@ import { FinancialService } from '../../../core/services/financial.service';
 @Component({
   selector: 'app-cortes-caja',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogModule, ButtonModule, ConfirmDialogModule],
+  imports: [CommonModule, ReactiveFormsModule, DialogModule, ButtonModule, ConfirmDialogModule, InputNumberModule],
   providers: [ConfirmationService],
   templateUrl: './cortes-caja.html',
   styleUrls: ['./cortes-caja.css']
@@ -43,15 +44,17 @@ export class CortesCaja implements OnInit {
   }
 
   ngOnInit(): void {
-    this.loadPeriods();
-    this.adminService.getActive().subscribe(admin => {
-      this.activeAdmin = admin;
-      this.cdr.detectChanges();
-    });
-    this.financialService.getBalance().subscribe(data => {
-      this.currentSystemBalance = data.balance;
-      this.cdr.detectChanges();
-    });
+    setTimeout(() => {
+      this.loadPeriods();
+      this.adminService.getActive().subscribe(admin => {
+        this.activeAdmin = admin;
+        this.cdr.detectChanges();
+      });
+      this.financialService.getBalance().subscribe(data => {
+        this.currentSystemBalance = data.balance.global;
+        this.cdr.detectChanges();
+      });
+    }, 0);
   }
 
   loadPeriods() {

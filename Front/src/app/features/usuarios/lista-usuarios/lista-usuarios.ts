@@ -52,7 +52,8 @@ export class ListaUsuarios implements OnInit {
     email: ['', [Validators.email]],
     address: [''],
     phone: [''],
-    status: [true]
+    status: [true],
+    exempt_from_fines: [false]
   });
 
   ngOnInit() {
@@ -107,14 +108,17 @@ export class ListaUsuarios implements OnInit {
   }
 
   openNew() {
-    this.userForm.reset({ status: true });
+    this.userForm.reset({ status: true, exempt_from_fines: false });
     this.userForm.get('national_id')?.enable();
     this.dialogTitle = 'Nuevo Usuario';
     this.displayDialog = true;
   }
 
   onEdit(user: User) {
-    this.userForm.patchValue(user);
+    this.userForm.patchValue({
+      ...user,
+      exempt_from_fines: user.exempt_from_fines === 1 || user.exempt_from_fines === true
+    });
     this.userForm.get('national_id')?.disable();
     this.dialogTitle = 'Editar Usuario';
     this.displayDialog = true;

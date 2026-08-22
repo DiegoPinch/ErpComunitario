@@ -1,0 +1,85 @@
+<div class="bg-white rounded-lg shadow-md p-6">
+    <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
+    
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Usuarios del Sistema</h1>
+        <p-button label="Nuevo Acceso" icon="pi pi-plus" severity="info" (click)="openNew()"></p-button>
+    </div>
+
+    <app-custom-table 
+        [data]="systemUsers" 
+        [columns]="columns" 
+        title="Cuentas de Acceso al ERP" 
+        [showIndex]="true"
+        [globalFilterFields]="['username', 'full_name', 'national_id']" 
+        [actions]="actions">
+    </app-custom-table>
+
+    <!-- Modal de Usuario del Sistema -->
+    <p-dialog [(visible)]="displayDialog" [header]="dialogTitle" [modal]="true" [style]="{ width: '45vw' }"
+        [breakpoints]="{ '960px': '70vw', '640px': '90vw' }">
+
+        <form [formGroup]="userForm" (ngSubmit)="saveUser()" class="flex flex-col gap-4">
+            <div class="flex flex-col gap-3">
+                <!-- Dropdown Socio/Usuario -->
+                <div class="flex flex-col gap-1.5">
+                    <label class="font-semibold text-gray-700 text-sm">Vincular Socio / Persona</label>
+                    <select formControlName="user_id" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-white">
+                        <option [value]="null">Seleccione un socio...</option>
+                        <option *ngFor="let s of sociosList" [value]="s.value">
+                            {{s.label}}
+                        </option>
+                    </select>
+                    <small *ngIf="userForm.get('user_id')?.invalid && userForm.get('user_id')?.touched" class="text-red-500">
+                        Debe vincular esta cuenta a un socio.
+                    </small>
+                </div>
+
+                <!-- Username -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="username" class="font-semibold text-gray-700 text-sm">Nombre de Usuario (Login)</label>
+                    <input pInputText id="username" formControlName="username" placeholder="Ej: dni / cedula / nombre.apellido" />
+                    <small *ngIf="userForm.get('username')?.invalid && userForm.get('username')?.touched" class="text-red-500">
+                        El nombre de usuario es requerido.
+                    </small>
+                </div>
+
+                <!-- Password -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="password" class="font-semibold text-gray-700 text-sm">Contraseña</label>
+                    <input pInputText type="password" id="password" formControlName="password" 
+                           [placeholder]="isEditMode ? 'Dejar vacío para mantener contraseña actual' : 'Mínimo 4 caracteres'" />
+                    <small *ngIf="userForm.get('password')?.invalid && userForm.get('password')?.touched" class="text-red-500">
+                        La contraseña es obligatoria para usuarios nuevos (mín. 4 caracteres).
+                    </small>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Rol Técnico -->
+                    <div class="flex flex-col gap-1.5">
+                        <label class="font-semibold text-gray-700 text-sm">Rol Técnico en Sistema</label>
+                        <select formControlName="role" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-white">
+                            <option *ngFor="let r of roles" [value]="r.value">{{r.label}}</option>
+                        </select>
+                    </div>
+
+                    <!-- Estado (Activo/Inactivo) -->
+                    <div class="flex flex-col justify-end gap-1.5">
+                        <label class="font-semibold text-gray-700 text-sm mb-1.5">Estado de la Cuenta</label>
+                        <div class="flex items-center gap-2 h-10">
+                            <input type="checkbox" id="status" formControlName="status" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer" />
+                            <label for="status" class="text-gray-700 select-none cursor-pointer font-medium text-sm">Cuenta Activa (Permitir Login)</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
+                <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (click)="onCancel()"></p-button>
+                <p-button label="Guardar Acceso" icon="pi pi-check" type="submit" severity="info" [disabled]="userForm.invalid"></p-button>
+            </div>
+        </form>
+    </p-dialog>
+</div>

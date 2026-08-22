@@ -20,11 +20,27 @@ router.get('/additional-charges', reportsController.getAdditionalCharges);
 // Directorio de Usuarios Activos
 router.get('/active-users', reportsController.getActiveUsers);
 
+const dailyCollectionsReportController = require('../controllers/dailyCollectionsReportController');
+
 // Reporte de Cobros Diarios
-router.get('/daily-collections', reportsController.getDailyCollections);
+router.get('/daily-collections', dailyCollectionsReportController.getDailyCollections);
+
+const comprehensiveReportController = require('../controllers/comprehensiveReportController');
 
 // Reporte de Estado de Caja
 router.get('/cash-balance', reportsController.getCashBalance);
+
+// Reporte Detallado de Egresos
+router.get('/expenses', reportsController.getExpensesReport);
+
+// Reporte Detallado de Ingresos
+router.get('/incomes', reportsController.getIncomesReport);
+
+// Reporte de Cuentas Bancarias Detallado
+router.get('/bank-accounts', reportsController.getBankReport);
+
+// Reporte Integral Contable
+router.get('/comprehensive', comprehensiveReportController.getComprehensivePdf);
 
 module.exports = router;
 

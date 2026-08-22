@@ -12,11 +12,11 @@ app.use(express.json()); // Parseo de JSON
 app.use(morgan('dev')); // Logs de peticiones
 
 // Rutas públicas
-//app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/auth', require('./routes/authRoutes'));
 
 // Protegemos todas las rutas siguientes con JWT
-//const auth = require('./middlewares/auth');
-//app.use(auth.authenticateToken);
+const auth = require('./middlewares/auth');
+app.use(auth.authenticateToken);
 
 // Rutas (protegidas)
 app.use('/api/users', require('./routes/usersRoutes'));
@@ -31,6 +31,7 @@ app.use('/api/invoice-concepts', require('./routes/invoiceConceptRoutes'));
 app.use('/api/payments', require('./routes/paymentsRoutes'));
 app.use('/api/meetings', require('./routes/meetingsRoutes'));
 app.use('/api/attendance', require('./routes/attendanceRoutes'));
+app.use('/api/fine-configurations', require('./routes/fineConfigurationsRoutes'));
 app.use('/api/board-members', require('./routes/boardMembersRoutes'));
 app.use('/api/administrations', require('./routes/administrationsRoutes'));
 app.use('/api/system-users', require('./routes/systemUsersRoutes'));
@@ -41,6 +42,7 @@ app.use('/api/accounting-periods', require('./routes/accountingPeriodsRoutes'));
 app.use('/api/inventory', require('./routes/inventoryRoutes'));
 app.use('/api/reports', require('./routes/reportsRoutes'));
 app.use('/api/other-incomes', require('./routes/otherIncomesRoutes'));
+app.use('/api/bank-accounts', require('./routes/bankAccountsRoutes'));
 
 // Manejo de rutas no encontradas
 app.use((req, res, next) => {

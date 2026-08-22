@@ -23,8 +23,9 @@
         <div
             class="bg-blue-600 rounded-xl p-6 text-white shadow-lg flex justify-between items-center overflow-hidden relative">
             <div class="relative z-10">
-                <p class="text-blue-100 text-sm font-medium uppercase mb-1">Saldo Disponible (Caja)</p>
-                <h2 class="text-4xl font-black">${{ balance.toLocaleString('en-US', {minimumFractionDigits: 2}) }}</h2>
+                <p class="text-blue-100 text-sm font-medium uppercase mb-1">Saldo Caja (Efectivo)</p>
+                <h2 class="text-4xl font-black">${{ balanceData.cash?.toLocaleString('en-US', {minimumFractionDigits: 2}) || '0.00' }}</h2>
+                <p class="text-xs text-blue-200 mt-2">Saldo Global: ${{ balanceData.global?.toLocaleString('en-US', {minimumFractionDigits: 2}) || '0.00' }}</p>
             </div>
             <i
                 class="pi pi-wallet text-6xl text-blue-500 opacity-30 absolute -right-2 -bottom-2 transform rotate-12"></i>
@@ -62,7 +63,7 @@
                 <i class="pi pi-exclamation-circle text-orange-500"></i>
                 <div class="text-xs text-orange-700">
                     <strong>Atención:</strong> El monto no puede superar el saldo disponible de
-                    <strong>${{balance}}</strong>.
+                    <strong>${{ currentSelectedBalance | number:'1.2-2' }}</strong>.
                 </div>
             </div>
 
@@ -98,6 +99,12 @@
                     <label class="font-semibold text-gray-700">Método de Pago</label>
                     <p-select [options]="paymentMethods" formControlName="payment_method"
                         styleClass="w-full"></p-select>
+                </div>
+                
+                <div class="flex flex-col gap-2" *ngIf="expenseForm.get('payment_method')?.value !== 'cash'">
+                    <label class="font-semibold text-gray-700">Cuenta Bancaria</label>
+                    <p-select [options]="activeAccounts" formControlName="account_id" placeholder="Seleccione la cuenta"
+                        styleClass="w-full" appendTo="body"></p-select>
                 </div>
             </div>
 

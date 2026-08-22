@@ -46,7 +46,18 @@
             <form [formGroup]="paymentForm" (ngSubmit)="onPaymentSubmit()">
                 <div class="mb-4">
                     <label class="block text-gray-700 text-sm font-bold mb-2">Monto a Abonar ($)</label>
-                    <input formControlName="amount_paid" type="number" step="0.01" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700">
+                    <input formControlName="amount_paid" type="number" step="0.01" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3">
+
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Método de Pago</label>
+                    <p-select [options]="paymentMethods" formControlName="payment_method" styleClass="w-full mb-3" appendTo="body"></p-select>
+
+                    <div *ngIf="paymentForm.get('payment_method')?.value !== 'cash'">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Cuenta Bancaria</label>
+                        <p-select [options]="activeAccounts" formControlName="account_id" placeholder="Seleccione la cuenta" styleClass="w-full mb-3" appendTo="body"></p-select>
+
+                        <label class="block text-gray-700 text-sm font-bold mb-2">No. de Comprobante</label>
+                        <input formControlName="reference_number" type="text" placeholder="Ej: 0023451" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3">
+                    </div>
                 </div>
                 <div class="flex justify-end space-x-2">
                     <button type="button" (click)="showPaymentForm = false" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded">Cancelar</button>

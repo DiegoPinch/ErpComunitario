@@ -1,0 +1,59 @@
+<div class="bg-white rounded-lg shadow-md p-6">
+    <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
+
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Tarifas de Multas (Asistencia)</h1>
+        <p-button label="Nueva Tarifa" icon="pi pi-plus" severity="info" (click)="openNew()"></p-button>
+    </div>
+
+    <app-custom-table [data]="(configs$ | async) || []" [columns]="cols" title="Listado de Tarifas de Multas" [showIndex]="true"
+        [globalFilterFields]="['name', 'description']" [actions]="actions">
+    </app-custom-table>
+
+    <!-- Modal de Configuración de Multa -->
+    <p-dialog [(visible)]="configDialog" header="Detalles de Tarifa de Multa" [modal]="true" [style]="{ width: '35vw' }"
+        [breakpoints]="{ '960px': '60vw', '640px': '90vw' }" [draggable]="false" [resizable]="false">
+
+        <form [formGroup]="configForm" (ngSubmit)="saveConfig()" class="flex flex-col gap-4">
+            
+            <div class="flex flex-col gap-2">
+                <label class="font-semibold text-gray-700">Nombre de la Tarifa</label>
+                <input type="text" pInputText formControlName="name" placeholder="Ej: Multa Minga" class="w-full" />
+                <small class="text-red-500" *ngIf="configForm.get('name')?.touched && configForm.get('name')?.invalid">
+                    El nombre es requerido.
+                </small>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <label class="font-semibold text-gray-700">Tipo de Multa Aplicable</label>
+                <p-select [options]="fineTypes" formControlName="fine_type" placeholder="Seleccione el tipo"
+                    styleClass="w-full">
+                </p-select>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <label class="font-semibold text-gray-700">Monto por Defecto ($)</label>
+                <p-inputNumber formControlName="default_amount" [minFractionDigits]="2" [maxFractionDigits]="2"
+                    [min]="0" styleClass="w-full" inputStyleClass="w-full" placeholder="0.00">
+                </p-inputNumber>
+                <small class="text-red-500" *ngIf="configForm.get('default_amount')?.touched && configForm.get('default_amount')?.invalid">
+                    El monto es requerido.
+                </small>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <label class="font-semibold text-gray-700">Descripción / Notas</label>
+                <textarea formControlName="description" rows="3" placeholder="Detalles de la multa..." class="w-full border border-gray-300 rounded p-2 text-sm focus:outline-none focus:border-blue-500"></textarea>
+            </div>
+
+            <!-- Botones -->
+            <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
+                <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary"
+                    (click)="configDialog = false"></p-button>
+                <p-button label="Guardar" icon="pi pi-check" type="submit" severity="info"
+                    [disabled]="configForm.invalid"></p-button>
+            </div>
+        </form>
+    </p-dialog>
+</div>

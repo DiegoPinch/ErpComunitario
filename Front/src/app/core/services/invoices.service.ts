@@ -44,11 +44,14 @@ export class InvoicesService {
     /**
      * Procesa el cobro de una o varias facturas
      */
-    collectPayments(invoiceIds: number[], amountPaid: number, changeAmount: number): Observable<any> {
-        return this.http.post(`${this.paymentsUrl}/collect`, {
+    collectPayments(invoiceIds: number[], amountPaid: number, changeAmount: number, paymentMethod: string = 'cash', accountId: number | null = null, referenceNumber: string | null = null): Observable<any> {
+        return this.http.post<any>(`${this.paymentsUrl}/collect`, {
             invoice_ids: invoiceIds,
             amount_paid: amountPaid,
-            change_amount: changeAmount
+            change_amount: changeAmount,
+            payment_method: paymentMethod,
+            account_id: accountId,
+            reference_number: referenceNumber
         });
     }
 

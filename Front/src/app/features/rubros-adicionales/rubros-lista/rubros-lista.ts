@@ -16,6 +16,7 @@ import { TooltipModule } from 'primeng/tooltip';
 import { Observable, map, forkJoin, of } from 'rxjs';
 import { AdditionalConceptsService } from '../../../core/services/additional-concepts.service';
 import { InvoicesService } from '../../../core/services/invoices.service';
+import { UserService } from '../../../core/services/user.service';
 import { UserPendingSummary, Invoice } from '../../../core/models/invoice.model';
 import { AdditionalConcept } from '../../../core/models/additional-concept.interface';
 import { CustomTable } from '../../../shared/components/tables/custom-table/custom-table';
@@ -48,6 +49,7 @@ import { TableAction } from '../../../shared/components/tables/custom-table/tabl
 export class RubrosLista implements OnInit {
   private conceptsService = inject(AdditionalConceptsService);
   private invoicesService = inject(InvoicesService);
+  private userService = inject(UserService);
   private messageService = inject(MessageService);
   private confirmationService = inject(ConfirmationService);
   private fb = inject(FormBuilder);
@@ -77,8 +79,8 @@ export class RubrosLista implements OnInit {
   });
 
   // Assignment Logic
-  pendingUsers: UserPendingSummary[] = [];
-  selectedUser: UserPendingSummary | null = null;
+  pendingUsers: any[] = [];
+  selectedUser: any = null;
   userInvoices: any[] = [];
   assignedUsers: any[] = [];
 
@@ -284,10 +286,18 @@ export class RubrosLista implements OnInit {
   }
 
   loadPendingUsers() {
-    this.invoicesService.getPendingUsers().subscribe({
-      next: (data) => {
+    this.userService.getUsers().subscribe({
+      next: (users) => {
         setTimeout(() => {
-          this.pendingUsers = data;
+          this.pendingUsers = users
+            .filter(u => u.status === 1 || u.status === true)
+            .filter(u => u.exempt_from_fines !== 1 && u.exempt_from_fines !== true)
+            .map(u => ({
+              user_id: u.user_id!,
+              user_name: `${u.last_name} ${u.first_name}`,
+              national_id: u.national_id,
+              pending_invoices_count: 0
+            }));
           this.cdr.detectChanges();
         });
       }
@@ -303,13 +313,15 @@ export class RubrosLista implements OnInit {
           );
 
           if (targetInvoices.length === 0) {
+            // No invoice exists. Provide a mock invoice representing that we will create one automatically!
             setTimeout(() => {
-              this.userInvoices = [];
-              this.messageService.add({
-                severity: 'info',
-                summary: 'Info',
-                detail: 'Este usuario no tiene facturas en el mes seleccionado.'
-              });
+              this.userInvoices = [{
+                invoice_id: null,
+                billing_month: this.selectedConcept?.application_month,
+                status: 'pending',
+                is_linked: false,
+                is_mock: true
+              }];
               this.cdr.detectChanges();
             });
             return;
@@ -339,7 +351,12 @@ export class RubrosLista implements OnInit {
   assignToInvoice(invoice: any) {
     if (!this.selectedConcept?.concept_id) return;
 
-    this.conceptsService.linkConceptToInvoice(invoice.invoice_id, this.selectedConcept.concept_id).subscribe({
+    this.conceptsService.linkConceptToInvoice(
+      invoice.invoice_id,
+      this.selectedConcept.concept_id,
+      this.selectedUser?.user_id,
+      invoice.billing_month
+    ).subscribe({
       next: () => {
         this.showSuccess('Rubro asignado correctamente');
         this.assignDialog = false;

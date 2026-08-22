@@ -1,36 +1,238 @@
 const pool = require('../config/db');
 
+const formatDateES = (dateStr) => {
+  if (!dateStr) return '';
+  const datePart = typeof dateStr === 'string' ? dateStr.substring(0, 10) : new Date(dateStr).toISOString().substring(0, 10);
+  const [year, month, day] = datePart.split('-');
+  return `${day}/${month}/${year}`;
+};
+
+const formatMonthES = (dateStr) => {
+  if (!dateStr) return '';
+  const datePart = typeof dateStr === 'string' ? dateStr.substring(0, 10) : new Date(dateStr).toISOString().substring(0, 10);
+  const [year, month] = datePart.split('-');
+  const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  return `${months[parseInt(month) - 1]} ${year}`;
+};
+
 const getAllMeetings = async () => {
-  const [rows] = await pool.query('SELECT * FROM meetings');
+  const query = `
+    SELECT 
+      m.meeting_id,
+      m.reason,
+      m.meeting_date,
+      m.minutes,
+      m.notes,
+      m.meeting_type,
+      m.fine_config_id,
+      m.concept_id,
+      COALESCE(ac.amount, 0.00) as fine_amount
+    FROM meetings m
+    LEFT JOIN additional_concepts ac ON m.concept_id = ac.concept_id
+    ORDER BY m.meeting_date DESC
+  `;
+  const [rows] = await pool.query(query);
   return rows;
 };
 
 const getMeetingById = async (id) => {
-  const [rows] = await pool.query('SELECT * FROM meetings WHERE meeting_id = ?', [id]);
+  const query = `
+    SELECT 
+      m.meeting_id,
+      m.reason,
+      m.meeting_date,
+      m.minutes,
+      m.notes,
+      m.meeting_type,
+      m.fine_config_id,
+      m.concept_id,
+      COALESCE(ac.amount, 0.00) as fine_amount
+    FROM meetings m
+    LEFT JOIN additional_concepts ac ON m.concept_id = ac.concept_id
+    WHERE m.meeting_id = ?
+  `;
+  const [rows] = await pool.query(query, [id]);
   return rows[0];
 };
 
 const createMeeting = async (meeting) => {
-  const { reason, meeting_date, minutes, notes } = meeting;
-  const [result] = await pool.query(
-    `INSERT INTO meetings (reason, meeting_date, minutes, notes) VALUES (?, ?, ?, ?)`,
-    [reason, meeting_date ?? null, minutes ?? null, notes ?? null]
-  );
-  return result.insertId;
+  const { reason, meeting_date, minutes, notes, meeting_type, fine_config_id, fine_amount } = meeting;
+  
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // 1. Calculate application month (YYYY-MM)
+    const dateStr = typeof meeting_date === 'string' ? meeting_date : new Date(meeting_date).toISOString();
+    const appMonth = dateStr.substring(0, 7);
+
+    // 2. Format the concept description exactly as requested
+    const typeLabel = meeting_type === 'minga' ? 'Minga' : 'Sesión';
+    const dateFormatted = formatDateES(meeting_date);
+    const monthFormatted = formatMonthES(meeting_date);
+    const conceptDescription = `Multa Inasistencia a ${typeLabel} - ${monthFormatted}, Fecha: ${dateFormatted}`;
+
+    // 3. Create the additional concept of type 'fine'
+    const [conceptResult] = await connection.query(
+      `INSERT INTO additional_concepts (concept_type, description, amount, applies_to, application_month)
+       VALUES ('fine', ?, ?, 'user', ?)`,
+      [conceptDescription, fine_amount ?? 5.00, appMonth]
+    );
+    const conceptId = conceptResult.insertId;
+
+    // 4. Create the meeting linked to the concept
+    const [meetingResult] = await connection.query(
+      `INSERT INTO meetings (reason, meeting_date, minutes, notes, meeting_type, fine_config_id, concept_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        reason,
+        meeting_date ?? null,
+        minutes ?? null,
+        notes ?? null,
+        meeting_type ?? 'session',
+        fine_config_id ?? null,
+        conceptId
+      ]
+    );
+    const meetingId = meetingResult.insertId;
+
+    await connection.commit();
+    return meetingId;
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
 };
 
 const updateMeeting = async (id, meeting) => {
-  const { reason, meeting_date, minutes, notes } = meeting;
-  const [result] = await pool.query(
-    `UPDATE meetings SET reason=?, meeting_date=?, minutes=?, notes=? WHERE meeting_id=?`,
-    [reason, meeting_date, minutes, notes, id]
-  );
-  return result.affectedRows;
+  const { reason, meeting_date, minutes, notes, meeting_type, fine_config_id, fine_amount } = meeting;
+  
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // 1. Get current meeting to check its concept_id
+    const [current] = await connection.query(
+      `SELECT m.concept_id, ac.amount as old_fine_amount 
+       FROM meetings m 
+       LEFT JOIN additional_concepts ac ON m.concept_id = ac.concept_id 
+       WHERE m.meeting_id = ?`,
+      [id]
+    );
+    
+    if (current.length === 0) {
+      throw new Error('Reunión no encontrada');
+    }
+
+    const { concept_id, old_fine_amount } = current[0];
+
+    // 2. Calculate application month
+    const dateStr = typeof meeting_date === 'string' ? meeting_date : new Date(meeting_date).toISOString();
+    const appMonth = dateStr.substring(0, 7);
+
+    // 3. Update concept if it exists
+    if (concept_id) {
+      const typeLabel = meeting_type === 'minga' ? 'Minga' : 'Sesión';
+      const dateFormatted = formatDateES(meeting_date);
+      const monthFormatted = formatMonthES(meeting_date);
+      const conceptDescription = `Multa Inasistencia a ${typeLabel} - ${monthFormatted}, Fecha: ${dateFormatted}`;
+
+      await connection.query(
+        `UPDATE additional_concepts 
+         SET description = ?, amount = ?, application_month = ?
+         WHERE concept_id = ?`,
+        [conceptDescription, fine_amount, appMonth, concept_id]
+      );
+
+      // Recalculate impact if amount changed
+      if (old_fine_amount !== undefined && parseFloat(old_fine_amount) !== parseFloat(fine_amount)) {
+        await connection.query('CALL sp_recalculate_concept_impact(?)', [concept_id]);
+      }
+    }
+
+    // 4. Update meeting details
+    const [result] = await connection.query(
+      `UPDATE meetings 
+       SET reason = ?, meeting_date = ?, minutes = ?, notes = ?, meeting_type = ?, fine_config_id = ?
+       WHERE meeting_id = ?`,
+      [
+        reason,
+        meeting_date,
+        minutes ?? null,
+        notes ?? null,
+        meeting_type ?? 'session',
+        fine_config_id ?? null,
+        id
+      ]
+    );
+
+    await connection.commit();
+    return result.affectedRows;
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
 };
 
 const deleteMeeting = async (id) => {
-  const [result] = await pool.query('DELETE FROM meetings WHERE meeting_id=?', [id]);
-  return result.affectedRows;
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // 1. Get concept_id
+    const [current] = await connection.query('SELECT concept_id FROM meetings WHERE meeting_id = ?', [id]);
+    if (current.length === 0) {
+      return 0;
+    }
+
+    const { concept_id } = current[0];
+
+    // 2. Shield: if concept is linked to paid invoices, prevent deletion
+    if (concept_id) {
+      const [paidLinks] = await connection.query(`
+        SELECT COUNT(*) as count 
+        FROM invoice_concept ic
+        JOIN invoices i ON ic.invoice_id = i.invoice_id
+        WHERE ic.concept_id = ? AND i.status = 'paid'
+      `, [concept_id]);
+
+      if (paidLinks[0].count > 0) {
+        throw new Error('No se puede eliminar la reunión porque las multas asociadas ya han sido cobradas en facturas pagadas.');
+      }
+    }
+
+    // 3. Delete meeting first
+    const [meetingResult] = await connection.query('DELETE FROM meetings WHERE meeting_id = ?', [id]);
+
+    // 4. If concept exists, delete it and its associations
+    if (concept_id) {
+      const [affectedInvoices] = await connection.query(
+        'SELECT invoice_id FROM invoice_concept WHERE concept_id = ?',
+        [concept_id]
+      );
+
+      await connection.query('DELETE FROM invoice_concept WHERE concept_id = ?', [concept_id]);
+      await connection.query('DELETE FROM additional_concepts WHERE concept_id = ?', [concept_id]);
+
+      if (affectedInvoices.length > 0) {
+        for (const inv of affectedInvoices) {
+          await connection.query('CALL sp_update_invoice_total(?)', [inv.invoice_id]);
+        }
+      }
+    }
+
+    await connection.commit();
+    return meetingResult.affectedRows;
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
 };
 
 module.exports = {
