@@ -1,24 +1,100 @@
-<div class="auth-container">
-  <h1>Bienvenido a YakuGest</h1>
-  <p>Sistema de gestión para Juntas de Agua Potable</p>
-
-  <div class="login-section">
-    <h2>Iniciar Sesión</h2>
-    <div *ngIf="errorMessage" class="error-message">
-      {{ errorMessage }}
+<div class="h-screen w-screen flex flex-col bg-background text-on-surface overflow-hidden" style="height: 100vh; width: 100vw; display: flex; flex-direction: column; background-color: #f8f9fa;">
+  <!-- Main Content Area with Split Layout -->
+  <main class="flex-grow flex flex-col md:flex-row relative overflow-hidden" style="display: flex; flex-grow: 1; min-height: 0; width: 100%;">
+    
+    <!-- Background/Image Section (Left on Desktop, hidden on Mobile) -->
+    <div class="hidden md:block md:w-1/2 relative overflow-hidden" style="width: 50%; height: 100%; position: relative;">
+      <!-- Background Image -->
+      <div style="position: absolute; inset: 0; background-image: url('/chalupamba_water_facility.jpg'); background-size: cover; background-position: center; z-index: 1;"></div>
+      <!-- Gradient Overlay for legibility and brand identity -->
+      <div style="position: absolute; inset: 0; background: linear-gradient(to top right, rgba(0, 63, 135, 0.8), rgba(0, 106, 101, 0.4)); mix-blend-mode: multiply; z-index: 2;"></div>
+      
+      <!-- Brand Decorative Elements -->
+      <div style="position: absolute; bottom: 64px; left: 64px; right: 64px; color: #ffffff; z-index: 10; font-family: 'Work Sans', sans-serif; text-align: left;">
+        <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px;">
+          <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1; font-size: 64px; color: #ffffff; width: fit-content;">water_drop</span>
+          <h2 style="font-size: 38px; font-weight: 700; line-height: 1.2; margin: 0; color: #ffffff; letter-spacing: -0.02em;">
+            Junta Administradora de Agua Potable<br/>
+            <span style="font-size: 26px; font-weight: 400; opacity: 0.9; margin-top: 8px; display: block; letter-spacing: 0;">Comunidad de Chalupamba</span>
+          </h2>
+        </div>
+        <p style="font-size: 16px; line-height: 1.6; max-width: 440px; margin: 0; color: #acc7ff; font-family: 'Inter', sans-serif;">
+          Comprometidos con la calidad, eficiencia y transparencia en la gestión de nuestros recursos hídricos para el bienestar de la comunidad.
+        </p>
+      </div>
     </div>
-    <form (ngSubmit)="onLogin()">
-      <div class="form-group">
-        <label for="username">Usuario:</label>
-        <input type="text" id="username" name="username" [(ngModel)]="username" required [disabled]="loading">
+
+    <!-- Form Section (Right on Desktop, Full on Mobile) -->
+    <div class="w-full md:w-1/2 flex items-center justify-center p-6 md:p-12" style="display: flex; flex-grow: 1; align-items: center; justify-content: center; background-color: #f8f9fa; box-sizing: border-box; height: 100%;">
+      <div class="glass-panel" style="width: 100%; max-width: 420px; padding: 36px; border-radius: 16px; box-sizing: border-box; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08); display: block;">
+        
+        <!-- Mobile Header (Visible only on mobile/tablet, hidden on desktop via md:hidden class) -->
+        <div class="md:hidden flex flex-col items-center mb-8 text-center" style="align-items: center; text-align: center; margin-bottom: 24px; font-family: 'Work Sans', sans-serif;">
+          <span class="material-symbols-outlined text-primary text-[48px] mb-2" style="font-variation-settings: 'FILL' 1; font-size: 48px; color: #003f87;">water_drop</span>
+          <h1 style="font-size: 24px; font-weight: 700; color: #003f87; line-height: 1.2; margin: 0;">
+            Junta Administradora de Agua Potable<br/>
+            <span style="font-size: 16px; font-weight: 400; margin-top: 4px; display: block; opacity: 0.9; color: #3a434a;">Comunidad de Chalupamba</span>
+          </h1>
+        </div>
+
+        <!-- Form Header -->
+        <div style="margin-bottom: 28px; text-align: center; font-family: 'Work Sans', sans-serif;">
+          <h2 style="font-size: 24px; font-weight: 700; margin: 0 0 6px 0; color: #191c1d; letter-spacing: -0.01em;">Bienvenido</h2>
+          <p style="font-size: 14px; margin: 0; color: #424752; font-family: 'Inter', sans-serif; line-height: 1.4;">Ingrese sus credenciales para acceder a su cuenta en Yaku Gest.</p>
+        </div>
+
+        <!-- Error Message -->
+        @if (errorMessage) {
+          <div style="margin-bottom: 16px; padding: 10px 14px; border-radius: 8px; border: 1px solid #ba1a1a; background-color: #ffdad6; color: #93000a; text-align: center; font-size: 13px; font-family: 'Inter', sans-serif;">
+            {{ errorMessage }}
+          </div>
+        }
+
+        <!-- Login Form -->
+        <form (ngSubmit)="onLogin()" style="display: flex; flex-direction: column; gap: 18px; width: 100%;">
+          <!-- Username Field -->
+          <div style="display: flex; flex-direction: column; gap: 6px; width: 100%; text-align: left; font-family: 'Inter', sans-serif;">
+            <label for="username" style="font-size: 13px; font-weight: 600; display: block; color: #191c1d;">Usuario</label>
+            <div style="position: relative; width: 100%; display: block;">
+              <div style="position: absolute; top: 0; bottom: 0; left: 0; padding-left: 14px; display: flex; align-items: center; pointer-events: none; z-index: 10;">
+                <span class="material-symbols-outlined" style="color: #727784; font-size: 20px;">person</span>
+              </div>
+              <input pInputText id="username" name="username" [(ngModel)]="username" placeholder="Ej. juanperez" required [disabled]="loading" type="text" style="width: 100%; padding-left: 42px; padding-right: 14px; padding-top: 10px; padding-bottom: 10px; border: 1px solid #c2c6d4; border-radius: 8px; background-color: #ffffff; color: #191c1d; font-size: 14px; box-sizing: border-box; display: block; outline: none;"/>
+            </div>
+          </div>
+
+          <!-- Password Field -->
+          <div style="display: flex; flex-direction: column; gap: 6px; width: 100%; text-align: left; font-family: 'Inter', sans-serif;">
+            <label for="password" style="font-size: 13px; font-weight: 600; display: block; color: #191c1d;">Contraseña</label>
+            <div style="position: relative; width: 100%; display: block;">
+              <div style="position: absolute; top: 0; bottom: 0; left: 0; padding-left: 14px; display: flex; align-items: center; pointer-events: none; z-index: 10;">
+                <span class="material-symbols-outlined" style="color: #727784; font-size: 20px;">lock</span>
+              </div>
+              <input pInputText id="password" name="password" [(ngModel)]="password" placeholder="••••••••" required [disabled]="loading" type="password" style="width: 100%; padding-left: 42px; padding-right: 14px; padding-top: 10px; padding-bottom: 10px; border: 1px solid #c2c6d4; border-radius: 8px; background-color: #ffffff; color: #191c1d; font-size: 14px; box-sizing: border-box; display: block; outline: none;"/>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <p-button type="submit" [disabled]="loading || !username || !password" styleClass="w-full" [style]="{ 'width': '100%', 'min-height': '44px', 'background-color': '#003f87', 'border-color': '#003f87', 'color': '#ffffff', 'font-family': 'Inter', 'font-size': '14px', 'font-weight': '600', 'border-radius': '8px', 'box-sizing': 'border-box' }">
+            <span style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;">
+              {{ loading ? 'Iniciando...' : 'Iniciar Sesión' }}
+              @if (!loading) {
+                <span class="material-symbols-outlined" style="font-size: 20px;">login</span>
+              }
+            </span>
+          </p-button>
+        </form>
       </div>
-      <div class="form-group">
-        <label for="password">Contraseña:</label>
-        <input type="password" id="password" name="password" [(ngModel)]="password" required [disabled]="loading">
-      </div>
-      <button type="submit" class="login-btn" [disabled]="loading">
-        {{ loading ? 'Iniciando...' : 'Ingresar' }}
-      </button>
-    </form>
-  </div>
+    </div>
+  </main>
+
+  <!-- Footer Component -->
+  <footer class="bg-transparent w-full" style="width: 100%; display: block; background: transparent; height: 50px; min-height: 50px;">
+    <div class="flex flex-col md:flex-row justify-center items-center gap-2 w-full py-3 px-4" style="display: flex; justify-content: center; align-items: center; padding: 12px; box-sizing: border-box; font-family: 'Inter', sans-serif;">
+      <span style="font-size: 11px; font-weight: 600; color: #003f87; text-align: center;">
+        © 2026-20 Junta Administradora de Agua Potable Comunidad de Chalupamba. 
+        <span class="block md:inline font-normal text-[11px] mt-1 md:mt-0 md:ml-2" style="font-weight: 400; color: #424752;">Powered by Yaku Gest</span>
+      </span>
+    </div>
+  </footer>
 </div>
