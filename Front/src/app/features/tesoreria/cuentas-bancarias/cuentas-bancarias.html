@@ -4,55 +4,60 @@
 
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-800">Gestión de Cuentas</h1>
-        <p-button label="Nueva Cuenta" icon="pi pi-plus" severity="success" (click)="openNew()"></p-button>
+        <p-button label="Nueva Cuenta" icon="pi pi-plus" (click)="openNew()" styleClass="!bg-primary hover:!bg-primary/90 !text-white !border-none !py-1.5 !px-3 !text-xs !font-semibold shadow-sm rounded-lg transition-all duration-150 cursor-pointer"></p-button>
     </div>
 
-    <app-custom-table [data]="(accounts$ | async) || []" [columns]="cols" title="Listado de Cuentas" [showIndex]="true"
+    <app-custom-table [data]="(accounts$ | async) || []" [columns]="cols" tableTitle="Listado de Cuentas" [showIndex]="true"
         [globalFilterFields]="['bank_name', 'account_number', 'account_type']" [actions]="actions">
     </app-custom-table>
 
     <!-- Modal de Cuenta -->
-    <p-dialog [(visible)]="accountDialog" [header]="dialogTitle" [modal]="true" [style]="{ width: '50vw' }"
-        [breakpoints]="{ '960px': '75vw', '640px': '90vw' }">
+    <p-dialog [(visible)]="accountDialog" [header]="dialogTitle" [modal]="true" [style]="{ width: '600px' }"
+        styleClass="custom-dialog bg-white rounded-3xl overflow-hidden shadow-2xl border-none"
+        [draggable]="false" [resizable]="false">
         
-        <form [formGroup]="accountForm" (ngSubmit)="saveAccount()" class="flex flex-col gap-4">
+        <form [formGroup]="accountForm" (ngSubmit)="saveAccount()" class="flex flex-col gap-4 mt-2">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="flex flex-col gap-2">
-                    <label for="bank_name" class="font-semibold text-gray-700">Institución Financiera</label>
+                    <label for="bank_name" class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Institución Financiera <span class="text-red-500">*</span></label>
                     <p-select [options]="ecuadorBanks" formControlName="bank_name" inputId="bank_name" appendTo="body" placeholder="Seleccione un Banco" styleClass="w-full" [filter]="true" filterBy="label"></p-select>
-                    <small *ngIf="accountForm.get('bank_name')?.invalid && accountForm.get('bank_name')?.touched" class="text-red-500">
+                    <small *ngIf="accountForm.get('bank_name')?.invalid && accountForm.get('bank_name')?.touched" class="text-red-500 text-xs ml-1">
                         La institución es requerida.
                     </small>
                 </div>
                 
                 <div class="flex flex-col gap-2">
-                    <label for="account_number" class="font-semibold text-gray-700">Número de Cuenta</label>
-                    <input pInputText id="account_number" formControlName="account_number" placeholder="Ej: 1234567890" />
-                    <small *ngIf="accountForm.get('account_number')?.invalid && accountForm.get('account_number')?.touched" class="text-red-500">
+                    <label for="account_number" class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Número de Cuenta <span class="text-red-500">*</span></label>
+                    <input pInputText id="account_number" formControlName="account_number" placeholder="Ej: 1234567890" 
+                        class="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none transition-all" />
+                    <small *ngIf="accountForm.get('account_number')?.invalid && accountForm.get('account_number')?.touched" class="text-red-500 text-xs ml-1">
                         El número de cuenta es requerido.
                     </small>
                 </div>
-
+ 
                 <div class="flex flex-col gap-2">
-                    <label for="account_type" class="font-semibold text-gray-700">Tipo de Cuenta</label>
+                    <label for="account_type" class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Cuenta <span class="text-red-500">*</span></label>
                     <p-select [options]="accountTypes" formControlName="account_type" inputId="account_type" appendTo="body" styleClass="w-full"></p-select>
                 </div>
-
+ 
                 <div class="flex flex-col gap-2" *ngIf="!isEdit">
-                    <label for="initial_balance" class="font-semibold text-gray-700">Saldo Inicial</label>
+                    <label for="initial_balance" class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Saldo Inicial <span class="text-red-500">*</span></label>
                     <p-inputNumber id="initial_balance" formControlName="initial_balance" mode="currency" currency="USD" locale="en-US" styleClass="w-full"></p-inputNumber>
                 </div>
-
+ 
                 <div class="flex flex-col gap-2" *ngIf="isEdit">
-                    <label for="status" class="font-semibold text-gray-700">Estado</label>
+                    <label for="status" class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Estado <span class="text-red-500">*</span></label>
                     <p-select [options]="statusOptions" formControlName="status" inputId="status" appendTo="body" styleClass="w-full"></p-select>
                 </div>
             </div>
-
+ 
             <!-- Botones -->
-            <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
-                <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (click)="hideDialog()"></p-button>
-                <p-button label="Guardar" icon="pi pi-check" type="submit" severity="success" [disabled]="accountForm.invalid"></p-button>
+            <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
+                <p-button (onClick)="hideDialog()" label="Cancelar" [text]="true"
+                    styleClass="p-button-text !text-slate-500 hover:!bg-slate-100 !py-1.5 !px-3 !text-xs !font-semibold rounded-lg transition-all duration-150 cursor-pointer">
+                </p-button>
+                <p-button type="submit" [disabled]="accountForm.invalid" label="Guardar"
+                    styleClass="!bg-primary hover:!bg-primary/90 !text-white !border-none !py-1.5 !px-3 !text-xs !font-semibold shadow-sm rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-30"></p-button>
             </div>
         </form>
     </p-dialog>

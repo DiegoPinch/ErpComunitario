@@ -3,63 +3,63 @@
     <p-confirmDialog></p-confirmDialog>
 
     <!-- Header & Balance -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
         <div>
             <h1 class="text-2xl font-bold text-gray-800">Registro de Egresos</h1>
-            <p class="text-gray-500">Control de gastos y salidas de caja</p>
+            <p class="text-gray-500 text-xs mt-1">Control de gastos y salidas de caja</p>
 
-            <div class="flex items-center gap-4 mt-4">
+            <div class="flex items-center gap-4 mt-3">
                 <div class="flex flex-col gap-1">
-                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">Rango de Fechas</label>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Rango de Fechas</label>
                     <p-datePicker [(ngModel)]="filterDates" selectionMode="range" [numberOfMonths]="2"
                         [readonlyInput]="true" (onSelect)="onDateChange()" styleClass="w-full md:w-64">
                     </p-datePicker>
                 </div>
-                <p-button label="Nuevo Egreso" icon="pi pi-plus" severity="info" (click)="openNew()"
-                    class="mt-5"></p-button>
+                <p-button (click)="openNew()" label="Nuevo Egreso" icon="pi pi-plus"
+                    styleClass="!bg-primary hover:!bg-primary/90 !text-white !border-none !py-1.5 !px-3 !text-xs !font-semibold shadow-sm rounded-lg transition-all duration-150 cursor-pointer mt-5">
+                </p-button>
             </div>
         </div>
 
-        <div
-            class="bg-blue-600 rounded-xl p-6 text-white shadow-lg flex justify-between items-center overflow-hidden relative">
+        <div class="bg-blue-600 rounded-xl p-4 py-3 text-white shadow-lg flex justify-between items-center overflow-hidden relative">
             <div class="relative z-10">
-                <p class="text-blue-100 text-sm font-medium uppercase mb-1">Saldo Caja (Efectivo)</p>
-                <h2 class="text-4xl font-black">${{ balanceData.cash?.toLocaleString('en-US', {minimumFractionDigits: 2}) || '0.00' }}</h2>
-                <p class="text-xs text-blue-200 mt-2">Saldo Global: ${{ balanceData.global?.toLocaleString('en-US', {minimumFractionDigits: 2}) || '0.00' }}</p>
+                <p class="text-blue-100 text-[10px] font-bold uppercase tracking-wider leading-none mb-1">Saldo Caja (Efectivo)</p>
+                <h2 class="text-2xl font-black">${{ balanceData.cash?.toLocaleString('en-US', {minimumFractionDigits: 2}) || '0.00' }}</h2>
+                <p class="text-[11px] text-blue-200 mt-1 font-medium">Saldo Global: ${{ balanceData.global?.toLocaleString('en-US', {minimumFractionDigits: 2}) || '0.00' }}</p>
             </div>
-            <i
-                class="pi pi-wallet text-6xl text-blue-500 opacity-30 absolute -right-2 -bottom-2 transform rotate-12"></i>
+            <i class="pi pi-wallet text-5xl text-blue-500 opacity-30 absolute -right-2 -bottom-2 transform rotate-12"></i>
         </div>
     </div>
 
     <!-- Info Filtro -->
-    <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6 flex items-center justify-between shadow-sm rounded-r-lg">
+    <div class="bg-blue-50 border-l-4 border-blue-400 py-2.5 px-4 mb-4 flex items-center justify-between shadow-sm rounded-r-lg">
         <div class="flex items-center gap-3">
-            <i class="pi pi-info-circle text-blue-600 text-xl"></i>
+            <i class="pi pi-info-circle text-blue-600 text-base"></i>
             <div>
-                <p class="text-blue-800 font-medium text-sm uppercase tracking-tight">Mostrando registros del periodo:</p>
-                <p class="text-blue-700 font-black text-xl leading-tight">{{filterLabel}}</p>
+                <p class="text-[10px] font-bold text-blue-500 uppercase tracking-widest leading-none mb-1">Mostrando registros del periodo:</p>
+                <p class="text-sm font-black text-blue-700 leading-none">{{filterLabel}}</p>
             </div>
         </div>
         <div class="hidden lg:block text-right">
-            <span class="text-xs text-blue-400 uppercase font-bold tracking-widest bg-blue-100 px-2 py-1 rounded">Filtro Activo</span>
+            <span class="text-[9px] text-blue-400 uppercase font-black tracking-widest bg-blue-100 px-2 py-0.5 rounded">Filtro Activo</span>
         </div>
     </div>
 
     <!-- Tabla -->
-    <app-custom-table [data]="(expenses$ | async) || []" [columns]="cols" title="Listado de Egresos" [showIndex]="true"
+    <app-custom-table [data]="(expenses$ | async) || []" [columns]="cols" tableTitle="Listado de Egresos" [showIndex]="true"
         [globalFilterFields]="['description', 'category_name']" [actions]="actions"
         [emptyMessage]="'No se encontraron egresos para el rango: ' + filterLabel">
     </app-custom-table>
 
     <!-- Modal Registro -->
-    <p-dialog [(visible)]="displayDialog" [header]="dialogTitle" [modal]="true" [style]="{ width: '40vw' }"
-        [breakpoints]="{ '960px': '75vw', '640px': '90vw' }" [draggable]="false" [resizable]="false">
+    <p-dialog [(visible)]="displayDialog" [header]="dialogTitle" [modal]="true" [style]="{ width: '650px' }"
+        styleClass="custom-dialog bg-white rounded-3xl overflow-hidden shadow-2xl border-none"
+        [draggable]="false" [resizable]="false">
 
         <form [formGroup]="expenseForm" (ngSubmit)="saveExpense()" class="flex flex-col gap-4 mt-2">
 
             <!-- Alerta Saldo -->
-            <div class="bg-orange-50 border-l-4 border-orange-400 p-3 flex gap-3 items-center">
+            <div class="bg-orange-50 border-l-4 border-orange-400 p-3 flex gap-3 items-center rounded-r-xl">
                 <i class="pi pi-exclamation-circle text-orange-500"></i>
                 <div class="text-xs text-orange-700">
                     <strong>Atención:</strong> El monto no puede superar el saldo disponible de
@@ -68,7 +68,7 @@
             </div>
 
             <!-- Alerta Fuera de Rango -->
-            <div *ngIf="isDateOutOfFilter" class="bg-blue-50 border-l-2 border-blue-400 p-3 flex gap-3 items-center animate-fadein">
+            <div *ngIf="isDateOutOfFilter" class="bg-blue-50 border-l-2 border-blue-400 p-3 flex gap-3 items-center animate-fadein rounded-r-xl">
                 <i class="pi pi-info-circle text-blue-500"></i>
                 <div class="text-xs text-blue-700">
                     <strong>Aviso:</strong> Esta fecha está fuera del filtro actual ({{filterLabel}}). 
@@ -78,53 +78,55 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="flex flex-col gap-2">
-                    <label class="font-semibold text-gray-700">Categoría</label>
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Categoría <span class="text-red-500">*</span></label>
                     <p-select [options]="categories" formControlName="category_id" placeholder="Seleccione..."
-                        styleClass="w-full"></p-select>
+                        styleClass="w-full" appendTo="body"></p-select>
                 </div>
 
                 <div class="flex flex-col gap-2">
-                    <label class="font-semibold text-gray-700">Fecha del Gasto</label>
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fecha del Gasto <span class="text-red-500">*</span></label>
                     <p-datePicker formControlName="expense_date" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body"
                         styleClass="w-full"></p-datePicker>
                 </div>
 
                 <div class="flex flex-col gap-2">
-                    <label class="font-semibold text-gray-700">Monto ($)</label>
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Monto ($) <span class="text-red-500">*</span></label>
                     <p-inputNumber formControlName="amount" [minFractionDigits]="2" [maxFractionDigits]="2"
                         placeholder="0.00" mode="decimal" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
                 </div>
 
                 <div class="flex flex-col gap-2">
-                    <label class="font-semibold text-gray-700">Método de Pago</label>
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Método de Pago <span class="text-red-500">*</span></label>
                     <p-select [options]="paymentMethods" formControlName="payment_method"
-                        styleClass="w-full"></p-select>
+                        styleClass="w-full" appendTo="body"></p-select>
                 </div>
                 
                 <div class="flex flex-col gap-2" *ngIf="expenseForm.get('payment_method')?.value !== 'cash'">
-                    <label class="font-semibold text-gray-700">Cuenta Bancaria</label>
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cuenta Bancaria <span class="text-red-500">*</span></label>
                     <p-select [options]="activeAccounts" formControlName="account_id" placeholder="Seleccione la cuenta"
                         styleClass="w-full" appendTo="body"></p-select>
                 </div>
-            </div>
 
-            <div class="flex flex-col gap-2">
-                <label class="font-semibold text-gray-700">Referencia / N° Comprobante (Opcional)</label>
-                <input pInputText formControlName="reference_number" placeholder="Ej: FAC-123, RECIBO..."
-                    class="uppercase-text" />
-            </div>
+                <div [class]="expenseForm.get('payment_method')?.value !== 'cash' ? 'flex flex-col gap-2' : 'flex flex-col gap-2 col-span-1 md:col-span-2'">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Referencia / N° Comprobante (Opcional)</label>
+                    <input pInputText formControlName="reference_number" placeholder="Ej: FAC-123, RECIBO..."
+                        class="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none transition-all uppercase-text" />
+                </div>
 
-            <div class="flex flex-col gap-2">
-                <label class="font-semibold text-gray-700">Descripción del Gasto</label>
-                <textarea pTextarea formControlName="description" rows="3" placeholder="Detalle del gasto realizado..."
-                    class="uppercase-text"></textarea>
+                <div class="flex flex-col gap-2 col-span-1 md:col-span-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Descripción del Gasto <span class="text-red-500">*</span></label>
+                    <textarea pTextarea formControlName="description" rows="3" placeholder="Detalle del gasto realizado..."
+                        class="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none transition-all uppercase-text"></textarea>
+                </div>
             </div>
 
             <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
-                <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary"
-                    (click)="displayDialog = false"></p-button>
-                <p-button label="Guardar Egreso" icon="pi pi-check" type="submit" severity="info"
-                    [disabled]="expenseForm.invalid"></p-button>
+                <p-button (click)="displayDialog = false" label="Cancelar" [text]="true"
+                    styleClass="p-button-text !text-slate-500 hover:!bg-slate-100 !py-1.5 !px-3 !text-xs !font-semibold rounded-lg transition-all duration-150 cursor-pointer">
+                </p-button>
+                <p-button type="submit" [disabled]="expenseForm.invalid" label="Guardar Egreso" icon="pi pi-check"
+                    styleClass="!bg-primary hover:!bg-primary/90 !text-white !border-none !py-1.5 !px-3 !text-xs !font-semibold shadow-sm rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-30">
+                </p-button>
             </div>
         </form>
     </p-dialog>

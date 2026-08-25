@@ -1,26 +1,38 @@
-<div class="container mx-auto p-4">
+<div class="bg-white rounded-lg shadow-md p-6">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-800">Inventario (Bienes y Suministros)</h1>
-        <button (click)="showForm = !showForm" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-            {{ showForm ? 'Cancelar' : 'Nuevo Ítem' }}
-        </button>
+        <p-button label="Nuevo Ítem" icon="pi pi-plus" (click)="openNew()"
+            styleClass="!bg-primary hover:!bg-primary/90 !text-white !border-none !py-1.5 !px-3 !text-xs !font-semibold shadow-sm rounded-lg transition-all duration-150 cursor-pointer"></p-button>
     </div>
 
-    <div *ngIf="showForm" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-6 border-t-4 border-blue-500">
-        <h2 class="text-xl font-bold mb-4">{{ isEditMode ? 'Editar Ítem' : 'Registrar Nuevo Ítem' }}</h2>
-        <form [formGroup]="form" (ngSubmit)="onSubmit()">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Código</label>
-                    <input formControlName="code" type="text" class="shadow appearance-none border rounded w-full py-2 px-3 uppercase">
+    <app-custom-table 
+        [data]="items" 
+        [columns]="columns" 
+        [actions]="actions"
+        tableTitle="Listado de Inventario"
+        [globalFilterFields]="['code', 'name_desc']">
+    </app-custom-table>
+</div>
+
+<!-- Modal Formulario -->
+<p-dialog [(visible)]="showForm" [style]="{width: '600px'}" styleClass="custom-dialog bg-white rounded-3xl overflow-hidden shadow-2xl border-none" [header]="isEditMode ? 'Editar Ítem' : 'Registrar Nuevo Ítem'" [modal]="true" [draggable]="false" [resizable]="false">
+    <ng-template pTemplate="content">
+        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-col gap-4 mt-2">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex flex-col gap-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Código <span class="text-red-500">*</span></label>
+                    <input formControlName="code" type="text" class="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none transition-all uppercase">
                 </div>
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Nombre del Bien/Suministro</label>
-                    <input formControlName="name" type="text" class="shadow appearance-none border rounded w-full py-2 px-3">
+                <div class="flex flex-col gap-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre del Bien/Suministro <span class="text-red-500">*</span></label>
+                    <input formControlName="name" type="text" class="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none transition-all">
                 </div>
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Categoría</label>
-                    <select formControlName="category" class="shadow appearance-none border rounded w-full py-2 px-3">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex flex-col gap-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Categoría <span class="text-red-500">*</span></label>
+                    <select formControlName="category" class="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none transition-all">
                         <option value="tools">Herramienta</option>
                         <option value="materials">Material de Construcción</option>
                         <option value="equipment">Equipos/Maquinaria</option>
@@ -28,13 +40,9 @@
                         <option value="other">Otro</option>
                     </select>
                 </div>
-                <div class="col-span-full">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Descripción</label>
-                    <input formControlName="description" type="text" class="shadow appearance-none border rounded w-full py-2 px-3">
-                </div>
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Unidad de Medida</label>
-                    <select formControlName="unit_measure" class="shadow appearance-none border rounded w-full py-2 px-3">
+                <div class="flex flex-col gap-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Unidad de Medida <span class="text-red-500">*</span></label>
+                    <select formControlName="unit_measure" class="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none transition-all">
                         <option value="unit">Unidad(es)</option>
                         <option value="meter">Metro(s)</option>
                         <option value="kg">Kilogramo(s)</option>
@@ -42,26 +50,34 @@
                         <option value="box">Caja(s)</option>
                     </select>
                 </div>
-                <div *ngIf="!isEditMode">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Stock Inicial</label>
-                    <input formControlName="initial_stock" type="number" class="shadow appearance-none border rounded w-full py-2 px-3">
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Descripción</label>
+                <input formControlName="description" type="text" class="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none transition-all">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex flex-col gap-2" *ngIf="!isEditMode">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Stock Inicial <span class="text-red-500">*</span></label>
+                    <input formControlName="initial_stock" type="number" class="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none transition-all">
                 </div>
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Stock Mínimo (Alerta)</label>
-                    <input formControlName="minimum_stock" type="number" class="shadow appearance-none border rounded w-full py-2 px-3">
+                <div class="flex flex-col gap-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Stock Mínimo (Alerta) <span class="text-red-500">*</span></label>
+                    <input formControlName="minimum_stock" type="number" class="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none transition-all">
                 </div>
             </div>
-            
-            <button type="submit" [disabled]="form.invalid" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50">
-                Guardar
-            </button>
         </form>
-    </div>
+    </ng-template>
 
-    <app-custom-table 
-        [data]="items" 
-        [columns]="columns" 
-        [actions]="actions"
-        [globalFilterFields]="['code', 'name_desc']">
-    </app-custom-table>
-</div>
+    <ng-template pTemplate="footer">
+        <div class="flex justify-end gap-2 pt-4 border-t border-slate-100">
+            <p-button label="Cancelar" type="button" [text]="true"
+                styleClass="p-button-text !text-slate-500 hover:!bg-slate-100 !py-1.5 !px-3 !text-xs !font-semibold rounded-lg transition-all duration-150 cursor-pointer"
+                (click)="showForm = false"></p-button>
+            <p-button label="Guardar" type="submit" [disabled]="form.invalid"
+                styleClass="!bg-primary hover:!bg-primary/90 !text-white !border-none !py-1.5 !px-3 !text-xs !font-semibold shadow-sm rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-30"
+                (click)="onSubmit()"></p-button>
+        </div>
+    </ng-template>
+</p-dialog>

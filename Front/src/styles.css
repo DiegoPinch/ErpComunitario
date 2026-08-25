@@ -48,6 +48,11 @@
   --color-primary-fixed-dim: #acc7ff;
   --color-secondary-container: #76f3ea;
 
+  --color-header-bg: #1e293b;
+  --color-header-border: #334155;
+  --color-header-text: #f8fafc;
+  --color-header-text-muted: #94a3b8;
+
   --radius-DEFAULT: 0.125rem;
   --radius-lg: 0.25rem;
   --radius-xl: 0.5rem;
@@ -89,6 +94,10 @@
   --color-on-error-container: #93000a;
   --color-on-primary: #ffffff;
   --color-primary-fixed-dim: #acc7ff;
+  --color-header-bg: #1e293b;
+  --color-header-border: #334155;
+  --color-header-text: #f8fafc;
+  --color-header-text-muted: #94a3b8;
 }
 
 /* Kill global browser scrollbar */
@@ -104,4 +113,39 @@ body {
 app-root {
     display: block;
     height: 100%;
+}
+
+/* Style overrides for compact tooltips */
+.p-tooltip .p-tooltip-text {
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+    border-radius: 4px !important;
+    background-color: #334155 !important;
+    color: #f8fafc !important;
+}
+
+/* Header PrimeNG Button Hover & Focus Override */
+header .p-button {
+    transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out !important;
+}
+header .p-button:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-color: transparent !important;
+    color: var(--color-header-text) !important;
+}
+header .p-button:focus,
+header .p-button:active {
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* Custom Headless ConfirmDialog styles */
+.custom-confirm-dialog-wrapper {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+.custom-confirm-dialog-wrapper .p-dialog-content {
+    background: transparent !important;
+    padding: 0 !important;
 }

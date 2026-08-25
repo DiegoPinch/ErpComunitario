@@ -1,40 +1,41 @@
-<div class="card">
-    <!-- Título opcional -->
-    <div *ngIf="title" class="mb-4">
-        <h3 class="text-xl font-semibold text-gray-800">{{title}}</h3>
-    </div>
-
+<div class="bg-white border border-slate-100 rounded-xl shadow-sm overflow-hidden">
     <p-table #dt [value]="data" [columns]="columns" [tableStyle]="{ 'min-width': '50rem' }"
-        styleClass="p-datatable-sm p-datatable-striped" [paginator]="true" [rows]="5" [rowsPerPageOptions]="[5, 10, 20]"
+        styleClass="p-datatable-sm w-full" [paginator]="true" [rows]="5" [rowsPerPageOptions]="[5, 10, 20]"
         [showCurrentPageReport]="true"
         currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} registros"
         [globalFilterFields]="globalFilterFields">
 
-        <!-- Caption: Buscador y Filtros -->
+        <!-- Caption: Título y Buscador -->
         <ng-template pTemplate="caption">
-            <div class="flex">
-                <p-iconfield iconPosition="left" class="ml-auto">
-                    <p-inputicon>
-                        <i class="pi pi-search"></i>
-                    </p-inputicon>
-                    <input pInputText type="text" (input)="dt.filterGlobal($any($event.target).value, 'contains')"
-                        placeholder="Buscar..." />
-                </p-iconfield>
+            <div class="flex items-center justify-between gap-4 py-3 px-4 bg-white border-b border-slate-100">
+                <div *ngIf="tableTitle" class="text-base font-semibold text-slate-800 tracking-tight select-none">
+                    {{ tableTitle }}
+                </div>
+                <div class="flex items-center ml-auto">
+                    <p-iconfield iconPosition="left">
+                        <p-inputicon class="text-slate-400">
+                            <i class="pi pi-search text-xs flex items-center justify-center"></i>
+                        </p-inputicon>
+                        <input pInputText type="text" (input)="dt.filterGlobal($any($event.target).value, 'contains')"
+                            class="p-inputtext-sm w-64 border border-slate-200 rounded-lg bg-slate-50/50 text-slate-700 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-150 py-1.5 pl-8 pr-3 text-xs outline-none"
+                            placeholder="Buscar..." />
+                    </p-iconfield>
+                </div>
             </div>
         </ng-template>
 
         <!-- Header -->
         <ng-template pTemplate="header" let-columns>
-            <tr>
+            <tr class="bg-slate-50/75 border-b border-slate-100">
                 <th *ngIf="showIndex"
-                    class="bg-gray-100 text-gray-700 font-bold uppercase text-sm border-b w-12 text-center">
+                    class="text-slate-500 font-semibold uppercase text-xs tracking-wider py-3.5 px-4 w-14 text-center border-none">
                     #
                 </th>
-                <th *ngFor="let col of columns" class="bg-gray-100 text-gray-700 font-bold uppercase text-sm border-b">
+                <th *ngFor="let col of columns" class="text-slate-500 font-semibold uppercase text-xs tracking-wider py-3.5 px-4 border-none">
                     {{ col.header }}
                 </th>
                 <th *ngIf="actions.length > 0"
-                    class="bg-gray-100 text-gray-700 font-bold uppercase text-sm border-b text-center">
+                    class="text-slate-500 font-semibold uppercase text-xs tracking-wider py-3.5 px-4 text-center w-28 border-none">
                     Acciones
                 </th>
             </tr>
@@ -42,26 +43,29 @@
 
         <!-- Body -->
         <ng-template pTemplate="body" let-rowData let-columns="columns" let-rowIndex="rowIndex">
-            <tr class="hover:bg-gray-50 transition-colors">
-                <td *ngIf="showIndex" class="border-b border-gray-100 p-3 text-gray-600 font-semibold text-center">
+            <tr class="hover:bg-slate-50/40 border-b border-slate-100/70 transition-colors duration-150">
+                <td *ngIf="showIndex" class="py-3.5 px-4 text-slate-400 font-medium text-center text-xs border-none">
                     {{ rowIndex + 1 }}
                 </td>
-                <td *ngFor="let col of columns" class="border-b border-gray-100 p-3 text-gray-600">
+                <td *ngFor="let col of columns" class="py-3.5 px-4 text-sm text-slate-600 font-normal border-none">
                     <!-- Renderizado condicional -->
                     <ng-container *ngIf="col.type === 'tag'; else textTemplate">
                         <p-tag [value]="rowData[col.field]"
-                            [severity]="col.tagSeverity ? col.tagSeverity(rowData[col.field]) : 'info'"></p-tag>
+                            [severity]="col.tagSeverity ? col.tagSeverity(rowData[col.field]) : 'info'"
+                            styleClass="text-[10px] font-semibold px-2 py-0.5 rounded-full"></p-tag>
                     </ng-container>
                     <ng-template #textTemplate>
-                        {{ rowData[col.field] ? rowData[col.field] : '-' }}
+                        {{ rowData[col.field] !== null && rowData[col.field] !== undefined && rowData[col.field] !== '' ? rowData[col.field] : '-' }}
                     </ng-template>
                 </td>
                 <td *ngIf="actions.length > 0"
-                    class="border-b border-gray-100 p-3 text-gray-600 text-center flex gap-2 justify-center">
-                    <p-button *ngFor="let action of actions" [icon]="action.icon" [styleClass]="action.styleClass"
-                        [rounded]="true" [text]="true" [pTooltip]="action.tooltip" tooltipPosition="top"
-                        (click)="action.command(rowData)">
-                    </p-button>
+                    class="py-3.5 px-4 text-center border-none">
+                    <div class="flex items-center justify-center gap-1.5">
+                        <p-button *ngFor="let action of actions" [icon]="action.icon" [styleClass]="action.styleClass"
+                            [rounded]="true" [text]="true" [pTooltip]="action.tooltip" tooltipPosition="top"
+                            (onClick)="action.command(rowData)">
+                        </p-button>
+                    </div>
                 </td>
             </tr>
         </ng-template>
@@ -69,7 +73,8 @@
         <!-- Empty Message -->
         <ng-template pTemplate="emptymessage">
             <tr>
-                <td [attr.colspan]="columns.length" class="text-center p-4 text-gray-500">
+                <td [attr.colspan]="showIndex ? columns.length + 2 : columns.length + 1" class="text-center py-8 text-sm text-slate-400 bg-white border-none">
+                    <i class="pi pi-inbox text-2xl mb-2 block text-slate-300"></i>
                     {{emptyMessage}}
                 </td>
             </tr>

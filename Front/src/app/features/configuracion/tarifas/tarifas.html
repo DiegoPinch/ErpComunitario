@@ -4,16 +4,17 @@
 
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-800">Gestión de Tarifas</h1>
-        <p-button label="Nueva Tarifa" icon="pi pi-plus" severity="info" (click)="openNew()"></p-button>
+        <p-button label="Nueva Tarifa" icon="pi pi-plus" (click)="openNew()" styleClass="!bg-primary hover:!bg-primary/90 !text-white !border-none !py-1.5 !px-3 !text-xs !font-semibold shadow-sm rounded-lg transition-all duration-150 cursor-pointer"></p-button>
     </div>
 
-    <app-custom-table [data]="(rates$ | async) || []" [columns]="cols" title="Listado de Tarifas" [showIndex]="true"
+    <app-custom-table [data]="(rates$ | async) || []" [columns]="cols" tableTitle="Listado de Tarifas" [showIndex]="true"
         [globalFilterFields]="['meter_type', 'unit_price', 'base_limit']" [actions]="actions">
     </app-custom-table>
 
     <!-- Modal de Tarifa -->
-    <p-dialog [(visible)]="rateDialog" header="Detalles de la Tarifa" [modal]="true" [style]="{ width: '40vw' }"
-        [breakpoints]="{ '960px': '75vw', '640px': '90vw' }" [draggable]="false" [resizable]="false">
+    <p-dialog [(visible)]="rateDialog" header="Detalles de la Tarifa" [modal]="true" [style]="{ width: '500px' }"
+        styleClass="custom-dialog bg-white rounded-3xl overflow-hidden shadow-2xl border-none"
+        [draggable]="false" [resizable]="false">
 
         <form [formGroup]="rateForm" (ngSubmit)="saveRate()" class="flex flex-col gap-4">
 
@@ -29,19 +30,19 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- Tipo de Medidor -->
                 <div class="flex flex-col gap-2">
-                    <label class="font-semibold text-gray-700">Tipo de Medidor</label>
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Medidor <span class="text-red-500">*</span></label>
                     <p-select [options]="meterTypes" formControlName="meter_type" placeholder="Seleccione un tipo"
                         styleClass="w-full">
                     </p-select>
                     <small class="text-red-500"
                         *ngIf="rateForm.get('meter_type')?.touched && rateForm.get('meter_type')?.invalid">
-                        El tipo es requerido.
+                        Requerido.
                     </small>
                 </div>
 
                 <!-- Límite Base -->
                 <div class="flex flex-col gap-2">
-                    <label class="font-semibold text-gray-700">Límite Base (m³)</label>
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Límite Base (m³) <span class="text-red-500">*</span></label>
                     <p-inputNumber formControlName="base_limit" [min]="0" placeholder="0" styleClass="w-full"
                         inputStyleClass="w-full">
                     </p-inputNumber>
@@ -49,7 +50,7 @@
 
                 <!-- Precio Unitario -->
                 <div class="flex flex-col gap-2">
-                    <label class="font-semibold text-gray-700">Precio Base ($)</label>
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Precio Base ($) <span class="text-red-500">*</span></label>
                     <p-inputNumber formControlName="unit_price" [minFractionDigits]="0" [maxFractionDigits]="4"
                         [min]="0" styleClass="w-full" inputStyleClass="w-full">
                     </p-inputNumber>
@@ -57,7 +58,7 @@
 
                 <!-- Precio Exceso -->
                 <div class="flex flex-col gap-2">
-                    <label class="font-semibold text-gray-700">Precio Exceso ($)</label>
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Precio Exceso ($) <span class="text-red-500">*</span></label>
                     <p-inputNumber formControlName="excess_price" [minFractionDigits]="0" [maxFractionDigits]="4"
                         [min]="0" styleClass="w-full" inputStyleClass="w-full">
                     </p-inputNumber>
@@ -65,11 +66,12 @@
             </div>
 
             <!-- Botones -->
-            <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
-                <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary"
+            <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
+                <p-button label="Cancelar" type="button" [text]="true"
+                    styleClass="p-button-text !text-slate-500 hover:!bg-slate-100 !py-1.5 !px-3 !text-xs !font-semibold rounded-lg transition-all duration-150 cursor-pointer"
                     (click)="rateDialog = false"></p-button>
-                <p-button label="Guardar" icon="pi pi-check" type="submit" severity="info"
-                    [disabled]="rateForm.invalid"></p-button>
+                <p-button label="Guardar" type="submit" [disabled]="rateForm.invalid"
+                    styleClass="!bg-primary hover:!bg-primary/90 !text-white !border-none !py-1.5 !px-3 !text-xs !font-semibold shadow-sm rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-30"></p-button>
             </div>
         </form>
     </p-dialog>

@@ -1,4 +1,4 @@
-import { Component, Output, EventEmitter, inject, OnInit } from '@angular/core';
+import { Component, Output, EventEmitter, inject, OnInit, HostListener, ElementRef } from '@angular/core';
 import { ButtonModule } from 'primeng/button';
 import { TooltipModule } from 'primeng/tooltip';
 import { CommonModule } from '@angular/common';
@@ -8,6 +8,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MessageService } from 'primeng/api';
 import { AuthService } from '../../core/services/auth.service';
+import { ConfirmService } from '../../shared/components/confirm-dialog/confirm.service';
 
 @Component({
   selector: 'app-header',
@@ -30,11 +31,20 @@ export class HeaderComponent implements OnInit {
   private authService = inject(AuthService);
   private fb = inject(FormBuilder);
   private messageService = inject(MessageService);
+  private elementRef = inject(ElementRef);
+  private confirmService = inject(ConfirmService);
 
   showUserMenu = false;
   displaySettingsDialog = false;
   passwordForm!: FormGroup;
   loading = false;
+
+  @HostListener('document:click', ['$event'])
+  onClickOutside(event: Event) {
+    if (!this.elementRef.nativeElement.contains(event.target)) {
+      this.showUserMenu = false;
+    }
+  }
 
   get userName(): string {
     return this.authService.getFullName();
@@ -84,9 +94,15 @@ export class HeaderComponent implements OnInit {
 
   logout() {
     this.showUserMenu = false;
-    if (confirm('¿Está seguro de cerrar sesión?')) {
-      this.authService.logout();
-    }
+    this.confirmService.confirm({
+      header: 'Cerrar Sesión',
+      message: '¿Está seguro de que desea cerrar sesión en YakuGest?',
+      acceptLabel: 'Salir',
+      rejectLabel: 'Cancelar',
+      accept: () => {
+        this.authService.logout();
+      }
+    });
   }
 
   openSettings() {

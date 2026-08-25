@@ -1,42 +1,42 @@
-<div class="container mx-auto p-4">
+<div class="bg-white rounded-lg shadow-md p-6">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-800">Administración (Directivas)</h1>
-        <button (click)="openNew()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-            Nueva Directiva
-        </button>
+        <p-button label="Nueva Directiva" icon="pi pi-plus" (click)="openNew()"
+            styleClass="!bg-primary hover:!bg-primary/90 !text-white !border-none !py-1.5 !px-3 !text-xs !font-semibold shadow-sm rounded-lg transition-all duration-150 cursor-pointer"></p-button>
     </div>
 
     <app-custom-table 
         [data]="administrations" 
         [columns]="columns" 
         [actions]="actions"
+        tableTitle="Listado de Directivas"
         [globalFilterFields]="['name']">
     </app-custom-table>
 </div>
 
 <!-- Modal Formulario -->
-<p-dialog [(visible)]="showForm" [style]="{width: '50vw', minWidth: '400px'}" [header]="isEditMode ? 'Editar Directiva' : 'Nueva Directiva'" [modal]="true" styleClass="p-fluid">
+<p-dialog [(visible)]="showForm" [style]="{width: '500px'}" styleClass="custom-dialog bg-white rounded-3xl overflow-hidden shadow-2xl border-none" [header]="isEditMode ? 'Editar Directiva' : 'Nueva Directiva'" [modal]="true" [draggable]="false" [resizable]="false">
     <ng-template pTemplate="content">
-        <form [formGroup]="form" (ngSubmit)="onSubmit()">
-            <div class="mb-4 mt-2">
-                <label class="block text-gray-700 text-sm font-bold mb-2">Nombre del Período / Directiva</label>
-                <input formControlName="name" type="text" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="Ej: Período 2026-2027">
+        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-col gap-4 mt-2">
+            <div class="flex flex-col gap-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre del Período / Directiva <span class="text-red-500">*</span></label>
+                <input formControlName="name" type="text" class="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none transition-all" placeholder="Ej: Período 2026-2027">
             </div>
 
-            <div class="flex flex-wrap -mx-3 mb-4">
-                <div class="w-full md:w-1/2 px-3 mb-6 md:mb-0">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Fecha Inicio</label>
-                    <input formControlName="start_date" type="date" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex flex-col gap-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fecha Inicio <span class="text-red-500">*</span></label>
+                    <input formControlName="start_date" type="date" class="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none transition-all">
                 </div>
-                <div class="w-full md:w-1/2 px-3">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Fecha Fin (Opcional)</label>
-                    <input formControlName="end_date" type="date" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                <div class="flex flex-col gap-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fecha Fin (Opcional)</label>
+                    <input formControlName="end_date" type="date" class="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none transition-all">
                 </div>
             </div>
 
-            <div class="mb-6">
-                <label class="block text-gray-700 text-sm font-bold mb-2">Estado</label>
-                <select formControlName="status" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+            <div class="flex flex-col gap-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Estado</label>
+                <select formControlName="status" class="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none transition-all">
                     <option value="active">Activa</option>
                     <option value="completed">Completada</option>
                 </select>
@@ -45,30 +45,36 @@
     </ng-template>
 
     <ng-template pTemplate="footer">
-        <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text" (click)="hideDialog()"></button>
-        <button pButton pRipple label="Guardar" icon="pi pi-check" class="p-button-primary" (click)="onSubmit()" [disabled]="form.invalid"></button>
+        <div class="flex justify-end gap-2 pt-4 border-t border-slate-100">
+            <p-button label="Cancelar" type="button" [text]="true"
+                styleClass="p-button-text !text-slate-500 hover:!bg-slate-100 !py-1.5 !px-3 !text-xs !font-semibold rounded-lg transition-all duration-150 cursor-pointer"
+                (click)="hideDialog()"></p-button>
+            <p-button label="Guardar" type="submit" [disabled]="form.invalid"
+                styleClass="!bg-primary hover:!bg-primary/90 !text-white !border-none !py-1.5 !px-3 !text-xs !font-semibold shadow-sm rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-30"
+                (click)="onSubmit()"></p-button>
+        </div>
     </ng-template>
 </p-dialog>
 
 <!-- Modal Integrantes / Miembros de Directiva -->
-<p-dialog [(visible)]="showMembers" [style]="{width: '60vw', minWidth: '500px'}" [header]="'Integrantes de la Directiva: ' + selectedAdminName" [modal]="true">
-    <div class="p-4">
+<p-dialog [(visible)]="showMembers" [style]="{width: '700px'}" styleClass="custom-dialog bg-white rounded-3xl overflow-hidden shadow-2xl border-none" [header]="'Integrantes de la Directiva: ' + selectedAdminName" [modal]="true" [draggable]="false" [resizable]="false">
+    <div class="flex flex-col gap-6 pt-2">
         <!-- Formulario para agregar integrante -->
-        <div class="bg-gray-50 border border-gray-200 rounded p-4 mb-6">
-            <h3 class="font-semibold text-gray-700 mb-3 text-sm">Agregar Nuevo Integrante</h3>
-            <form [formGroup]="memberForm" (ngSubmit)="addMember()" class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-                <div>
-                    <label class="block text-gray-600 text-xs font-bold mb-1">Usuario / Socio</label>
-                    <select formControlName="user_id" class="shadow appearance-none border rounded w-full py-1.5 px-3 text-gray-700 text-sm focus:outline-none bg-white">
+        <div class="bg-slate-50 border border-dashed border-slate-300 rounded-xl p-4">
+            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Agregar Nuevo Integrante</h3>
+            <form [formGroup]="memberForm" (ngSubmit)="addMember()" class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                <div class="md:col-span-6 flex flex-col gap-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Usuario / Socio</label>
+                    <select formControlName="user_id" class="w-full px-3 py-1.5 text-xs text-slate-700 bg-white border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-lg outline-none transition-all">
                         <option [value]="null">Seleccione...</option>
                         <option *ngFor="let u of users" [value]="u.user_id">
                             {{u.last_name}} {{u.first_name}} ({{u.national_id}})
                         </option>
                     </select>
                 </div>
-                <div>
-                    <label class="block text-gray-600 text-xs font-bold mb-1">Cargo / Rol</label>
-                    <select formControlName="role" class="shadow appearance-none border rounded w-full py-1.5 px-3 text-gray-700 text-sm focus:outline-none bg-white">
+                <div class="md:col-span-4 flex flex-col gap-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cargo / Rol</label>
+                    <select formControlName="role" class="w-full px-3 py-1.5 text-xs text-slate-700 bg-white border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-lg outline-none transition-all">
                         <option value="PRESIDENTE">PRESIDENTE</option>
                         <option value="TESORERO">TESORERO</option>
                         <option value="SECRETARIA">SECRETARIA</option>
@@ -76,42 +82,55 @@
                         <option value="VOCAL 2">VOCAL 2</option>
                     </select>
                 </div>
-                <div>
-                    <button type="submit" [disabled]="memberForm.invalid" class="bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 px-4 rounded w-full text-sm flex items-center justify-center gap-1">
-                        <i class="pi pi-plus"></i> Agregar
-                    </button>
+                <div class="md:col-span-2">
+                    <p-button type="submit" label="Agregar" [disabled]="memberForm.invalid"
+                        styleClass="w-full !bg-primary hover:!bg-primary/90 !text-white !border-none !py-1.5 !px-2 !text-[11px] !font-semibold shadow-sm rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-30 flex justify-center"></p-button>
                 </div>
             </form>
         </div>
 
         <!-- Tabla de Integrantes Activos -->
-        <h3 class="font-bold text-gray-800 mb-2">Miembros Actuales</h3>
-        <div class="overflow-x-auto">
-            <table class="min-w-full bg-white border border-gray-200 text-sm rounded">
-                <thead>
-                    <tr class="bg-gray-100 border-b">
-                        <th class="py-2 px-4 text-left font-semibold text-gray-700">Cargo</th>
-                        <th class="py-2 px-4 text-left font-semibold text-gray-700">Nombre</th>
-                        <th class="py-2 px-4 text-left font-semibold text-gray-700">Cédula</th>
-                        <th class="py-2 px-4 text-center font-semibold text-gray-700">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr *ngFor="let m of members" class="border-b hover:bg-gray-50">
-                        <td class="py-2 px-4 font-semibold text-gray-800">{{m.role}}</td>
-                        <td class="py-2 px-4 text-gray-700">{{m.first_name}} {{m.last_name}}</td>
-                        <td class="py-2 px-4 text-gray-600">{{m.national_id}}</td>
-                        <td class="py-2 px-4 text-center">
-                            <button type="button" (click)="removeMember(m.board_id)" class="text-red-600 hover:text-red-800 font-bold p-1">
-                                <i class="pi pi-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    <tr *ngIf="members.length === 0">
-                        <td colspan="4" class="py-4 text-center text-gray-500 italic">No hay integrantes registrados en esta directiva.</td>
-                    </tr>
-                </tbody>
-            </table>
+        <div>
+            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Miembros Actuales</h3>
+            <div class="bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+                <table class="min-w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th class="!bg-slate-50/75 !text-slate-500 !text-[10px] !font-bold !uppercase !tracking-wider !py-3 !px-4 text-left border-b border-slate-200">Cargo</th>
+                            <th class="!bg-slate-50/75 !text-slate-500 !text-[10px] !font-bold !uppercase !tracking-wider !py-3 !px-4 text-left border-b border-slate-200">Nombre</th>
+                            <th class="!bg-slate-50/75 !text-slate-500 !text-[10px] !font-bold !uppercase !tracking-wider !py-3 !px-4 text-left border-b border-slate-200">Cédula</th>
+                            <th class="!bg-slate-50/75 !text-slate-500 !text-[10px] !font-bold !uppercase !tracking-wider !py-3 !px-4 text-center border-b border-slate-200">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let m of members" class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                            <td class="py-2.5 px-4 font-bold text-slate-700 text-xs">{{m.role}}</td>
+                            <td class="py-2.5 px-4 text-slate-600 text-xs font-medium">{{m.first_name}} {{m.last_name}}</td>
+                            <td class="py-2.5 px-4 text-slate-500 text-xs">{{m.national_id}}</td>
+                            <td class="py-2.5 px-4 text-center">
+                                <p-button type="button" icon="pi pi-trash" [text]="true"
+                                    styleClass="p-button-text !text-red-500 hover:!bg-red-50 !py-1 !px-2 rounded transition-all duration-150 cursor-pointer"
+                                    (click)="removeMember(m.board_id)"></p-button>
+                            </td>
+                        </tr>
+                        <tr *ngIf="members.length === 0">
+                            <td colspan="4" class="py-6 text-center">
+                                <div class="flex flex-col items-center justify-center text-slate-400">
+                                    <i class="pi pi-inbox text-2xl mb-2"></i>
+                                    <span class="text-xs">No hay integrantes asignados</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
+    <ng-template pTemplate="footer">
+        <div class="flex justify-end gap-2 pt-4 border-t border-slate-100 mt-2">
+            <p-button label="Cerrar" type="button" [text]="true"
+                styleClass="p-button-text !text-slate-500 hover:!bg-slate-100 !py-1.5 !px-3 !text-xs !font-semibold rounded-lg transition-all duration-150 cursor-pointer"
+                (click)="showMembers = false"></p-button>
+        </div>
+    </ng-template>
 </p-dialog>

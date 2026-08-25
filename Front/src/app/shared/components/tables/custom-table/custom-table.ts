@@ -27,7 +27,7 @@ import { TableAction } from './table-action.model';
 export class CustomTable {
   @Input() data: any[] = [];
   @Input() columns: any[] = [];
-  @Input() title: string = '';
+  @Input() tableTitle: string = '';
   @Input() showIndex: boolean = false;
   @Input() globalFilterFields: string[] = [];
   @Input() actions: TableAction[] = [];

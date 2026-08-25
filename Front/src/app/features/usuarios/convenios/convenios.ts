@@ -8,10 +8,13 @@ import { UserService } from '../../../core/services/user.service';
 import { CustomTable } from '../../../shared/components/tables/custom-table/custom-table';
 import { TableAction } from '../../../shared/components/tables/custom-table/table-action.model';
 
+import { DialogModule } from 'primeng/dialog';
+import { ButtonModule } from 'primeng/button';
+
 @Component({
   selector: 'app-convenios',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, CustomTable, SelectModule],
+  imports: [CommonModule, ReactiveFormsModule, CustomTable, SelectModule, DialogModule, ButtonModule],
   templateUrl: './convenios.html',
   styleUrls: ['./convenios.css']
 })
@@ -171,6 +174,47 @@ export class Convenios implements OnInit {
   // Historial de Pagos
   showHistoryModal = false;
   historyPayments: any[] = [];
+  rawPaymentInput = '';
+
+  get formattedPaymentAmount(): string {
+    if (this.rawPaymentInput !== '') {
+      return this.rawPaymentInput;
+    }
+    const val = this.paymentForm.get('amount_paid')?.value;
+    return val ? Number(val).toFixed(2) : '';
+  }
+
+  onPaymentAmountInput(event: Event) {
+    const inputElement = event.target as HTMLInputElement;
+    let value = inputElement.value;
+    
+    let cleanValue = value.replace(/,/g, '.');
+    cleanValue = cleanValue.replace(/[^0-9.]/g, '');
+    const parts = cleanValue.split('.');
+    if (parts.length > 2) {
+      cleanValue = parts[0] + '.' + parts.slice(1).join('');
+    }
+    if (parts.length === 2 && parts[1].length > 2) {
+      cleanValue = parts[0] + '.' + parts[1].substring(0, 2);
+    }
+    
+    let amount = parseFloat(cleanValue);
+    if (isNaN(amount) || amount < 0) {
+      amount = 0;
+    }
+    
+    this.rawPaymentInput = cleanValue;
+    this.paymentForm.get('amount_paid')?.setValue(amount);
+    inputElement.value = cleanValue;
+  }
+
+  onPaymentAmountBlur(event: Event) {
+    this.rawPaymentInput = '';
+    const val = this.paymentForm.get('amount_paid')?.value;
+    const inputElement = event.target as HTMLInputElement;
+    inputElement.value = val ? Number(val).toFixed(2) : '0.00';
+    this.cdr.detectChanges();
+  }
   
   openHistoryModal(row: any) {
     this.selectedDebtName = `${row.description} - Historial de Abonos`;

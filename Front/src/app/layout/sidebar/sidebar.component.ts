@@ -1,24 +1,39 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
-import { PanelMenu } from 'primeng/panelmenu';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { MenuItem } from 'primeng/api';
 import { AuthService } from '../../core/services/auth.service';
+import { ConfirmService } from '../../shared/components/confirm-dialog/confirm.service';
 
 @Component({
     selector: 'app-sidebar',
     templateUrl: './sidebar.component.html',
     styleUrls: ['./sidebar.component.css'],
-    imports: [CommonModule, PanelMenu]
+    imports: [CommonModule, RouterLink, RouterLinkActive]
 })
 export class SidebarComponent implements OnInit {
     items!: MenuItem[];
+    expandedMenu: string | null = null;
 
     private authService = inject(AuthService);
     private router = inject(Router);
+    private confirmService = inject(ConfirmService);
 
     ngOnInit() {
         this.generateMenu();
+    }
+
+    toggleSubmenu(item: MenuItem) {
+        if (!item.label) return;
+        if (this.expandedMenu === item.label) {
+            this.expandedMenu = null;
+        } else {
+            this.expandedMenu = item.label;
+        }
+    }
+
+    isExpanded(item: MenuItem): boolean {
+        return !!item.label && this.expandedMenu === item.label;
     }
 
     generateMenu() {
@@ -284,8 +299,14 @@ export class SidebarComponent implements OnInit {
     }
 
     logout() {
-        if (confirm('¿Está seguro de cerrar sesión?')) {
-            this.authService.logout();
-        }
+        this.confirmService.confirm({
+            header: 'Cerrar Sesión',
+            message: '¿Está seguro de que desea cerrar sesión en YakuGest?',
+            acceptLabel: 'Salir',
+            rejectLabel: 'Cancelar',
+            accept: () => {
+                this.authService.logout();
+            }
+        });
     }
 }

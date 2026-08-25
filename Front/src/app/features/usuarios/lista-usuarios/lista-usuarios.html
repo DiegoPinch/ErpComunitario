@@ -3,10 +3,10 @@
     <p-confirmDialog></p-confirmDialog>
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-800">Gestión de Usuarios</h1>
-        <p-button label="Nuevo Usuario" icon="pi pi-plus" severity="info" (click)="openNew()"></p-button>
+        <p-button label="Nuevo Usuario" icon="pi pi-plus" (click)="openNew()" styleClass="!bg-primary hover:!bg-primary/90 !text-white !border-none !py-1.5 !px-3 !text-xs !font-semibold shadow-sm rounded-lg transition-all duration-150 cursor-pointer"></p-button>
     </div>
 
-    <app-custom-table [data]="(users$ | async) || []" [columns]="cols" title="Listado General" [showIndex]="true"
+    <app-custom-table [data]="(users$ | async) || []" [columns]="cols" tableTitle="Listado General" [showIndex]="true"
         [globalFilterFields]="['national_id', 'first_name', 'last_name', 'email']" [actions]="actions">
     </app-custom-table>
 
@@ -18,7 +18,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- Cédula -->
                 <div class="flex flex-col gap-2">
-                    <label for="national_id" class="font-semibold text-gray-700">Cédula</label>
+                    <label for="national_id" class="font-semibold text-slate-700 text-xs">Cédula <span class="text-red-500">*</span></label>
                     <input pInputText id="national_id" formControlName="national_id" placeholder="Ej: 1712345678" />
                     <small
                         *ngIf="userForm.get('national_id')?.errors?.['required'] && userForm.get('national_id')?.touched"
@@ -37,7 +37,7 @@
 
                 <!-- Email -->
                 <div class="flex flex-col gap-2">
-                    <label for="email" class="font-semibold text-gray-700">Email</label>
+                    <label for="email" class="font-semibold text-slate-700 text-xs">Email</label>
                     <input pInputText id="email" formControlName="email" placeholder="correo@ejemplo.com" />
                     <small *ngIf="userForm.get('email')?.invalid && userForm.get('email')?.touched"
                         class="text-red-500">
@@ -47,7 +47,7 @@
 
                 <!-- Nombres -->
                 <div class="flex flex-col gap-2">
-                    <label for="first_name" class="font-semibold text-gray-700">Nombres</label>
+                    <label for="first_name" class="font-semibold text-slate-700 text-xs">Nombres <span class="text-red-500">*</span></label>
                     <input pInputText id="first_name" formControlName="first_name" class="uppercase" />
                     <small *ngIf="userForm.get('first_name')?.invalid && userForm.get('first_name')?.touched"
                         class="text-red-500">
@@ -57,7 +57,7 @@
 
                 <!-- Apellidos -->
                 <div class="flex flex-col gap-2">
-                    <label for="last_name" class="font-semibold text-gray-700">Apellidos</label>
+                    <label for="last_name" class="font-semibold text-slate-700 text-xs">Apellidos <span class="text-red-500">*</span></label>
                     <input pInputText id="last_name" formControlName="last_name" class="uppercase" />
                     <small *ngIf="userForm.get('last_name')?.invalid && userForm.get('last_name')?.touched"
                         class="text-red-500">
@@ -67,29 +67,29 @@
 
                 <!-- Dirección -->
                 <div class="flex flex-col gap-2">
-                    <label for="address" class="font-semibold text-gray-700">Dirección</label>
+                    <label for="address" class="font-semibold text-slate-700 text-xs">Dirección</label>
                     <input pInputText id="address" formControlName="address" />
                 </div>
 
                 <!-- Teléfono -->
                 <div class="flex flex-col gap-2">
-                    <label for="phone" class="font-semibold text-gray-700">Teléfono</label>
+                    <label for="phone" class="font-semibold text-slate-700 text-xs">Teléfono</label>
                     <input pInputText id="phone" formControlName="phone" />
                 </div>
 
                 <!-- Exento de Multas -->
                 <div class="flex items-center gap-2 mt-4 md:col-span-2">
                     <input type="checkbox" id="exempt_from_fines" formControlName="exempt_from_fines" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer" />
-                    <label for="exempt_from_fines" class="font-semibold text-gray-700 select-none cursor-pointer">Exento de Trabajos / Mingas y Multas de Asistencia</label>
+                    <label for="exempt_from_fines" class="font-semibold text-slate-700 select-none cursor-pointer text-xs">Exento de Trabajos / Mingas y Multas de Asistencia</label>
                 </div>
             </div>
 
             <!-- Botones -->
             <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
-                <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary"
-                    (click)="onCancel()"></p-button>
-                <p-button label="Guardar" icon="pi pi-check" type="submit" severity="info"
-                    [disabled]="userForm.invalid"></p-button>
+                <p-button label="Cancelar" icon="pi pi-times" [text]="true" (click)="onCancel()"
+                    styleClass="p-button-text !text-slate-500 hover:!bg-slate-100 !py-1.5 !px-3 !text-xs !font-semibold rounded-lg transition-all duration-150 cursor-pointer"></p-button>
+                <p-button label="Guardar" icon="pi pi-check" type="submit" [disabled]="userForm.invalid"
+                    styleClass="!bg-primary hover:!bg-primary/90 !text-white !border-none !py-1.5 !px-3 !text-xs !font-semibold shadow-sm rounded-lg transition-all duration-150 cursor-pointer"></p-button>
             </div>
         </form>
     </p-dialog>

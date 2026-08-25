@@ -2,6 +2,8 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { DialogModule } from 'primeng/dialog';
+import { ButtonModule } from 'primeng/button';
 import { InventoryService, InventoryItem } from '../../../core/services/inventory';
 import { CustomTable } from '../../../shared/components/tables/custom-table/custom-table';
 import { TableAction } from '../../../shared/components/tables/custom-table/table-action.model';
@@ -9,7 +11,7 @@ import { TableAction } from '../../../shared/components/tables/custom-table/tabl
 @Component({
   selector: 'app-list-inventario',
   standalone: true,
-  imports: [CommonModule, RouterModule, ReactiveFormsModule, CustomTable],
+  imports: [CommonModule, RouterModule, ReactiveFormsModule, CustomTable, DialogModule, ButtonModule],
   templateUrl: './list-inventario.html',
   styleUrls: ['./list-inventario.css']
 })
@@ -86,6 +88,13 @@ export class ListInventario implements OnInit {
     this.editingId = item.item_id!;
     this.showForm = true;
     this.form.patchValue(item);
+  }
+
+  openNew() {
+    this.isEditMode = false;
+    this.editingId = null;
+    this.form.reset({ category: 'tools', unit_measure: 'unit', initial_stock: 0, minimum_stock: 0 });
+    this.showForm = true;
   }
 
   resetForm() {

@@ -3,114 +3,144 @@
         <h1 class="text-2xl font-bold text-gray-800 mb-4 md:mb-0">Cuentas por Cobrar </h1>
         
         <div class="flex items-center space-x-4">
-            <button (click)="showForm = !showForm" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow">
+            <button (click)="showForm = !showForm" class="!bg-primary hover:!bg-primary/90 text-white font-semibold py-1.5 px-3 rounded-lg shadow-sm text-xs transition-all cursor-pointer">
                 {{ showForm ? 'Cancelar' : 'Registrar Deuda / Saldo Anterior' }}
             </button>
         </div>
     </div>
 
-    <!-- Modal/Formulario para registrar deuda nueva -->
-    <div *ngIf="showForm" class="bg-white shadow-lg rounded-lg px-8 pt-6 pb-8 mb-6 border-l-4 border-blue-500">
-        <h2 class="text-xl font-bold mb-4 text-gray-700">Registrar Nueva Cuenta por Cobrar</h2>
+    <!-- Formulario para registrar deuda nueva -->
+    <div *ngIf="showForm" class="bg-white shadow-lg rounded-xl px-8 pt-6 pb-8 mb-6 border border-slate-100 animate-fade-in">
+        <h2 class="text-lg font-bold mb-4 text-slate-700">Registrar Nueva Cuenta por Cobrar</h2>
         <form [formGroup]="form" (ngSubmit)="onSubmit()">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div class="col-span-1 md:col-span-2">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Usuario (Cliente)</label>
-                    <select formControlName="user_id" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700">
+                    <label class="block text-slate-500 text-xs font-semibold mb-2">Usuario (Cliente) <span class="text-red-500">*</span></label>
+                    <select formControlName="user_id" class="w-full px-3 py-2 text-sm text-slate-700 bg-white border border-slate-300 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg outline-none transition-all">
                         <option value="">Seleccione un usuario...</option>
                         <option *ngFor="let u of users" [value]="u.user_id">{{ u.last_name }} {{ u.first_name }} - {{ u.national_id }}</option>
                     </select>
                 </div>
                 <div class="col-span-1 md:col-span-2">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Concepto / Descripción (Ej: Deuda Histórica, Instalación)</label>
-                    <input formControlName="description" type="text" class="shadow appearance-none border rounded w-full py-2 px-3">
+                    <label class="block text-slate-500 text-xs font-semibold mb-2">Concepto / Descripción (Ej: Deuda Histórica, Instalación) <span class="text-red-500">*</span></label>
+                    <input formControlName="description" type="text" class="w-full px-3 py-2 text-sm text-slate-700 bg-white border border-slate-300 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg outline-none transition-all">
                 </div>
                 <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Monto Total de la Deuda ($)</label>
-                    <input formControlName="total_amount" type="number" step="0.01" class="shadow appearance-none border rounded w-full py-2 px-3">
+                    <label class="block text-slate-500 text-xs font-semibold mb-2">Monto Total de la Deuda ($) <span class="text-red-500">*</span></label>
+                    <input formControlName="total_amount" type="number" step="0.01" class="w-full px-3 py-2 text-sm text-slate-700 bg-white border border-slate-300 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg outline-none transition-all">
                 </div>
             </div>
             
-            <button type="submit" [disabled]="form.invalid" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 mt-4">
+            <button type="submit" [disabled]="form.invalid" class="!bg-primary hover:!bg-primary/90 text-white font-semibold py-1.5 px-3 rounded-lg shadow-sm text-xs transition-all cursor-pointer disabled:opacity-30 mt-4">
                 Guardar Deuda
             </button>
         </form>
     </div>
 
-    <!-- Modal para realizar un abono -->
-    <div *ngIf="showPaymentForm" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex justify-center items-center">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-96">
-            <h3 class="text-lg font-bold mb-2">Registrar Abono</h3>
-            <p class="text-sm text-gray-600 mb-4">{{ selectedDebtName }}</p>
+    <!-- Diálogo para realizar un abono -->
+    <p-dialog [(visible)]="showPaymentForm" [modal]="true" header="Registrar Abono" [style]="{width: '400px'}"
+        styleClass="custom-dialog bg-white rounded-3xl overflow-hidden shadow-2xl border-none"
+        [draggable]="false" [resizable]="false" [closable]="true">
+        
+        <div class="flex flex-col gap-4 p-4 pt-1">
+            <p class="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">{{ selectedDebtName }}</p>
             
-            <form [formGroup]="paymentForm" (ngSubmit)="onPaymentSubmit()">
-                <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Monto a Abonar ($)</label>
-                    <input formControlName="amount_paid" type="number" step="0.01" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3">
-
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Método de Pago</label>
-                    <p-select [options]="paymentMethods" formControlName="payment_method" styleClass="w-full mb-3" appendTo="body"></p-select>
-
-                    <div *ngIf="paymentForm.get('payment_method')?.value !== 'cash'">
-                        <label class="block text-gray-700 text-sm font-bold mb-2">Cuenta Bancaria</label>
-                        <p-select [options]="activeAccounts" formControlName="account_id" placeholder="Seleccione la cuenta" styleClass="w-full mb-3" appendTo="body"></p-select>
-
-                        <label class="block text-gray-700 text-sm font-bold mb-2">No. de Comprobante</label>
-                        <input formControlName="reference_number" type="text" placeholder="Ej: 0023451" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3">
+            <form [formGroup]="paymentForm" (ngSubmit)="onPaymentSubmit()" class="space-y-4">
+                <div>
+                    <label class="block text-slate-400 text-[10px] font-black uppercase tracking-widest ml-1 mb-2">Monto a Abonar</label>
+                    <div class="relative w-full">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">$</span>
+                        <input type="text" inputmode="numeric"
+                            [value]="formattedPaymentAmount"
+                            (input)="onPaymentAmountInput($event)"
+                            (blur)="onPaymentAmountBlur($event)"
+                            class="w-full pl-7 pr-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none font-bold transition-all">
                     </div>
                 </div>
-                <div class="flex justify-end space-x-2">
-                    <button type="button" (click)="showPaymentForm = false" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded">Cancelar</button>
-                    <button type="submit" [disabled]="paymentForm.invalid" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-50">Confirmar Pago</button>
+
+                <div class="flex flex-col gap-2">
+                    <label class="block text-slate-400 text-[10px] font-black uppercase tracking-widest ml-1">Método de Pago</label>
+                    <p-select [options]="paymentMethods" formControlName="payment_method" styleClass="w-full" appendTo="body"></p-select>
+                </div>
+
+                <div *ngIf="paymentForm.get('payment_method')?.value !== 'cash'" class="space-y-4">
+                    <div class="flex flex-col gap-2">
+                        <label class="block text-slate-400 text-[10px] font-black uppercase tracking-widest ml-1">Cuenta Bancaria</label>
+                        <p-select [options]="activeAccounts" formControlName="account_id" placeholder="Seleccione la cuenta" styleClass="w-full" appendTo="body"></p-select>
+                    </div>
+
+                    <div class="flex flex-col gap-2">
+                        <label class="block text-slate-400 text-[10px] font-black uppercase tracking-widest ml-1">No. de Comprobante / Referencia</label>
+                        <input formControlName="reference_number" type="text" placeholder="Ej: 0023451" 
+                            class="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none transition-all">
+                    </div>
+                </div>
+
+                <!-- Acciones -->
+                <div class="flex flex-col gap-2 pt-3">
+                    <p-button type="submit" [disabled]="paymentForm.invalid" label="Confirmar Pago" icon="pi pi-check"
+                        styleClass="w-full !bg-primary hover:!bg-primary/90 !text-white !border-none !py-2.5 !text-xs !font-semibold rounded-lg shadow-sm transition-all duration-150 cursor-pointer disabled:opacity-30">
+                    </p-button>
+                    <p-button (click)="showPaymentForm = false" label="Cancelar" [text]="true"
+                        styleClass="w-full p-button-text !text-slate-500 hover:!bg-slate-100 !py-1.5 !text-xs !font-semibold rounded-lg transition-all duration-150 cursor-pointer">
+                    </p-button>
                 </div>
             </form>
         </div>
-    </div>
+    </p-dialog>
 
-    <!-- Modal para ver Historial de Pagos -->
-    <div *ngIf="showHistoryModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex justify-center items-center">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold text-gray-800">Historial de Pagos</h3>
-                <button (click)="showHistoryModal = false" class="text-gray-500 hover:text-gray-800">
-                    <i class="pi pi-times text-xl"></i>
-                </button>
-            </div>
-            <p class="text-sm text-gray-600 mb-4">{{ selectedDebtName }}</p>
+    <!-- Diálogo de Historial de Pagos -->
+    <p-dialog [(visible)]="showHistoryModal" [modal]="true" [header]="'Historial de Pagos'"
+        [style]="{width: '85vw', 'max-width': '650px'}" styleClass="custom-dialog" [draggable]="false" [resizable]="false" [closable]="true">
+        
+        <div class="flex flex-col gap-3 pt-1">
+            <p class="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2 px-1">{{ selectedDebtName }}</p>
             
-            <div class="overflow-x-auto">
-                <table class="min-w-full bg-white border">
-                    <thead class="bg-gray-100">
+            <div class="overflow-hidden border border-slate-100 rounded-xl bg-white shadow-sm max-h-[350px] overflow-y-auto">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50 border-b border-slate-100 sticky top-0 z-10">
                         <tr>
-                            <th class="py-2 px-4 border-b text-left text-sm font-semibold text-gray-700">Fecha</th>
-                            <th class="py-2 px-4 border-b text-left text-sm font-semibold text-gray-700">Monto ($)</th>
-                            <th class="py-2 px-4 border-b text-center text-sm font-semibold text-gray-700">Acciones</th>
+                            <th class="px-4 py-3 font-bold text-slate-400 uppercase tracking-wider">Fecha</th>
+                            <th class="px-4 py-3 text-right font-bold text-slate-400 uppercase tracking-wider">Monto</th>
+                            <th class="px-4 py-3 text-center font-bold text-slate-400 uppercase tracking-wider">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <tr *ngFor="let payment of historyPayments" class="hover:bg-gray-50">
-                            <td class="py-2 px-4 border-b text-sm text-gray-800">{{ payment.payment_date | date:'short' }}</td>
-                            <td class="py-2 px-4 border-b text-sm font-bold text-green-600">${{ payment.amount_paid | number:'1.2-2' }}</td>
-                            <td class="py-2 px-4 border-b text-center">
-                                <button (click)="printHistoryTicket(payment)" class="text-blue-500 hover:text-blue-700" title="Imprimir Ticket">
-                                    <i class="pi pi-print"></i> Imprimir
-                                </button>
+                    <tbody class="divide-y divide-slate-50">
+                        <tr *ngFor="let payment of historyPayments" class="hover:bg-slate-50/50 transition-colors">
+                            <td class="px-4 py-3 text-slate-600">
+                                {{ payment.payment_date | date:'short' }}
+                            </td>
+                            <td class="px-4 py-3 text-right font-bold text-green-600">
+                                ${{ payment.amount_paid | number:'1.2-2' }}
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <p-button (click)="printHistoryTicket(payment)" label="Imprimir Ticket" icon="pi pi-print" [text]="true"
+                                    styleClass="p-button-outlined !text-slate-600 hover:!bg-slate-50 !border-slate-300 !py-1 !px-2.5 !text-[10px] !font-semibold rounded-md shadow-sm transition-all duration-150 cursor-pointer">
+                                </p-button>
                             </td>
                         </tr>
                         <tr *ngIf="historyPayments.length === 0">
-                            <td colspan="3" class="py-4 text-center text-sm text-gray-500 italic">No hay pagos registrados para esta deuda.</td>
+                            <td colspan="3" class="py-8 text-center text-xs text-slate-400 italic">No hay pagos registrados para esta deuda.</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
-    </div>
+
+        <ng-template pTemplate="footer">
+            <div class="flex justify-end pt-2 pb-1 mt-1">
+                <p-button (click)="showHistoryModal = false" label="Cerrar"
+                    styleClass="p-button-text !text-slate-500 hover:!bg-slate-100 !py-1.5 !px-3 !text-xs !font-semibold rounded-lg transition-all duration-150 cursor-pointer">
+                </p-button>
+            </div>
+        </ng-template>
+    </p-dialog>
 
     <div class="bg-white shadow-md rounded my-6 p-4">
         <app-custom-table 
             [data]="agreements" 
             [columns]="columns" 
-            title="Deudas y Cargos" 
+            tableTitle="Deudas y Cargos" 
             [globalFilterFields]="['client_name', 'description']"
             [actions]="actions">
         </app-custom-table>

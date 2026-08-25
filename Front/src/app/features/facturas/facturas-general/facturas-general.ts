@@ -62,6 +62,7 @@ export class FacturasGeneral implements OnInit {
   // Debts (Cuentas por Cobrar)
   userDebts: PaymentAgreement[] = [];
   selectedDebts: { agreement: PaymentAgreement, amountToPay: number }[] = [];
+  rawInputValues: { [id: number]: string } = {};
 
   // Propiedades para el diálogo de cobro
   showPaymentDialog: boolean = false;
@@ -220,6 +221,9 @@ export class FacturasGeneral implements OnInit {
   toggleDebtSelection(debt: PaymentAgreement) {
     if (this.isDebtSelected(debt)) {
       this.selectedDebts = this.selectedDebts.filter(d => d.agreement.agreement_id !== debt.agreement_id);
+      if (debt.agreement_id !== undefined) {
+        delete this.rawInputValues[debt.agreement_id];
+      }
     } else {
       this.selectedDebts.push({ agreement: debt, amountToPay: Number(debt.remaining_amount) });
     }
@@ -233,6 +237,63 @@ export class FacturasGeneral implements OnInit {
       found.amountToPay = isNaN(numAmount) ? 0 : numAmount;
       this.cdr.detectChanges();
     }
+  }
+
+  getDebtPaymentAmountFormatted(debt: PaymentAgreement): string {
+    if (debt.agreement_id !== undefined && this.rawInputValues[debt.agreement_id] !== undefined) {
+      return this.rawInputValues[debt.agreement_id];
+    }
+    const amount = this.getDebtPaymentAmount(debt);
+    return amount.toFixed(2);
+  }
+
+  onDebtInput(event: Event, debt: PaymentAgreement) {
+    const inputElement = event.target as HTMLInputElement;
+    let value = inputElement.value;
+    
+    let cleanValue = value.replace(/,/g, '.');
+    cleanValue = cleanValue.replace(/[^0-9.]/g, '');
+    const parts = cleanValue.split('.');
+    if (parts.length > 2) {
+      cleanValue = parts[0] + '.' + parts.slice(1).join('');
+    }
+    if (parts.length === 2 && parts[1].length > 2) {
+      cleanValue = parts[0] + '.' + parts[1].substring(0, 2);
+    }
+    
+    let amount = parseFloat(cleanValue);
+    if (isNaN(amount) || amount < 0) {
+      amount = 0;
+    }
+    
+    const maxVal = Number(debt.remaining_amount);
+    if (amount > maxVal) {
+      amount = maxVal;
+      cleanValue = maxVal.toString();
+    }
+    
+    if (debt.agreement_id !== undefined) {
+      this.rawInputValues[debt.agreement_id] = cleanValue;
+    }
+    
+    const found = this.selectedDebts.find(d => d.agreement.agreement_id === debt.agreement_id);
+    if (found) {
+      found.amountToPay = amount;
+    } else {
+      this.selectedDebts.push({ agreement: debt, amountToPay: amount });
+    }
+    
+    inputElement.value = cleanValue;
+  }
+
+  onDebtBlur(event: Event, debt: PaymentAgreement) {
+    if (debt.agreement_id !== undefined) {
+      delete this.rawInputValues[debt.agreement_id];
+    }
+    const amount = this.getDebtPaymentAmount(debt);
+    const inputElement = event.target as HTMLInputElement;
+    inputElement.value = amount.toFixed(2);
+    this.cdr.detectChanges();
   }
 
   private loadInvoiceDetailsIfNeeded(invoice: Invoice) {

@@ -73,7 +73,7 @@
 
             <div *ngIf="selectedUser" class="w-1/4 flex justify-end">
                 <p-button (click)="onViewAllInvoices()" label="Ver Historial / Tablas" icon="pi pi-table"
-                    severity="info" styleClass="rounded-xl text-xs font-bold shadow-lg hover:shadow-xl active:scale-95">
+                    [text]="true" styleClass="p-button-outlined !text-slate-600 hover:!bg-slate-50 !border-slate-300 !py-1.5 !px-3 !text-xs !font-semibold rounded-lg shadow-sm transition-all duration-150 cursor-pointer">
                 </p-button>
             </div>
         </div>
@@ -81,12 +81,14 @@
         <!-- Área Central -->
         <div class="flex-1 overflow-y-auto p-6 bg-gray-50/50">
             <!-- Empty State -->
-            <div *ngIf="!selectedUser" class="flex flex-col items-center justify-center text-center mt-20 opacity-40">
-                <div class="w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-inner mb-6">
-                    <i class="pi pi-inbox text-5xl text-gray-300"></i>
+            <div *ngIf="!selectedUser" class="flex flex-col items-center justify-center text-center py-20 px-4 opacity-40 w-full mx-auto">
+                <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                    <i class="pi pi-inbox text-3xl text-slate-400"></i>
                 </div>
-                <h3 class="text-xl font-bold text-gray-400">Seleccione un usuario</h3>
-                <p class="text-gray-400 max-w-xs mt-2 text-sm">Busque un usuario para gestionar sus facturas.</p>
+                <h3 class="text-lg font-bold text-slate-500">Seleccione un usuario</h3>
+                <p class="text-xs text-slate-400 mt-2 max-w-sm mx-auto leading-relaxed">
+                    Busque un usuario para gestionar sus facturas.
+                </p>
             </div>
 
             <!-- Factura Seleccionada o Resumen de Deuda -->
@@ -174,7 +176,7 @@
                             </h2>
                             <div class="flex flex-col gap-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
                                 <ng-container *ngFor="let debt of userDebts">
-                                    <div class="p-3 rounded-xl border-2 transition-all flex flex-col gap-2 relative group overflow-hidden"
+                                    <div class="p-3 rounded-xl border-2 transition-all flex flex-col gap-2 relative group"
                                         [ngClass]="{
                                              'border-amber-500 bg-amber-50 ring-2 ring-amber-100': isDebtSelected(debt),
                                               'border-gray-100 bg-white hover:border-amber-200': !isDebtSelected(debt)
@@ -198,14 +200,15 @@
                                         </div>
 
                                         <!-- Input de Abono (Solo si está seleccionado) -->
-                                        <div *ngIf="isDebtSelected(debt)" class="mt-2 pl-8 pr-1 animate-fade-in flex items-center gap-2">
-                                            <span class="text-[9px] font-bold text-slate-500 uppercase">Abonar:</span>
-                                            <div class="p-inputgroup h-7 flex-1">
-                                                <span class="p-inputgroup-addon bg-white border-amber-300 text-amber-600 text-xs px-2 py-0 border-r-0">$</span>
-                                                <input type="number" pInputText [value]="getDebtPaymentAmount(debt)" 
-                                                    (input)="updateDebtAmount(debt, $any($event.target).value)" 
-                                                    step="0.01" min="0.01" [max]="debt.remaining_amount"
-                                                    class="h-7 text-xs border-amber-300 focus:border-amber-500 text-right font-bold w-full border-l-0 rounded-r-md">
+                                        <div *ngIf="isDebtSelected(debt)" class="mt-1 pl-8 pr-1 animate-fade-in flex items-center justify-between gap-2 w-full">
+                                            <span class="text-[9px] font-bold text-slate-500 uppercase shrink-0">Abonar:</span>
+                                            <div class="relative flex-1">
+                                                <span class="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">$</span>
+                                                <input type="text" inputmode="numeric"
+                                                    [value]="getDebtPaymentAmountFormatted(debt)" 
+                                                    (input)="onDebtInput($event, debt)"
+                                                    (blur)="onDebtBlur($event, debt)"
+                                                    class="h-8 pl-5 pr-2 text-xs text-slate-700 bg-white border border-amber-300 focus:border-amber-500 rounded-lg text-right font-bold w-full outline-none focus:ring-1 focus:ring-amber-500">
                                             </div>
                                         </div>
 
@@ -258,8 +261,8 @@
                                 <!-- Botón Abrir Detalle -->
                                 <p-button (click)="onOpenInvoiceDetail()" *ngIf="selectedInvoices.length > 0"
                                     [label]="selectedInvoices.length > 1 ? 'Ver Resumen de Selección' : 'Ver Detalles Completos'"
-                                    [icon]="'pi pi-search-plus'" severity="info"
-                                    styleClass="rounded-xl shadow-lg transition-all hover:scale-105 active:scale-95 text-xs font-black uppercase">
+                                    [icon]="'pi pi-search-plus'"
+                                    styleClass="!bg-primary hover:!bg-primary/90 !text-white !border-none !py-1.5 !px-3 !text-xs !font-semibold shadow-sm rounded-lg transition-all duration-150 cursor-pointer">
                                 </p-button>
 
                                 <p class="text-[9px] text-slate-300 font-medium max-w-[180px] leading-tight"
@@ -285,8 +288,8 @@
 
                                 <p-button *ngIf="allSelectedPending" (click)="onCollectPayment()"
                                     [label]="selectedInvoices.length > 1 ? 'COBRAR SELECCIÓN' : (selectedInvoices.length === 1 ? 'COBRAR MES' : 'COBRAR DEUDA/ABONO')"
-                                    icon="pi pi-check-circle" severity="info"
-                                    styleClass="w-full py-4 border-none rounded-2xl font-bold text-sm shadow-xl active:scale-95">
+                                    icon="pi pi-check-circle"
+                                    styleClass="w-full !bg-primary hover:!bg-primary/90 !text-white !border-none !py-2 !px-4 !text-xs !font-semibold shadow-sm rounded-lg transition-all duration-150 cursor-pointer">
                                 </p-button>
 
                                 <div *ngIf="allSelectedPaid" class="flex flex-col items-center gap-2 animate-bounce">
@@ -298,8 +301,8 @@
 
                         <!-- Botón Pago Total (Si hay deuda múltiple) -->
                         <p-button *ngIf="selectedUser && (getPendingCount(selectedUser) > 1 || (getPendingCount(selectedUser) === 1 && userDebts.length > 0) || userDebts.length > 1)"
-                            (click)="onCollectAllPayments()" severity="info"
-                            styleClass="w-full py-4 border-none shadow-lg active:scale-95 rounded-2xl">
+                            (click)="onCollectAllPayments()"
+                            styleClass="w-full !bg-primary hover:!bg-primary/90 !text-white !border-none !py-2 !px-4 rounded-lg shadow-sm transition-all duration-150 cursor-pointer">
                             <div class="flex flex-col items-center gap-1 group">
                                 <span
                                     class="opacity-60 uppercase text-[8px] group-hover:opacity-100 transition-opacity leading-none">
@@ -507,8 +510,8 @@
 
     <ng-template pTemplate="footer">
         <div class="flex justify-end pt-2 pb-1 border-t border-slate-100 mt-1">
-            <p-button (click)="showInvoiceDetailModal = false" label="Cerrar Detalle" severity="secondary"
-                styleClass="rounded-xl transition-all text-[9px] tracking-widest uppercase shadow-lg active:scale-95">
+            <p-button (click)="showInvoiceDetailModal = false" label="Cerrar Detalle"
+                styleClass="p-button-text !text-slate-500 hover:!bg-slate-100 !py-1.5 !px-3 !text-xs !font-semibold rounded-lg transition-all duration-150 cursor-pointer">
             </p-button>
         </div>
     </ng-template>
@@ -526,8 +529,8 @@
 
     <ng-template pTemplate="footer">
         <div class="flex justify-end gap-2 p-4 pt-0">
-            <p-button (click)="showInvoicesTable = false" label="Cerrar" severity="secondary"
-                styleClass="rounded-xl font-bold text-sm shadow-md active:scale-95">
+            <p-button (click)="showInvoicesTable = false" label="Cerrar"
+                styleClass="p-button-text !text-slate-500 hover:!bg-slate-100 !py-1.5 !px-3 !text-xs !font-semibold rounded-lg transition-all duration-150 cursor-pointer">
             </p-button>
         </div>
     </ng-template>
@@ -602,11 +605,11 @@
         <!-- Acciones Compactas -->
         <div class="flex flex-col gap-2 mt-1">
             <p-button (click)="onConfirmPayment()" [disabled]="(paymentMethod === 'cash' && (!amountReceived || amountReceived < totalToPay)) || (paymentMethod !== 'cash' && !accountId)"
-                label="Procesar Cobro" icon="pi pi-check" severity="info"
-                styleClass="w-full py-4 border-none rounded-2xl font-black text-xs uppercase tracking-widest shadow-md active:scale-[0.98] disabled:opacity-20">
+                label="Procesar Cobro" icon="pi pi-check"
+                styleClass="w-full !bg-primary hover:!bg-primary/90 !text-white !border-none !py-2.5 !text-xs !font-semibold rounded-lg shadow-sm transition-all duration-150 cursor-pointer disabled:opacity-30">
             </p-button>
-            <p-button (click)="showPaymentDialog = false" label="Regresar" [text]="true" severity="secondary"
-                styleClass="w-full py-2 border-none font-bold text-[9px] uppercase tracking-widest transition-colors">
+            <p-button (click)="showPaymentDialog = false" label="Regresar" [text]="true"
+                styleClass="w-full p-button-text !text-slate-500 hover:!bg-slate-100 !py-1.5 !text-xs !font-semibold rounded-lg transition-all duration-150 cursor-pointer">
             </p-button>
         </div>
 

@@ -1,49 +1,54 @@
 <div class="container mx-auto p-4">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-800">Cortes de Caja (Informes Contables)</h1>
-        <button (click)="openForm()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        <button (click)="openForm()" class="!bg-primary hover:!bg-primary/90 text-white font-semibold py-1.5 px-3 rounded-lg shadow-sm text-xs transition-all cursor-pointer">
             Generar Nuevo Informe
         </button>
     </div>
 
-    <p-dialog header="Generar Informe de Período" [(visible)]="showForm" [modal]="true" [style]="{width: '50vw'}" [breakpoints]="{'960px': '75vw', '640px': '90vw'}" [draggable]="false" [resizable]="false">
-        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4 mt-2 rounded">
+    <p-dialog header="Generar Informe de Período" [(visible)]="showForm" [modal]="true" [style]="{width: '650px'}" 
+        styleClass="custom-dialog bg-white rounded-3xl overflow-hidden shadow-2xl border-none" [draggable]="false" [resizable]="false">
+        <div class="bg-blue-50 border-l-4 border-blue-400 py-2.5 px-4 mb-4 mt-2 rounded-r-xl">
             <div class="flex items-center">
-                <i class="pi pi-info-circle text-blue-500 mr-3 text-xl"></i>
+                <i class="pi pi-info-circle text-blue-500 mr-3 text-base"></i>
                 <div>
-                    <p class="text-sm text-blue-700 font-bold">Saldo Global Actual del Sistema</p>
-                    <p class="text-2xl font-black text-blue-800">${{ currentSystemBalance.toLocaleString('en-US', {minimumFractionDigits: 2}) }}</p>
-                    <p class="text-xs text-blue-600 italic">Este es el dinero total que el sistema ha calculado hasta este instante preciso. Úsalo como guía.</p>
+                    <p class="text-[10px] font-bold text-blue-500 uppercase tracking-widest leading-none mb-1">Saldo Global Actual del Sistema</p>
+                    <p class="text-lg font-black text-blue-800 leading-none">${{ currentSystemBalance.toLocaleString('en-US', {minimumFractionDigits: 2}) }}</p>
+                    <p class="text-[11px] text-blue-600 italic mt-1">Este es el dinero total que el sistema ha calculado hasta este instante preciso. Úsalo como guía.</p>
                 </div>
             </div>
         </div>
         
         <form [formGroup]="form" (ngSubmit)="onSubmit($event)" class="mt-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Título del Informe</label>
-                    <input formControlName="title" type="text" class="shadow appearance-none border rounded w-full py-2 px-3" placeholder="Ej: Semestre Ene-Jun 2026">
+                <div class="flex flex-col gap-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Título del Informe <span class="text-red-500">*</span></label>
+                    <input formControlName="title" type="text" class="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none transition-all" placeholder="Ej: Semestre Ene-Jun 2026">
                 </div>
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Dinero Físico en Caja ($)</label>
-                    <p-inputNumber formControlName="physical_balance" [minFractionDigits]="2" [maxFractionDigits]="2" placeholder="0.00" mode="decimal" styleClass="w-full" inputStyleClass="shadow appearance-none border rounded w-full py-2 px-3 focus:outline-none"></p-inputNumber>
+                <div class="flex flex-col gap-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dinero Físico en Caja ($) <span class="text-red-500">*</span></label>
+                    <p-inputNumber formControlName="physical_balance" [minFractionDigits]="2" [maxFractionDigits]="2" placeholder="0.00" mode="decimal" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
                 </div>
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Fecha Desde</label>
-                    <input formControlName="start_date" type="date" class="shadow appearance-none border rounded w-full py-2 px-3">
+                <div class="flex flex-col gap-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fecha Desde <span class="text-red-500">*</span></label>
+                    <input formControlName="start_date" type="date" class="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none transition-all">
                 </div>
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Fecha Hasta</label>
-                    <input formControlName="end_date" type="date" class="shadow appearance-none border rounded w-full py-2 px-3">
+                <div class="flex flex-col gap-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fecha Hasta <span class="text-red-500">*</span></label>
+                    <input formControlName="end_date" type="date" class="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none transition-all">
                 </div>
             </div>
-            <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-bold mb-2">Observaciones</label>
-                <textarea formControlName="observations" class="shadow appearance-none border rounded w-full py-2 px-3"></textarea>
+            <div class="flex flex-col gap-2 mb-4">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Observaciones</label>
+                <textarea formControlName="observations" rows="3" placeholder="Detalle de observaciones del informe..." class="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50/50 border border-slate-200 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary rounded-xl outline-none transition-all"></textarea>
             </div>
-            <div class="flex justify-end gap-2 mt-6">
-                <p-button label="Cancelar" styleClass="p-button-text" (onClick)="showForm = false"></p-button>
-                <p-button label="Calcular y Guardar" type="submit" [disabled]="form.invalid" styleClass="p-button-success"></p-button>
+            <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
+                <p-button (onClick)="showForm = false" label="Cancelar" [text]="true"
+                    styleClass="p-button-text !text-slate-500 hover:!bg-slate-100 !py-1.5 !px-3 !text-xs !font-semibold rounded-lg transition-all duration-150 cursor-pointer">
+                </p-button>
+                <p-button type="submit" [disabled]="form.invalid" label="Calcular y Guardar" icon="pi pi-check"
+                    styleClass="!bg-primary hover:!bg-primary/90 !text-white !border-none !py-1.5 !px-3 !text-xs !font-semibold shadow-sm rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-30">
+                </p-button>
             </div>
         </form>
     </p-dialog>

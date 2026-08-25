@@ -7,64 +7,61 @@
     </div>
 
     <!-- Cards de Resumen -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         
         <!-- Contenedor Izquierdo: Saldos -->
-        <div class="space-y-4">
+        <div class="space-y-3">
             <!-- Balance Global -->
-            <div class="bg-indigo-600 rounded-3xl p-6 text-white shadow-2xl shadow-indigo-200 flex flex-col justify-between relative overflow-hidden">
+            <div class="bg-indigo-600 rounded-2xl p-4 py-3 text-white shadow-lg flex flex-col justify-between relative overflow-hidden">
                 <div class="relative z-10">
-                    <p class="text-indigo-100 text-sm font-bold uppercase tracking-widest mb-1 opacity-80">Saldo Total Global</p>
-                    <h2 class="text-4xl font-black tabular-nums">${{ balanceGlobal.toLocaleString('en-US', {minimumFractionDigits: 2}) }}</h2>
+                    <p class="text-indigo-100 text-[10px] font-bold uppercase tracking-wider mb-1 opacity-80">Saldo Total Global</p>
+                    <h2 class="text-2xl font-black tabular-nums">${{ balanceGlobal.toLocaleString('en-US', {minimumFractionDigits: 2}) }}</h2>
                 </div>
-                <i class="pi pi-globe text-8xl text-white opacity-10 absolute -right-4 -bottom-4 transform rotate-12"></i>
+                <i class="pi pi-globe text-5xl text-white opacity-10 absolute -right-3 -bottom-3 transform rotate-12"></i>
             </div>
             
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 gap-3">
                 <!-- Efectivo Físico -->
-                <div class="bg-emerald-600 rounded-3xl p-5 text-white shadow-xl flex flex-col justify-between relative overflow-hidden">
+                <div class="bg-emerald-600 rounded-2xl p-3.5 py-2.5 text-white shadow-md flex flex-col justify-between relative overflow-hidden">
                     <div class="relative z-10">
-                        <p class="text-emerald-100 text-xs font-bold uppercase tracking-widest mb-1 opacity-80">Caja Efectivo</p>
-                        <h2 class="text-2xl font-black tabular-nums">${{ balanceCash.toLocaleString('en-US', {minimumFractionDigits: 2}) }}</h2>
+                        <p class="text-emerald-100 text-[10px] font-bold uppercase tracking-wider mb-1 opacity-80">Caja Efectivo</p>
+                        <h2 class="text-lg font-black tabular-nums">${{ balanceCash.toLocaleString('en-US', {minimumFractionDigits: 2}) }}</h2>
                     </div>
-                    <i class="pi pi-money-bill text-6xl text-white opacity-10 absolute -right-4 -bottom-4 transform rotate-12"></i>
+                    <i class="pi pi-money-bill text-4xl text-white opacity-10 absolute -right-3 -bottom-3 transform rotate-12"></i>
                 </div>
 
                 <!-- Cuentas Bancarias (Resumen Dinámico) -->
-                <div *ngFor="let account of bankAccounts" class="bg-blue-600 rounded-3xl p-5 text-white shadow-xl flex flex-col justify-between relative overflow-hidden">
+                <div *ngFor="let account of bankAccounts" class="bg-blue-600 rounded-2xl p-3.5 py-2.5 text-white shadow-md flex flex-col justify-between relative overflow-hidden">
                     <div class="relative z-10">
-                        <p class="text-blue-100 text-[10px] font-bold uppercase tracking-widest mb-1 opacity-80" [title]="account.bank_name">
+                        <p class="text-blue-100 text-[10px] font-bold uppercase tracking-wider mb-1 opacity-80 truncate" [title]="account.bank_name">
                             {{ account.bank_name.length > 12 ? (account.bank_name | slice:0:12) + '...' : account.bank_name }}
                         </p>
-                        <h2 class="text-2xl font-black tabular-nums">${{ account.current_balance.toLocaleString('en-US', {minimumFractionDigits: 2}) }}</h2>
+                        <h2 class="text-lg font-black tabular-nums">${{ account.current_balance.toLocaleString('en-US', {minimumFractionDigits: 2}) }}</h2>
                     </div>
-                    <i class="pi pi-building-columns text-6xl text-white opacity-10 absolute -right-4 -bottom-4 transform rotate-12"></i>
+                    <i class="pi pi-building-columns text-4xl text-white opacity-10 absolute -right-3 -bottom-3 transform rotate-12"></i>
                 </div>
                 
                 <!-- Si no hay cuentas bancarias, un placeholder -->
-                <div *ngIf="bankAccounts.length === 0" class="bg-slate-100 rounded-3xl p-5 text-slate-400 border border-slate-200 border-dashed flex flex-col items-center justify-center relative overflow-hidden text-center">
-                    <i class="pi pi-building-columns text-2xl mb-2 opacity-50"></i>
-                    <p class="text-xs font-bold uppercase tracking-widest opacity-80">Sin Cuentas Bancarias</p>
+                <div *ngIf="bankAccounts.length === 0" class="bg-slate-50 rounded-2xl p-3.5 py-2.5 text-slate-400 border border-slate-200 border-dashed flex flex-col items-center justify-center relative overflow-hidden text-center">
+                    <i class="pi pi-building-columns text-lg mb-1 opacity-50"></i>
+                    <p class="text-[9px] font-bold uppercase tracking-wider opacity-80">Sin Cuentas Bancarias</p>
                 </div>
             </div>
         </div>
 
         <!-- Cuentas por Cobrar (Deuda Global) -->
-        <div
-            class="bg-white rounded-3xl p-8 border border-gray-100 shadow-xl shadow-gray-100 flex flex-col justify-between h-52">
+        <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex flex-col justify-between h-full">
             <div>
-                <div class="flex justify-between items-start mb-4">
-                    <div class="bg-amber-50 p-3 rounded-2xl">
-                        <i class="pi pi-exclamation-triangle text-amber-600 text-xl font-bold"></i>
+                <div class="flex justify-between items-center mb-3">
+                    <div class="bg-amber-50 p-1.5 rounded-lg flex items-center justify-center">
+                        <i class="pi pi-exclamation-triangle text-amber-600 text-sm font-bold"></i>
                     </div>
-                    <span
-                        class="text-amber-500 text-xs font-black bg-amber-50 px-3 py-1 rounded-full uppercase">Pendientes</span>
+                    <span class="text-amber-500 text-[9px] font-black bg-amber-50 px-2 py-0.5 rounded-md uppercase tracking-wider">Pendientes</span>
                 </div>
-                <p class="text-gray-400 text-sm font-bold uppercase tracking-wider mb-1">Cuentas por Cobrar</p>
-                <h2 class="text-5xl font-black text-gray-800 tabular-nums">${{ globalDebt.toLocaleString('en-US',
-                    {minimumFractionDigits: 2}) }}</h2>
+                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Cuentas por Cobrar</p>
+                <h2 class="text-2xl font-black text-slate-800 tabular-nums">${{ globalDebt.toLocaleString('en-US', {minimumFractionDigits: 2}) }}</h2>
             </div>
-            <p class="text-gray-400 text-sm italic">Suma de facturas vencidas y convenios (dinero por recuperar)</p>
+            <p class="text-slate-400 text-[10px] italic leading-tight mt-2">Suma de facturas vencidas y convenios (dinero por recuperar)</p>
         </div>
     </div>
 
