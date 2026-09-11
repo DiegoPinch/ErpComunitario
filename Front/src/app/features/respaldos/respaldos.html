@@ -1,0 +1,52 @@
+<p-toast></p-toast>
+<div class="bg-white rounded-lg shadow-md p-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Seguridad y Respaldos</h1>
+    </div>
+    
+    <p class="text-slate-600 mb-8 text-sm">Desde este módulo puedes generar respaldos encriptados de la base de datos para proteger la información de la comunidad.</p>
+            
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Tarjeta 1: Respaldo Local -->
+        <div class="bg-slate-50 rounded-2xl border border-slate-200 p-6 flex flex-col items-start shadow-sm hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-4">
+                <i class="pi pi-database text-xl"></i>
+            </div>
+            <h2 class="text-lg font-bold text-slate-800 mb-1">Respaldo Local (Sin Internet)</h2>
+            <p class="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-4">Descargar a USB o PC</p>
+            
+            <p class="text-slate-600 text-sm mb-6 flex-1">
+                Genera un archivo <span class="font-bold text-slate-700">.enc</span> (encriptado) que contiene toda la base de datos. Guárdalo en un Pendrive o disco externo por seguridad.
+            </p>
+            
+            <p-button 
+                label="Descargar Respaldo Seguro" 
+                icon="pi pi-download" 
+                [loading]="isDownloading"
+                (onClick)="descargarRespaldoSeguro()"
+                styleClass="w-full !bg-primary hover:!bg-primary/90 !text-white !border-none !py-2.5 !px-4 !text-sm !font-semibold shadow-sm rounded-xl transition-all duration-150 cursor-pointer flex justify-center">
+            </p-button>
+        </div>
+        
+        <!-- Tarjeta 2: Sincronizar al Correo -->
+        <div class="bg-slate-50 rounded-2xl border border-slate-200 p-6 flex flex-col items-start shadow-sm hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 mb-4">
+                <i class="pi pi-envelope text-xl"></i>
+            </div>
+            <h2 class="text-lg font-bold text-slate-800 mb-1">Sincronizar al Correo</h2>
+            <p class="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-4">Envío automático</p>
+            
+            <p class="text-slate-600 text-sm mb-6 flex-1">
+                Envía el respaldo automáticamente a la bandeja de correo electrónico configurada. Requiere conexión a internet activa.
+            </p>
+            
+            <p-button 
+                label="Enviar por Correo" 
+                icon="pi pi-send" 
+                [loading]="isUploading"
+                (onClick)="subirNube()"
+                styleClass="w-full !bg-white hover:!bg-slate-50 !text-slate-700 !border !border-slate-300 !py-2.5 !px-4 !text-sm !font-semibold shadow-sm rounded-xl transition-all duration-150 cursor-pointer flex justify-center">
+            </p-button>
+        </div>
+    </div>
+</div>

@@ -38,7 +38,7 @@
         </div>
 
         <!-- Form Header -->
-        <div style="margin-bottom: 28px; text-align: center; font-family: 'Work Sans', sans-serif;">
+        <div style="margin-bottom: 28px; text-align: left; font-family: 'Work Sans', sans-serif;">
           <h2 style="font-size: 24px; font-weight: 700; margin: 0 0 6px 0; color: #191c1d; letter-spacing: -0.01em;">Bienvenido</h2>
           <p style="font-size: 14px; margin: 0; color: #424752; font-family: 'Inter', sans-serif; line-height: 1.4;">Ingrese sus credenciales para acceder a su cuenta en Yaku Gest.</p>
         </div>
@@ -75,14 +75,12 @@
           </div>
 
           <!-- Submit Button -->
-          <p-button type="submit" [disabled]="loading || !username || !password" styleClass="w-full" [style]="{ 'width': '100%', 'min-height': '44px', 'background-color': '#003f87', 'border-color': '#003f87', 'color': '#ffffff', 'font-family': 'Inter', 'font-size': '14px', 'font-weight': '600', 'border-radius': '8px', 'box-sizing': 'border-box' }">
-            <span style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;">
-              {{ loading ? 'Iniciando...' : 'Iniciar Sesión' }}
-              @if (!loading) {
-                <span class="material-symbols-outlined" style="font-size: 20px;">login</span>
-              }
-            </span>
-          </p-button>
+          <button pButton type="submit" [disabled]="loading" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; background-color: #003f87; color: #ffffff; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; min-height: 44px; box-sizing: border-box; font-family: 'Inter', sans-serif;">
+            {{ loading ? 'Iniciando...' : 'Iniciar Sesión' }}
+            @if (!loading) {
+              <span class="material-symbols-outlined" style="font-size: 20px;">login</span>
+            }
+          </button>
         </form>
       </div>
     </div>
@@ -92,7 +90,7 @@
   <footer class="bg-transparent w-full" style="width: 100%; display: block; background: transparent; height: 50px; min-height: 50px;">
     <div class="flex flex-col md:flex-row justify-center items-center gap-2 w-full py-3 px-4" style="display: flex; justify-content: center; align-items: center; padding: 12px; box-sizing: border-box; font-family: 'Inter', sans-serif;">
       <span style="font-size: 11px; font-weight: 600; color: #003f87; text-align: center;">
-        © 2026-20 Junta Administradora de Agua Potable Comunidad de Chalupamba. 
+        © 2026-2027 Junta Administradora de Agua Potable Comunidad de Chalupamba. 
         <span class="block md:inline font-normal text-[11px] mt-1 md:mt-0 md:ml-2" style="font-weight: 400; color: #424752;">Powered by Yaku Gest</span>
       </span>
     </div>

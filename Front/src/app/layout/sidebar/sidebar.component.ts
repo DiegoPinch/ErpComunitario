@@ -249,6 +249,15 @@ export class SidebarComponent implements OnInit {
                         }
                     ]
                 }
+            },
+            // Respaldos
+            {
+                menu: 'respaldos',
+                item: {
+                    label: 'Seguridad y Respaldos',
+                    icon: 'pi pi-database',
+                    routerLink: ['/layout/respaldos']
+                }
             }
         ];
 
@@ -274,7 +283,7 @@ export class SidebarComponent implements OnInit {
             visibleMenus = allItems.map(x => x.menu);
         } else if (role === 'board') {
             if (boardRole.includes('PRESIDENTE')) {
-                visibleMenus = ['dashboard', 'usuarios', 'medidores', 'reuniones', 'configuracion', 'inventario', 'reportes'];
+                visibleMenus = ['dashboard', 'usuarios', 'medidores', 'reuniones', 'configuracion', 'inventario', 'reportes', 'respaldos'];
             } else if (boardRole.includes('TESORERO')) {
                 visibleMenus = ['dashboard', 'caja', 'facturacion', 'rubros', 'lecturas', 'reportes'];
             } else if (boardRole.includes('SECRETAR')) {

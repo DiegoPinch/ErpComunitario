@@ -36,7 +36,7 @@ export const routes: Routes = [
       { path: 'cortes-caja', loadComponent: () => import('./features/caja/cortes-caja/cortes-caja').then(c => c.CortesCaja) },
       { path: 'inventario', loadComponent: () => import('./features/inventario/list-inventario/list-inventario').then(c => c.ListInventario) },
       { path: 'inventario/kardex/:id', loadComponent: () => import('./features/inventario/kardex/kardex').then(c => c.Kardex) },
-
+      { path: 'respaldos', loadComponent: () => import('./features/respaldos/respaldos').then(c => c.Respaldos) },
     ]
   },
   { path: '**', redirectTo: '' }
