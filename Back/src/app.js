@@ -43,6 +43,7 @@ app.use('/api/inventory', require('./routes/inventoryRoutes'));
 app.use('/api/reports', require('./routes/reportsRoutes'));
 app.use('/api/other-incomes', require('./routes/otherIncomesRoutes'));
 app.use('/api/bank-accounts', require('./routes/bankAccountsRoutes'));
+app.use('/api/backup', require('./routes/backupRoutes'));
 
 // Manejo de rutas no encontradas
 app.use((req, res, next) => {

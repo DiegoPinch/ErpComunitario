@@ -230,6 +230,7 @@ const getDetailedCollectionsReport = async (startDate, endDate) => {
             p.account_id,
             ba.bank_name,
             ba.account_number,
+            p.invoice_amount,
             p.amount_paid,
             p.change_amount,
             i.invoice_id,
@@ -239,7 +240,7 @@ const getDetailedCollectionsReport = async (startDate, endDate) => {
             u.national_id,
             CONCAT(u.last_name, ' ', u.first_name) as client_name,
             i.billing_month,
-            COALESCE((p.amount_paid - p.change_amount) / NULLIF(i.total_amount, 0), 1) as payment_ratio,
+            COALESCE(p.invoice_amount / NULLIF(i.total_amount, 0), 1) as payment_ratio,
             -- Componente de consumo de agua (lecturas)
             COALESCE((
                 SELECT SUM(r.amount) 
@@ -337,7 +338,7 @@ const getDetailedCollectionsReport = async (startDate, endDate) => {
             ac.description,
             ac.amount as concept_amount,
             COUNT(ic.id) as qty_paid,
-            SUM(ac.amount * COALESCE((p.amount_paid - p.change_amount) / NULLIF(i.total_amount, 0), 1)) as total_collected
+            SUM(ac.amount * COALESCE(p.invoice_amount / NULLIF(i.total_amount, 0), 1)) as total_collected
         FROM payments p
         JOIN invoices i ON p.invoice_id = i.invoice_id
         JOIN invoice_concept ic ON i.invoice_id = ic.invoice_id
@@ -414,19 +415,19 @@ const getComprehensiveReport = async (startDate, endDate) => {
     const incomesQuery = `
         SELECT 
             p.payment_date as trans_date,
-            'Factura de Agua' as type,
-            CONCAT(u.first_name, ' ', u.last_name) as source_dest,
+            CAST('Factura de Agua' AS CHAR) as type,
+            CAST(CONCAT(u.first_name, ' ', u.last_name) AS CHAR) as source_dest,
             p.payment_method,
             p.account_id,
             p.reference_number,
-            (p.amount_paid - p.change_amount) as amount,
+            p.invoice_amount as amount,
             COALESCE((SELECT SUM(r.amount) FROM readings r WHERE r.invoice_id = i.invoice_id), 0) as water_component,
             COALESCE((SELECT SUM(ac.amount) FROM invoice_concept ic JOIN additional_concepts ac ON ic.concept_id = ac.concept_id WHERE ic.invoice_id = i.invoice_id AND ac.concept_type = 'fine'), 0) as fine_component,
             COALESCE((SELECT SUM(ac.amount) FROM invoice_concept ic JOIN additional_concepts ac ON ic.concept_id = ac.concept_id WHERE ic.invoice_id = i.invoice_id AND ac.concept_type != 'fine'), 0) as additional_component,
             i.total_amount,
-            i.invoice_type,
-            ba.bank_name,
-            NULL as agreement_desc
+            CAST(i.invoice_type AS CHAR) as invoice_type,
+            CAST(ba.bank_name AS CHAR) as bank_name,
+            CAST(NULL AS CHAR) as agreement_desc
         FROM payments p
         JOIN invoices i ON p.invoice_id = i.invoice_id
         JOIN users u ON i.user_id = u.user_id
@@ -437,8 +438,8 @@ const getComprehensiveReport = async (startDate, endDate) => {
 
         SELECT 
             dp.payment_date as trans_date,
-            'Pago Convenio/Deuda' as type,
-            CONCAT(u.first_name, ' ', u.last_name) as source_dest,
+            CAST('Pago Convenio/Deuda' AS CHAR) as type,
+            CAST(CONCAT(u.first_name, ' ', u.last_name) AS CHAR) as source_dest,
             dp.payment_method,
             dp.account_id,
             dp.reference_number,
@@ -447,9 +448,9 @@ const getComprehensiveReport = async (startDate, endDate) => {
             0 as fine_component,
             0 as additional_component,
             dp.amount_paid as total_amount,
-            'legacy_debt' as invoice_type,
-            ba.bank_name,
-            pa.description as agreement_desc
+            CAST('legacy_debt' AS CHAR) as invoice_type,
+            CAST(ba.bank_name AS CHAR) as bank_name,
+            CAST(pa.description AS CHAR) as agreement_desc
         FROM debt_payments dp
         JOIN payment_agreements pa ON dp.agreement_id = pa.agreement_id
         JOIN users u ON pa.user_id = u.user_id
@@ -460,8 +461,8 @@ const getComprehensiveReport = async (startDate, endDate) => {
 
         SELECT 
             oi.income_date as trans_date,
-            'Ingreso Extraordinario' as type,
-            oi.description as source_dest,
+            CAST('Ingreso Extraordinario' AS CHAR) as type,
+            CAST(oi.description AS CHAR) as source_dest,
             oi.payment_method,
             oi.account_id,
             oi.reference_number,
@@ -470,9 +471,9 @@ const getComprehensiveReport = async (startDate, endDate) => {
             0 as fine_component,
             0 as additional_component,
             oi.amount as total_amount,
-            'other_income' as invoice_type,
-            ba.bank_name,
-            NULL as agreement_desc
+            CAST('other_income' AS CHAR) as invoice_type,
+            CAST(ba.bank_name AS CHAR) as bank_name,
+            CAST(NULL AS CHAR) as agreement_desc
         FROM other_incomes oi
         LEFT JOIN bank_accounts ba ON oi.account_id = ba.account_id
         WHERE oi.income_date >= ? AND oi.income_date <= ?
@@ -552,7 +553,7 @@ const getBankAccountLedgerReport = async (startMonth, endMonth) => {
                 ELSE 'Factura'
             END as concept,
             p.reference_number,
-            (p.amount_paid - p.change_amount) as amount
+            p.invoice_amount as amount
         FROM payments p
         JOIN invoices i ON p.invoice_id = i.invoice_id
         JOIN users u ON i.user_id = u.user_id
@@ -645,7 +646,7 @@ const getCashIncomesDetailReport = async (startMonth, endMonth) => {
         SELECT 
             p.payment_date,
             p.payment_method,
-            (p.amount_paid - p.change_amount) as amount,
+            p.invoice_amount as amount,
             i.invoice_type,
             i.description as doc_desc,
             CONCAT(u.last_name, ' ', u.first_name) as client_name,

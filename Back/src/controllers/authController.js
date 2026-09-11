@@ -43,7 +43,7 @@ const login = async (req, res, next) => {
       last_name: user.last_name || 'Técnico'
     };
 
-    const token = jwt.sign(payload, process.env.JWT_SECRET || 'secret', { expiresIn: '2h' });
+    const token = jwt.sign(payload, process.env.JWT_SECRET || 'secret', { expiresIn: '3h' });
 
     res.json({
       token,

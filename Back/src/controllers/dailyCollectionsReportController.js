@@ -135,7 +135,7 @@ const getDailyCollections = async (req, res, next) => {
 
         // Procesar pagos de facturas con desglose proporcional
         const processedInvoicePayments = invoicePayments.map(p => {
-            const netPaid = parseFloat(p.amount_paid || 0) - parseFloat(p.change_amount || 0);
+            const netPaid = parseFloat(p.invoice_amount || 0);
             const ratio = parseFloat(p.payment_ratio) || 1;
             let water = parseFloat(p.water_component) * ratio;
             let fine = parseFloat(p.fine_component) * ratio;
