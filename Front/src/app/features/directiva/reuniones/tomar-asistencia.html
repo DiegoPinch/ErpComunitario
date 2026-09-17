@@ -40,7 +40,16 @@
     </div>
 
     <!-- Tabla de Asistencia -->
-    <p-table [value]="attendanceList" [loading]="loading" styleClass="p-datatable-striped" responsiveLayout="scroll" [rows]="15" [paginator]="true" [rowsPerPageOptions]="[15,30,50]">
+    <p-table #attendanceTable [value]="attendanceList" [globalFilterFields]="['user_name']" [loading]="loading" styleClass="p-datatable-striped" responsiveLayout="scroll" [rows]="15" [paginator]="true" [rowsPerPageOptions]="[15,30,50]">
+        <ng-template pTemplate="caption">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <span class="text-sm font-semibold text-slate-600">Buscar socio para revisar o corregir asistencia</span>
+                <div class="flex items-center gap-2">
+                    <i class="pi pi-search text-slate-400" aria-hidden="true"></i>
+                    <input #attendanceSearch pInputText type="search" aria-label="Buscar socio por nombre o apellido" placeholder="Nombre o apellido..." (input)="attendanceTable.filterGlobal(attendanceSearch.value, 'contains')" class="w-full sm:w-72 !text-sm" />
+                </div>
+            </div>
+        </ng-template>
         <ng-template pTemplate="header">
             <tr>
                 <th style="width: 5%" class="!bg-slate-50/75 !text-slate-500 !text-[11px] !font-bold !uppercase !tracking-wider !py-3.5 !px-4">#</th>
@@ -69,8 +78,9 @@
                         </div>
                         
                         <p-tag *ngIf="user.locked" severity="warn" value="Bloqueada" [pTooltip]="user.lock_reason" class="text-[9px]"></p-tag>
-                        <p-tag *ngIf="user.invoice_status === 'pending' && user.attended === 'no'" severity="warn" value="Multa en Planilla" pTooltip="Esta multa se cargó en su factura mensual pendiente." class="text-[9px]"></p-tag>
+                        <p-tag *ngIf="!user.locked && user.invoice_status === 'pending' && user.attended === 'no'" severity="warn" value="Multa en Planilla" pTooltip="Esta multa se cargó en su factura mensual pendiente." class="text-[9px]"></p-tag>
                     </div>
+                    <p *ngIf="user.locked" class="mt-2 text-xs text-amber-700">{{ user.lock_reason }}</p>
                 </td>
                 <td class="!py-3 !px-4">
                     <input type="text" pInputText [(ngModel)]="user.observations" placeholder="Escriba una observación..." 
@@ -81,7 +91,7 @@
         </ng-template>
         <ng-template pTemplate="emptymessage">
             <tr>
-                <td colspan="5" class="text-center py-4 text-gray-500">No hay usuarios registrados.</td>
+                <td colspan="4" class="text-center py-4 text-gray-500">No se encontraron socios. Pruebe otro nombre o apellido.</td>
             </tr>
         </ng-template>
     </p-table>

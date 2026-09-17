@@ -38,9 +38,24 @@
         </div>
 
         <!-- Form Header -->
-        <div style="margin-bottom: 28px; text-align: left; font-family: 'Work Sans', sans-serif;">
+        <div style="margin-bottom: 20px; text-align: left; font-family: 'Work Sans', sans-serif;">
           <h2 style="font-size: 24px; font-weight: 700; margin: 0 0 6px 0; color: #191c1d; letter-spacing: -0.01em;">Bienvenido</h2>
           <p style="font-size: 14px; margin: 0; color: #424752; font-family: 'Inter', sans-serif; line-height: 1.4;">Ingrese sus credenciales para acceder a su cuenta en Yaku Gest.</p>
+        </div>
+
+        <!-- Demo Access Banner -->
+        <div style="margin-bottom: 20px; padding: 12px 14px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-family: 'Inter', sans-serif; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="material-symbols-outlined" style="color: #2563eb; font-size: 24px;">info</span>
+            <div style="font-size: 12px; color: #1e40af; text-align: left; line-height: 1.35;">
+              <span style="font-weight: 700; display: block; margin-bottom: 2px;">Acceso Demo:</span>
+              <span>Usuario: <strong style="font-family: monospace; background: #dbeafe; padding: 1px 4px; border-radius: 4px; color: #1e3a8a;">admin</strong></span> | 
+              <span>Clave: <strong style="font-family: monospace; background: #dbeafe; padding: 1px 4px; border-radius: 4px; color: #1e3a8a;">Admin1234*</strong></span>
+            </div>
+          </div>
+          <button type="button" (click)="fillDemo('admin')" style="font-size: 11px; background-color: #2563eb; color: #ffffff; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-weight: 600; white-space: nowrap; transition: background 0.2s;" onmouseover="this.style.backgroundColor='#1d4ed8'" onmouseout="this.style.backgroundColor='#2563eb'">
+            Usar Demo
+          </button>
         </div>
 
         <!-- Error Message -->
@@ -82,6 +97,7 @@
             }
           </button>
         </form>
+        <a href="/consulta" class="block text-center text-sm font-semibold text-blue-700 mt-4">Consultar mis facturas y deudas</a>
       </div>
     </div>
   </main>

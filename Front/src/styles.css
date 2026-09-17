@@ -149,3 +149,46 @@ header .p-button:active {
     background: transparent !important;
     padding: 0 !important;
 }
+
+/* ====================================================
+   ESTILIZACIÓN ELEGANTE Y MODERNA DE BARRAS DE SCROLL
+   ==================================================== */
+
+/* Chrome, Edge, Safari (WebKit) */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.45); /* Slate 400 */
+    border-radius: 9999px;
+    transition: background-color 0.2s ease-in-out;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.8); /* Slate 500 */
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+
+/* Ocultar barra completamente cuando se use .no-scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}

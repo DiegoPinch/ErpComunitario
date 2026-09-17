@@ -5,6 +5,7 @@ import { Dashboard } from './features/dashboard/dashboard';
 import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
+  { path: 'consulta', loadComponent: () => import('./features/portal/portal').then(c => c.Portal) },
   { path: '', component: Auth },
   {
     path: 'layout', component: LayoutComponent, canActivate: [authGuard], children: [

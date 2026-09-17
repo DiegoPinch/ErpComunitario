@@ -13,6 +13,7 @@ app.use(morgan('dev')); // Logs de peticiones
 
 // Rutas públicas
 app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/portal', require('./routes/publicPortalRoutes'));
 
 // Protegemos todas las rutas siguientes con JWT
 const auth = require('./middlewares/auth');

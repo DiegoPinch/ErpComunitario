@@ -22,6 +22,11 @@ export class Auth {
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
 
+  fillDemo(user: string = 'admin') {
+    this.username = user;
+    this.password = 'Admin1234*';
+  }
+
   onLogin() {
     console.log('onLogin called with:', this.username, this.password ? '****' : 'empty');
     if (!this.username || !this.password) {

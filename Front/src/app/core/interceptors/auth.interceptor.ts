@@ -5,6 +5,7 @@ import { catchError } from 'rxjs/operators';
 import { throwError } from 'rxjs';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  if (req.url.includes('/api/portal/')) return next(req);
   const authService = inject(AuthService);
   const token = authService.getToken();
 
