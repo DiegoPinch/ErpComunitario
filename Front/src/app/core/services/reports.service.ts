@@ -48,6 +48,14 @@ export class ReportsService {
         return this.http.get<any[]>(`${this.apiUrl}/daily-collections`, { params: { date } });
     }
 
+    saveCashCount(date: string, counted: number, reason: string): Observable<any> {
+        return this.http.post(`${this.apiUrl}/cash-count`, {date, counted, reason});
+    }
+
+    getCollectionDays(year: number): Observable<any[]> {
+        return this.http.get<any[]>(`${this.apiUrl}/collection-days`, {params:{year}});
+    }
+
     getCashBalanceReport(startMonth: string, endMonth: string): Observable<any> {
         return this.http.get<any>(`${this.apiUrl}/cash-balance`, { params: { startMonth, endMonth } });
     }

@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormsModule } from '@angular/forms';
@@ -9,8 +10,7 @@ import { SelectModule } from 'primeng/select';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { ToastModule } from 'primeng/toast';
-import { MessageService, ConfirmationService } from 'primeng/api';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { MessageService } from 'primeng/api';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
@@ -35,12 +35,11 @@ import { TableAction } from '../../../shared/components/tables/custom-table/tabl
     InputTextModule,
     InputNumberModule,
     ToastModule,
-    ConfirmDialogModule,
     CardModule,
     TagModule,
     TooltipModule
   ],
-  providers: [MessageService, ConfirmationService],
+  providers: [MessageService],
   templateUrl: './lista-reuniones.html',
   styleUrl: './lista-reuniones.css'
 })
@@ -48,7 +47,7 @@ export class ListaReuniones implements OnInit {
   private meetingsService = inject(MeetingsService);
   private configsService = inject(FineConfigurationsService);
   private messageService = inject(MessageService);
-  private confirmationService = inject(ConfirmationService);
+  private confirmationService = inject(ConfirmService);
   private fb = inject(FormBuilder);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
@@ -58,10 +57,32 @@ export class ListaReuniones implements OnInit {
   actions: TableAction[] = [];
 
   meetingDialog: boolean = false;
+  billingMonths: {value:string;label:string;disabled:boolean;reason:string|null}[] = [];
+  financialLocked = false;
+  monthsLoading = false;
+  get hasBlockedMonths(): boolean {
+    return this.billingMonths.some(month => Boolean(month.reason));
+  }
+  loadBillingMonths(savedMonth?: string) {
+    this.monthsLoading = true;
+    this.billingMonths = [];
+    this.meetingsService.getBillingMonths().subscribe({
+      next: months => {
+        this.billingMonths = months;
+        if (savedMonth && !months.some(m=>m.value===savedMonth)) {
+          this.billingMonths.push({value:savedMonth,label:`${savedMonth} (registrado)`,disabled:true,reason:null});
+        }
+        this.monthsLoading = false;
+        this.cdr.markForCheck();
+      },
+      error: () => { this.monthsLoading=false; this.showError('No se pudieron verificar los meses disponibles. Cierre y abra el formulario.'); this.cdr.markForCheck(); }
+    });
+  }
   meetingForm: FormGroup = this.fb.group({
     meeting_id: [null],
     reason: ['', Validators.required],
     meeting_date: ['', Validators.required],
+    application_month: ['', Validators.required],
     meeting_type: ['session', Validators.required],
     fine_config_id: [null, Validators.required],
     fine_amount: [0.00],
@@ -130,6 +151,7 @@ export class ListaReuniones implements OnInit {
     this.cols = [
       { field: 'reason', header: 'Motivo / Asunto' },
       { field: 'date_display', header: 'Fecha' },
+      { field: 'application_month', header: 'Mes de la multa' },
       {
         field: 'type_display',
         header: 'Tipo',
@@ -180,8 +202,12 @@ export class ListaReuniones implements OnInit {
   }
 
   openNew() {
+    this.financialLocked = false;
+    this.meetingForm.get('application_month')?.enable();
+    this.loadBillingMonths();
     this.meetingForm.reset({
       meeting_id: null,
+      application_month: '',
       reason: '',
       meeting_date: new Date().toISOString().substring(0, 10),
       meeting_type: 'session',
@@ -195,6 +221,10 @@ export class ListaReuniones implements OnInit {
   }
 
   editMeeting(meeting: Meeting) {
+    this.financialLocked = Boolean(meeting.financial_locked);
+    if (this.financialLocked) this.meetingForm.get('application_month')?.disable();
+    else this.meetingForm.get('application_month')?.enable();
+    this.loadBillingMonths(meeting.application_month);
     const formattedMeeting = {
       ...meeting,
       meeting_date: meeting.meeting_date ? meeting.meeting_date.substring(0, 10) : ''
@@ -205,6 +235,10 @@ export class ListaReuniones implements OnInit {
   }
 
   saveMeeting() {
+    const selectedMonth=this.meetingForm.getRawValue().application_month;
+    if (!this.financialLocked && (this.monthsLoading || !this.billingMonths.some(m=>m.value===selectedMonth && !m.disabled))) {
+      this.showError('Seleccione un mes habilitado para las multas'); return;
+    }
     if (this.meetingForm.invalid) {
       this.meetingForm.markAllAsTouched();
       return;
@@ -220,7 +254,7 @@ export class ListaReuniones implements OnInit {
           this.loadMeetings();
           this.meetingDialog = false;
         },
-        error: (err) => this.showError(err.error?.message || 'Error al actualizar reunión')
+        error: (err) => this.showError(err.error?.message || err.error?.error || 'Error al actualizar reunión')
       });
     } else {
       this.meetingsService.createMeeting(meetingData).subscribe({
@@ -229,16 +263,15 @@ export class ListaReuniones implements OnInit {
           this.loadMeetings();
           this.meetingDialog = false;
         },
-        error: (err) => this.showError(err.error?.message || 'Error al crear reunión')
+        error: (err) => this.showError(err.error?.message || err.error?.error || 'Error al crear reunión')
       });
     }
   }
 
   deleteMeeting(meeting: Meeting) {
     this.confirmationService.confirm({
-      message: `¿Está seguro de eliminar la reunión "${meeting.reason}"? Se eliminarán todas las multas asociadas de las facturas PENDIENTES.`,
+      message: `¿Eliminar la reunión "${meeting.reason}"? Solo se permite si todavía no tiene asistencia ni multas registradas.`,
       header: 'Confirmar eliminación',
-      icon: 'pi pi-exclamation-triangle',
       accept: () => {
         if (meeting.meeting_id) {
           this.meetingsService.deleteMeeting(meeting.meeting_id).subscribe({
@@ -246,7 +279,7 @@ export class ListaReuniones implements OnInit {
               this.showSuccess('Reunión y multas asociadas eliminadas con éxito');
               this.loadMeetings();
             },
-            error: (err) => this.showError(err.error?.message || 'Error al eliminar reunión')
+            error: (err) => this.showError(err.error?.message || err.error?.error || 'Error al eliminar reunión')
           });
         }
       }

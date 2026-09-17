@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormsModule } from '@angular/forms';
@@ -9,12 +10,11 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { DatePickerModule } from 'primeng/datepicker';
 import { SelectModule } from 'primeng/select';
 import { TextareaModule } from 'primeng/textarea';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
-import { MessageService, ConfirmationService } from 'primeng/api';
+import { MessageService } from 'primeng/api';
 import { FinancialService } from '../../../core/services/financial.service';
 import { ExpenseCategoryService } from '../../../core/services/expense-category.service';
 import { BankAccountsService, BankAccount } from '../../../core/services/bank-accounts.service';
@@ -37,14 +37,13 @@ import { parseLocalDate } from '../../../shared/utils/date-utils';
     DatePickerModule,
     SelectModule,
     TextareaModule,
-    ConfirmDialogModule,
     ToastModule,
     CardModule,
     TagModule,
     TooltipModule,
     CustomTable
   ],
-  providers: [MessageService, ConfirmationService],
+  providers: [MessageService],
   templateUrl: './registro-egresos.html',
   styleUrl: './registro-egresos.css',
 })
@@ -53,7 +52,7 @@ export class RegistroEgresos implements OnInit {
   private categoryService = inject(ExpenseCategoryService);
   private bankAccountService = inject(BankAccountsService);
   private messageService = inject(MessageService);
-  private confirmationService = inject(ConfirmationService);
+  private confirmationService = inject(ConfirmService);
   private fb = inject(FormBuilder);
   private cdr = inject(ChangeDetectorRef);
 
@@ -104,7 +103,7 @@ export class RegistroEgresos implements OnInit {
     category_id: [null, Validators.required],
     amount: [null, [Validators.required, Validators.min(0.01)]],
     expense_date: [new Date(), Validators.required],
-    description: ['', Validators.required],
+    description: [''],
     payment_method: ['cash'],
     account_id: [null],
     reference_number: ['']
@@ -252,13 +251,16 @@ export class RegistroEgresos implements OnInit {
 
   onDelete(expense: Expense) {
     this.confirmationService.confirm({
-      message: `¿Está seguro de eliminar este egreso de $${expense.amount}? Esta acción no se puede deshacer.`,
-      header: 'Confirmar Eliminación',
-      icon: 'pi pi-exclamation-triangle',
-      accept: () => {
-        this.financialService.deleteExpense(expense.expense_id!).subscribe({
+      message: `¿Está seguro de anular este egreso de $${expense.amount}? El motivo quedará registrado.`,
+      header: 'Anular egreso',
+      inputLabel: 'Motivo de la anulación',
+      inputMinLength: 5,
+      acceptLabel: 'Anular egreso',
+      accept: (reason) => {
+        if (!reason || reason.trim().length < 5) return;
+        this.financialService.deleteExpense(expense.expense_id!, reason.trim()).subscribe({
           next: () => {
-            this.messageService.add({ severity: 'success', summary: 'Éxito', detail: 'Egreso eliminado' });
+            this.messageService.add({ severity: 'success', summary: 'Éxito', detail: 'Egreso anulado' });
             this.loadInitialData();
           },
           error: (err) => this.messageService.add({ severity: 'error', summary: 'Error', detail: err.error?.message || 'Error al eliminar' })
@@ -292,7 +294,7 @@ export class RegistroEgresos implements OnInit {
       ...rawData,
       payment_method: paymentMethodDb,
       account_id: accountIdDb,
-      description: rawData.description.toUpperCase(),
+      description: (rawData.description ?? '').trim().toUpperCase(),
       reference_number: rawData.reference_number?.toUpperCase(),
       expense_date: this.formatDate(rawData.expense_date)
     };

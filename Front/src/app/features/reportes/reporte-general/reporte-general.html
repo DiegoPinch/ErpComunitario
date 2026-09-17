@@ -121,18 +121,76 @@
                                 </div>
 
                                 <!-- Filtro de Fecha Específica -->
-                                <div *ngIf="needsDateFilter()">
+                                <div *ngIf="needsDateFilter() && selectedReport.id !== 'daily-collections'">
                                     <label class="text-[9px] font-bold text-gray-400 uppercase mb-2 block">Fecha de Cuadre</label>
                                     <div class="flex flex-col gap-2">
                                         <div>
                                             <label class="text-[8px] text-gray-500 mb-1 block">Seleccione el Día</label>
-                                            <input type="date" [(ngModel)]="selectedDate"
+                                            <input type="date" [(ngModel)]="selectedDate" (change)="onCollectionDateChange()"
                                                 class="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none">
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Filtro de Rango de Fechas -->
+                                <!-- Flujo guiado del arqueo diario -->
+                                <div *ngIf="selectedReport.id === 'daily-collections'" class="flex flex-col gap-4">
+                                    <section class="rounded-xl border-2 border-blue-100 bg-blue-50/40 p-4">
+                                        <h4 class="font-bold text-slate-800"><span class="inline-flex w-7 h-7 mr-2 rounded-full bg-blue-600 text-white items-center justify-center">1</span>Elija el año</h4>
+                                        <p class="text-sm text-slate-600 mt-2">Buscaremos automáticamente los días en que hubo cobros.</p>
+                                        <select [(ngModel)]="collectionYear" (change)="loadCollectionDays()" class="mt-3 w-full h-12 px-3 rounded-lg border border-slate-300 bg-white text-base font-bold">
+                                            <option *ngFor="let year of collectionYears" [ngValue]="year">Año {{year}}</option>
+                                        </select>
+                                    </section>
+
+                                    <section class="rounded-xl border-2 border-blue-100 p-4">
+                                        <h4 class="font-bold text-slate-800"><span class="inline-flex w-7 h-7 mr-2 rounded-full bg-blue-600 text-white items-center justify-center">2</span>Elija la jornada</h4>
+                                        <p class="text-sm text-slate-600 mt-2 mb-3">Toque la fecha de la sesión que desea revisar.</p>
+                                        <p *ngIf="loadingCollectionDays" class="rounded-lg bg-slate-50 p-4 text-center text-sm text-slate-600">Buscando jornadas...</p>
+                                        <p *ngIf="!loadingCollectionDays && collectionDays.length === 0" class="rounded-lg bg-amber-50 p-4 text-sm text-amber-800">No se encontraron cobros en este año.</p>
+                                        <div class="max-h-72 overflow-y-auto flex flex-col gap-2">
+                                            <button *ngFor="let row of collectionDays" type="button" (click)="selectCollectionDay(row)"
+                                                class="text-left rounded-xl border-2 p-3 hover:border-blue-400"
+                                                [class.border-blue-600]="selectedDate === row.collection_date"
+                                                [class.bg-blue-50]="selectedDate === row.collection_date">
+                                                <div class="flex justify-between items-center gap-3">
+                                                    <span class="font-bold text-base">{{formatCollectionDate(row.collection_date)}}</span>
+                                                    <span class="font-bold">${{row.total_income | number:'1.2-2'}}</span>
+                                                </div>
+                                                <div class="flex justify-between items-center gap-3 text-sm mt-2">
+                                                    <span>{{row.movement_count}} cobros</span>
+                                                    <strong [class.text-emerald-700]="row.count_status === 'saved'" [class.text-amber-700]="row.count_status !== 'saved'">
+                                                        {{row.count_status === 'saved' ? '✓ Guardado' : (row.count_status === 'update_required' ? '⚠ Actualizar' : 'Pendiente')}}
+                                                    </strong>
+                                                </div>
+                                            </button>
+                                        </div>
+                                        <details class="mt-3 text-sm">
+                                            <summary class="cursor-pointer font-semibold text-blue-700">No encuentro la fecha</summary>
+                                            <p class="text-slate-600 my-2">Use esta opción solamente si la jornada no aparece en la lista.</p>
+                                            <input type="date" [(ngModel)]="selectedDate" (change)="onCollectionDateChange()" class="w-full h-11 px-3 rounded-lg border border-slate-300">
+                                        </details>
+                                    </section>
+
+                                    <section class="rounded-xl border-2 p-4" [class.border-emerald-200]="selectedDate" [class.border-slate-200]="!selectedDate">
+                                        <h4 class="font-bold text-slate-800"><span class="inline-flex w-7 h-7 mr-2 rounded-full bg-emerald-600 text-white items-center justify-center">3</span>Cuente y guarde el efectivo</h4>
+                                        <p *ngIf="!selectedDate" class="mt-3 rounded-lg bg-slate-100 p-4 text-center text-slate-600">Primero elija una jornada en el paso 2.</p>
+                                        <div *ngIf="selectedDate" class="flex flex-col gap-3 mt-3">
+                                            <div class="rounded-lg bg-emerald-50 border border-emerald-100 p-3">
+                                                <div class="font-bold text-lg">Jornada: {{formatCollectionDate(selectedDate)}}</div>
+                                                <div *ngIf="selectedCollectionDay" class="flex justify-between mt-2"><span>Efectivo que debe existir:</span><strong class="text-emerald-700 text-lg">${{selectedCollectionDay.expected_cash | number:'1.2-2'}}</strong></div>
+                                                <div *ngIf="selectedCollectionDay?.has_count" class="mt-2 text-sm text-emerald-800">Este arqueo ya fue guardado. Puede corregirlo sin borrar el historial anterior.</div>
+                                            </div>
+                                            <label class="font-semibold">¿Cuánto efectivo contó físicamente?</label>
+                                            <input type="number" min="0" step="0.01" [(ngModel)]="countedCash" placeholder="Escriba el valor contado" class="h-12 border rounded-lg px-3 text-lg">
+                                            <label class="font-semibold">Observación</label>
+                                            <input type="text" maxlength="255" [(ngModel)]="countReason" placeholder="Ejemplo: Conteo al terminar la sesión" class="h-12 border rounded-lg px-3">
+                                            <button type="button" (click)="saveCashCount()" [disabled]="savingCount || countedCash === null || !countReason.trim()" class="h-12 rounded-lg bg-emerald-600 text-white font-bold text-base disabled:bg-slate-300 disabled:text-slate-500">
+                                                {{savingCount ? 'Guardando...' : (selectedCollectionDay?.has_count ? 'Guardar corrección' : 'Guardar arqueo')}}
+                                            </button>
+                                            <p *ngIf="countedCash === null || !countReason.trim()" class="text-sm text-amber-700 text-center">Escriba el efectivo contado y una observación para poder guardar.</p>
+                                        </div>
+                                    </section>
+                                </div>
                                 <div *ngIf="needsDateRangeFilter()">
                                     <label class="text-[9px] font-bold text-gray-400 uppercase mb-2 block">Rango de Fechas</label>
                                     <div class="flex flex-col gap-2">
@@ -166,7 +224,7 @@
                                 </div>
 
                                 <!-- Info del Reporte -->
-                                <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                                <div *ngIf="selectedReport.id !== 'daily-collections'" class="bg-slate-50 rounded-xl p-3 border border-slate-100">
                                     <h4 class="text-[9px] font-bold text-slate-400 uppercase mb-2">Información</h4>
                                     <div class="flex flex-col gap-2">
                                         <div class="flex justify-between items-center">
@@ -186,8 +244,11 @@
                             <div class="flex flex-col gap-3">
                                 <!-- Opciones de Formato -->
                                 <div class="bg-slate-50 rounded-xl p-3 border border-slate-100 flex-1">
-                                    <h4 class="text-[9px] font-bold text-slate-400 uppercase mb-3">Formatos Disponibles
-                                    </h4>
+                                    <h4 *ngIf="selectedReport.id !== 'daily-collections'" class="text-[9px] font-bold text-slate-400 uppercase mb-3">Formatos disponibles</h4>
+                                    <div *ngIf="selectedReport.id === 'daily-collections'" class="mb-4">
+                                        <h4 class="font-bold text-slate-800"><span class="inline-flex w-7 h-7 mr-2 rounded-full bg-sky-600 text-white items-center justify-center">4</span>Revise el reporte</h4>
+                                        <p class="text-sm text-slate-600 mt-2">Después de elegir la jornada puede verla en pantalla, PDF o Excel.</p>
+                                    </div>
                                     <div class="flex flex-col gap-2">
                                         <div
                                             class="flex items-center gap-3 p-2 bg-white rounded-lg border border-slate-100">
@@ -216,16 +277,19 @@
 
                                 <!-- Botones de Descarga -->
                                 <div class="flex flex-col gap-2">
-                                    <p-button (click)="previewPdf()" label="Ver" icon="pi pi-eye"
+                                    <p-button (click)="previewPdf()" [label]="selectedReport.id === 'daily-collections' ? 'Ver reporte de la jornada' : 'Ver'" icon="pi pi-eye"
+                                        [disabled]="selectedReport.id === 'daily-collections' && !selectedDate"
                                         severity="info"
                                         styleClass="w-full p-3 text-sm font-bold rounded-xl shadow-md">
                                     </p-button>
                                     <div class="grid grid-cols-2 gap-2">
                                         <p-button (click)="exportReport('pdf')" label="PDF" icon="pi pi-file-pdf"
+                                            [disabled]="selectedReport.id === 'daily-collections' && !selectedDate"
                                             severity="danger"
                                             styleClass="w-full p-2 text-xs font-bold rounded-xl shadow-md">
                                         </p-button>
                                         <p-button (click)="exportReport('excel')" label="Excel"
+                                            [disabled]="selectedReport.id === 'daily-collections' && !selectedDate"
                                             icon="pi pi-file-excel" severity="success"
                                             styleClass="w-full p-2 text-xs font-bold rounded-xl shadow-md">
                                         </p-button>

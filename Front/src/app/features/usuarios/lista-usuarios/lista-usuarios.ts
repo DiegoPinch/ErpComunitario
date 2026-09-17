@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
@@ -5,9 +6,8 @@ import { Observable } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
-import { ConfirmationService, MessageService } from 'primeng/api';
+import { MessageService } from 'primeng/api';
 import { UserService } from '../../../core/services/user.service';
 import { CustomTable } from '../../../shared/components/tables/custom-table/custom-table';
 import { User } from '../../../core/models/user.model';
@@ -23,17 +23,16 @@ import { cedulaEcuadorValidator } from '../../../shared/utils/cedula.validator';
     ButtonModule,
     DialogModule,
     InputTextModule,
-    ConfirmDialogModule,
     ToastModule
   ],
-  providers: [ConfirmationService, MessageService],
+  providers: [MessageService],
   templateUrl: './lista-usuarios.html',
   styleUrl: './lista-usuarios.css',
 })
 export class ListaUsuarios implements OnInit {
   private userService = inject(UserService);
   private fb = inject(FormBuilder);
-  private confirmationService = inject(ConfirmationService);
+  private confirmationService = inject(ConfirmService);
   private messageService = inject(MessageService);
 
   users$!: Observable<User[]>;
@@ -130,7 +129,6 @@ export class ListaUsuarios implements OnInit {
     this.confirmationService.confirm({
       message: `¿Está seguro de eliminar a ${user.last_name} ${user.first_name}?`,
       header: 'Confirmar Eliminación',
-      icon: 'pi pi-exclamation-triangle',
       acceptLabel: 'Sí, Eliminar',
       rejectLabel: 'Cancelar',
       accept: () => {

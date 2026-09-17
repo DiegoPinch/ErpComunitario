@@ -1,5 +1,4 @@
 <p-toast></p-toast>
-<p-confirmDialog></p-confirmDialog>
 
 <div class="flex flex-col md:flex-row gap-0 h-full bg-gray-50/30">
     <!-- Panel Izquierdo: Lista de Usuarios con Facturas Pendientes -->
@@ -584,6 +583,7 @@
                     Recibido</label>
                 <div class="relative group">
                     <input type="number" pInputText [(ngModel)]="amountReceived" (input)="calculateChange()"
+                        (keydown.enter)="onCashEnter($event)" [disabled]="paymentProcessing"
                         placeholder="0.00" step="0.01"
                         class="w-full py-4 px-6 bg-slate-50 border-2 border-slate-100 focus:bg-white focus:border-blue-500 rounded-2xl text-2xl font-black text-slate-800 transition-all outline-none text-center shadow-sm">
                 </div>
@@ -604,7 +604,7 @@
 
         <!-- Acciones Compactas -->
         <div class="flex flex-col gap-2 mt-1">
-            <p-button (click)="onConfirmPayment()" [disabled]="(paymentMethod === 'cash' && (!amountReceived || amountReceived < totalToPay)) || (paymentMethod !== 'cash' && !accountId)"
+            <p-button (click)="onConfirmPayment()" [loading]="paymentProcessing" [disabled]="paymentProcessing || (paymentMethod === 'cash' && (!amountReceived || amountReceived < totalToPay)) || (paymentMethod !== 'cash' && !accountId)"
                 label="Procesar Cobro" icon="pi pi-check"
                 styleClass="w-full !bg-primary hover:!bg-primary/90 !text-white !border-none !py-2.5 !text-xs !font-semibold rounded-lg shadow-sm transition-all duration-150 cursor-pointer disabled:opacity-30">
             </p-button>

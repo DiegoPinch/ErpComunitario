@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormsModule } from '@angular/forms';
@@ -5,9 +6,8 @@ import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
-import { MessageService, ConfirmationService } from 'primeng/api';
+import { MessageService } from 'primeng/api';
 import { SystemUsersService, SystemUser } from '../../../core/services/system-users.service';
 import { UserService } from '../../../core/services/user.service';
 import { CustomTable } from '../../../shared/components/tables/custom-table/custom-table';
@@ -24,11 +24,10 @@ import { TableAction } from '../../../shared/components/tables/custom-table/tabl
     DialogModule,
     InputTextModule,
     SelectModule,
-    ConfirmDialogModule,
     ToastModule,
     CustomTable
   ],
-  providers: [MessageService, ConfirmationService],
+  providers: [MessageService],
   templateUrl: './usuarios-sistema.html',
   styleUrls: ['./usuarios-sistema.css']
 })
@@ -37,7 +36,7 @@ export class UsuariosSistemaComponent implements OnInit {
   private userService = inject(UserService);
   private fb = inject(FormBuilder);
   private messageService = inject(MessageService);
-  private confirmationService = inject(ConfirmationService);
+  private confirmationService = inject(ConfirmService);
   private cdr = inject(ChangeDetectorRef);
 
   systemUsers: any[] = [];
@@ -174,7 +173,6 @@ export class UsuariosSistemaComponent implements OnInit {
     this.confirmationService.confirm({
       message: `¿Está seguro de eliminar de forma permanente la cuenta de acceso "${row.username}"?`,
       header: 'Confirmar Eliminación',
-      icon: 'pi pi-exclamation-triangle',
       acceptLabel: 'Sí, Eliminar',
       rejectLabel: 'Cancelar',
       accept: () => {

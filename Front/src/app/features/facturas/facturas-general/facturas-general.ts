@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -10,9 +11,7 @@ import { DialogModule } from 'primeng/dialog';
 import { CheckboxModule } from 'primeng/checkbox';
 import { SelectModule } from 'primeng/select';
 import { ToastModule } from 'primeng/toast';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { MessageService, ConfirmationService } from 'primeng/api';
-import { forkJoin } from 'rxjs';
+import { MessageService } from 'primeng/api';
 import { InvoicesService } from '../../../core/services/invoices.service';
 import { PaymentAgreementsService, PaymentAgreement } from '../../../core/services/payment-agreements';
 import { BankAccountsService, BankAccount } from '../../../core/services/bank-accounts.service';
@@ -34,11 +33,10 @@ import { TableAction } from '../../../shared/components/tables/custom-table/tabl
     DialogModule,
     CheckboxModule,
     ToastModule,
-    ConfirmDialogModule,
     CustomTable,
     SelectModule
   ],
-  providers: [MessageService, ConfirmationService],
+  providers: [MessageService],
   templateUrl: './facturas-general.html',
   styleUrl: './facturas-general.css'
 })
@@ -48,7 +46,7 @@ export class FacturasGeneral implements OnInit {
   private agreementsService = inject(PaymentAgreementsService);
   private bankAccountService = inject(BankAccountsService);
   private messageService = inject(MessageService);
-  private confirmationService = inject(ConfirmationService);
+  private confirmationService = inject(ConfirmService);
 
   users: any[] = [];
   selectedUser: any | null = null;
@@ -67,6 +65,7 @@ export class FacturasGeneral implements OnInit {
   // Propiedades para el diálogo de cobro
   showPaymentDialog: boolean = false;
   amountReceived: number | null = null;
+  paymentProcessing = false;
   changeAmount: number = 0;
   totalToPay: number = 0;
   invoicesToCollect: number[] = [];
@@ -388,6 +387,7 @@ export class FacturasGeneral implements OnInit {
   }
 
   openPaymentDialog() {
+    if (this.paymentProcessing) return;
     this.amountReceived = null;
     this.changeAmount = 0;
     this.paymentMethod = 'cash';
@@ -406,9 +406,18 @@ export class FacturasGeneral implements OnInit {
     this.cdr.detectChanges();
   }
 
+  onCashEnter(event: Event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if ((event as KeyboardEvent).repeat || (event as KeyboardEvent).isComposing) return;
+    if (this.paymentMethod === 'cash') this.onConfirmPayment();
+  }
+
   onConfirmPayment() {
+    if (this.paymentProcessing || !this.showPaymentDialog) return;
+    if (!Number.isFinite(this.totalToPay) || this.totalToPay <= 0) return;
     if (this.paymentMethod === 'cash') {
-      if (this.amountReceived === null || this.amountReceived < this.totalToPay) {
+      if (this.amountReceived === null || !Number.isFinite(this.amountReceived) || this.amountReceived < this.totalToPay) {
         this.messageService.add({
           severity: 'warn',
           summary: 'Atención',
@@ -426,37 +435,33 @@ export class FacturasGeneral implements OnInit {
       return;
     }
 
-    const requests = [];
-
-    // 1. Process Water Invoices
-    if (this.invoicesToCollect.length > 0) {
-      // Si hay abonos a deudas, el vuelto se lo asignamos a la factura de agua (por simplicidad contable en la BD).
-      requests.push(this.invoicesService.collectPayments(this.invoicesToCollect, this.totalSelectedInvoicesAmount + this.changeAmount, this.changeAmount, this.paymentMethod, this.accountId, this.referenceNumber));
-    }
-
-    // 2. Process Debt Payments
-    if (this.selectedDebts.length > 0) {
-      for (const debt of this.selectedDebts) {
-        requests.push(this.agreementsService.addDebtPayment(debt.agreement.agreement_id!, debt.amountToPay, this.paymentMethod, this.accountId, this.referenceNumber));
-      }
-    }
-
-    if (requests.length === 0) return;
-
-    forkJoin(requests).subscribe({
-      next: (results) => {
+    const idempotencyKey = crypto.randomUUID();
+    this.paymentProcessing = true;
+    this.invoicesService.collectCombinedPayment({
+      invoice_ids: this.invoicesToCollect,
+      debt_payments: this.selectedDebts.map(debt => ({
+        agreement_id: debt.agreement.agreement_id!,
+        amount: debt.amountToPay
+      })),
+      amount_tendered: this.amountReceived || this.totalToPay,
+      payment_method: this.paymentMethod,
+      account_id: this.accountId,
+      reference_number: this.referenceNumber || null,
+      idempotency_key: idempotencyKey
+    }).subscribe({
+      next: (result: any) => {
+        this.paymentProcessing = false;
+        this.cdr.markForCheck();
         // Print Receipts
         if (this.invoicesToCollect.length > 0) {
           this.invoicesService.printReceipt(this.invoicesToCollect).subscribe();
         }
 
-        const debtResults = this.invoicesToCollect.length > 0 ? results.slice(1) : results;
         let printDelay = this.invoicesToCollect.length > 0 ? 1000 : 0;
-        
-        debtResults.forEach((res: any) => {
-          if (res && res.debt_payment_id) {
+        (result.debt_payment_ids || []).forEach((paymentId: number) => {
+          if (paymentId) {
             setTimeout(() => {
-              this.agreementsService.printReceipt(res.debt_payment_id).subscribe();
+              this.agreementsService.printReceipt(paymentId).subscribe();
             }, printDelay);
             printDelay += 1000;
           }
@@ -477,6 +482,8 @@ export class FacturasGeneral implements OnInit {
         this.refreshData();
       },
       error: (err) => {
+        this.paymentProcessing = false;
+        this.cdr.markForCheck();
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
@@ -503,13 +510,13 @@ export class FacturasGeneral implements OnInit {
     this.confirmationService.confirm({
       message: `¿Estás seguro de que deseas ANULAR el pago de la factura de ${this.formatMonth(invoice.billing_month)}? La factura volverá a estar pendiente de cobro.`,
       header: 'Confirmar Anulación',
-      icon: 'pi pi-exclamation-triangle',
+      inputLabel: 'Motivo de la anulación',
+      inputMinLength: 5,
       acceptLabel: 'Sí, Anular',
       rejectLabel: 'Cerrar',
-      acceptButtonStyleClass: 'p-button-danger p-button-sm',
-      rejectButtonStyleClass: 'p-button-text p-button-sm',
-      accept: () => {
-        this.invoicesService.voidPayment(invoice.invoice_id).subscribe({
+      accept: (reason) => {
+        if (!reason || reason.trim().length < 5) return;
+        this.invoicesService.voidPayment(invoice.invoice_id, reason.trim()).subscribe({
           next: () => {
             this.messageService.add({
               severity: 'success',

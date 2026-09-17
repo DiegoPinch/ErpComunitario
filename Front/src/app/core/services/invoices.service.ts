@@ -37,8 +37,8 @@ export class InvoicesService {
     /**
      * Anula el pago de una factura
      */
-    voidPayment(invoiceId: number): Observable<any> {
-        return this.http.delete(`${this.paymentsUrl}/void/${invoiceId}`);
+    voidPayment(invoiceId: number, reason: string): Observable<any> {
+        return this.http.delete(`${this.paymentsUrl}/void/${invoiceId}`, { body: { reason } });
     }
 
     /**
@@ -53,6 +53,18 @@ export class InvoicesService {
             account_id: accountId,
             reference_number: referenceNumber
         });
+    }
+
+    collectCombinedPayment(data: {
+        invoice_ids: number[];
+        debt_payments: { agreement_id: number; amount: number }[];
+        amount_tendered: number;
+        payment_method: string;
+        account_id: number | null;
+        reference_number: string | null;
+        idempotency_key: string;
+    }): Observable<any> {
+        return this.http.post<any>(`${this.paymentsUrl}/collect-combined`, data);
     }
 
     /**

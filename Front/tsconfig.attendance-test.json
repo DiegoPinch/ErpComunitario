@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.spec.json",
+  "include": [
+    "src/app/shared/components/confirm-dialog/confirm-dialog.component.spec.ts",
+    "src/app/features/directiva/reuniones/tomar-asistencia.spec.ts"
+  ]
+}

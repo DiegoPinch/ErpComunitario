@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormsModule } from '@angular/forms';
@@ -8,8 +9,7 @@ import { SelectModule } from 'primeng/select';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { ToastModule } from 'primeng/toast';
-import { MessageService, ConfirmationService } from 'primeng/api';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { MessageService } from 'primeng/api';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
@@ -34,19 +34,18 @@ import { TableAction } from '../../../shared/components/tables/custom-table/tabl
     InputTextModule,
     InputNumberModule,
     ToastModule,
-    ConfirmDialogModule,
     CardModule,
     TagModule,
     TooltipModule
   ],
-  providers: [MessageService, ConfirmationService],
+  providers: [MessageService],
   templateUrl: './tarifas.html',
   styleUrl: './tarifas.css',
 })
 export class Tarifas implements OnInit {
   private ratesService = inject(RatesService);
   private messageService = inject(MessageService);
-  private confirmationService = inject(ConfirmationService);
+  private confirmationService = inject(ConfirmService);
   private fb = inject(FormBuilder);
   private cdr = inject(ChangeDetectorRef);
 
@@ -148,7 +147,6 @@ export class Tarifas implements OnInit {
     this.confirmationService.confirm({
       message: `¿Está seguro de desactivar la tarifa para "${rate.meter_type}"? Esta acción no se puede deshacer.`,
       header: 'Confirmar desactivación',
-      icon: 'pi pi-exclamation-triangle',
       accept: () => {
         if (rate.rate_id) {
           this.ratesService.deleteRate(rate.rate_id).subscribe({

@@ -3,11 +3,14 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { InventoryService, InventoryItem, InventoryMovement } from '../../../core/services/inventory';
+import { MessageService } from 'primeng/api';
+import { ToastModule } from 'primeng/toast';
 
 @Component({
   selector: 'app-kardex',
   standalone: true,
-  imports: [CommonModule, RouterModule, ReactiveFormsModule],
+  imports: [CommonModule, RouterModule, ReactiveFormsModule, ToastModule],
+  providers: [MessageService],
   templateUrl: './kardex.html',
   styleUrls: ['./kardex.css']
 })
@@ -21,6 +24,7 @@ export class Kardex implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
+    private messages: MessageService,
     private inventoryService: InventoryService,
     private fb: FormBuilder
   ) {
@@ -61,7 +65,7 @@ export class Kardex implements OnInit {
           this.form.reset({ movement_type: 'in', quantity: 1, unit_cost: 0 });
         },
         error: (err) => {
-          alert(err.error?.error || 'Error al registrar el movimiento');
+          this.messages.add({severity:'error', summary:'Error', detail:err.error?.error || 'Error al registrar el movimiento'});
         }
       });
     }

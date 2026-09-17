@@ -37,7 +37,7 @@ export class FinancialService {
         return this.http.put<{ message: string }>(`${this.apiUrl}/expenses/${id}`, expense);
     }
 
-    deleteExpense(id: number): Observable<{ message: string }> {
-        return this.http.delete<{ message: string }>(`${this.apiUrl}/expenses/${id}`);
+    deleteExpense(id: number, reason: string): Observable<{ message: string }> {
+        return this.http.delete<{ message: string }>(`${this.apiUrl}/expenses/${id}`, {body: {reason}});
     }
 }

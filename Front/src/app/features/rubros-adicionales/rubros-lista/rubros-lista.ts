@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormsModule } from '@angular/forms';
@@ -8,8 +9,7 @@ import { SelectModule } from 'primeng/select';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { ToastModule } from 'primeng/toast';
-import { MessageService, ConfirmationService } from 'primeng/api';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { MessageService } from 'primeng/api';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
@@ -37,12 +37,11 @@ import { TableAction } from '../../../shared/components/tables/custom-table/tabl
     InputTextModule,
     InputNumberModule,
     ToastModule,
-    ConfirmDialogModule,
     CardModule,
     TagModule,
     TooltipModule
   ],
-  providers: [MessageService, ConfirmationService],
+  providers: [MessageService],
   templateUrl: './rubros-lista.html',
   styleUrl: './rubros-lista.css',
 })
@@ -51,7 +50,7 @@ export class RubrosLista implements OnInit {
   private invoicesService = inject(InvoicesService);
   private userService = inject(UserService);
   private messageService = inject(MessageService);
-  private confirmationService = inject(ConfirmationService);
+  private confirmationService = inject(ConfirmService);
   private fb = inject(FormBuilder);
   private cdr = inject(ChangeDetectorRef);
 
@@ -255,7 +254,6 @@ export class RubrosLista implements OnInit {
     this.confirmationService.confirm({
       message: `¿Está seguro de eliminar "${concept.description}"? Se eliminará de todas las facturas PENDIENTES.`,
       header: 'Confirmar eliminación',
-      icon: 'pi pi-exclamation-triangle',
       accept: () => {
         if (concept.concept_id) {
           this.conceptsService.deleteConcept(concept.concept_id).subscribe({
@@ -398,7 +396,6 @@ export class RubrosLista implements OnInit {
     this.confirmationService.confirm({
       message: `¿Está seguro de quitar este rubro a ${userLink.user_name}?`,
       header: 'Confirmar eliminación',
-      icon: 'pi pi-exclamation-triangle',
       accept: () => {
         this.conceptsService.unlinkConcept(userLink.invoice_concept_id).subscribe({
           next: () => {

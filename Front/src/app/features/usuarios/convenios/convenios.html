@@ -1,25 +1,30 @@
+<p-toast />
 <div class="container mx-auto p-4 relative">
     <div class="flex flex-col md:flex-row justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-800 mb-4 md:mb-0">Cuentas por Cobrar </h1>
         
         <div class="flex items-center space-x-4">
-            <button (click)="showForm = !showForm" class="!bg-primary hover:!bg-primary/90 text-white font-semibold py-1.5 px-3 rounded-lg shadow-sm text-xs transition-all cursor-pointer">
-                {{ showForm ? 'Cancelar' : 'Registrar Deuda / Saldo Anterior' }}
+            <button (click)="openCreateModal()" class="!bg-primary hover:!bg-primary/90 text-white font-semibold py-1.5 px-3 rounded-lg shadow-sm text-xs transition-all cursor-pointer">
+                Registrar Deuda / Saldo Anterior
             </button>
         </div>
     </div>
 
     <!-- Formulario para registrar deuda nueva -->
-    <div *ngIf="showForm" class="bg-white shadow-lg rounded-xl px-8 pt-6 pb-8 mb-6 border border-slate-100 animate-fade-in">
-        <h2 class="text-lg font-bold mb-4 text-slate-700">Registrar Nueva Cuenta por Cobrar</h2>
+    <p-dialog [(visible)]="showForm" [modal]="true" header="Registrar Nueva Cuenta por Cobrar"
+        [style]="{width: '600px', maxWidth: '95vw'}" styleClass="custom-dialog"
+        [draggable]="false" [resizable]="false" [closable]="!isCreating" [closeOnEscape]="!isCreating">
         <form [formGroup]="form" (ngSubmit)="onSubmit()">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div class="col-span-1 md:col-span-2">
                     <label class="block text-slate-500 text-xs font-semibold mb-2">Usuario (Cliente) <span class="text-red-500">*</span></label>
-                    <select formControlName="user_id" class="w-full px-3 py-2 text-sm text-slate-700 bg-white border border-slate-300 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg outline-none transition-all">
-                        <option value="">Seleccione un usuario...</option>
-                        <option *ngFor="let u of users" [value]="u.user_id">{{ u.last_name }} {{ u.first_name }} - {{ u.national_id }}</option>
-                    </select>
+                    <p-select formControlName="user_id" [options]="users"
+                        optionLabel="display_name" optionValue="user_id"
+                        [filter]="true" filterBy="display_name" [showClear]="true"
+                        placeholder="Seleccione un usuario..." filterPlaceholder="Buscar usuario..."
+                        emptyFilterMessage="No se encontraron usuarios" emptyMessage="No hay usuarios disponibles"
+                        appendTo="body" styleClass="w-full" [style]="{width: '100%'}">
+                    </p-select>
                 </div>
                 <div class="col-span-1 md:col-span-2">
                     <label class="block text-slate-500 text-xs font-semibold mb-2">Concepto / Descripción (Ej: Deuda Histórica, Instalación) <span class="text-red-500">*</span></label>
@@ -27,15 +32,25 @@
                 </div>
                 <div>
                     <label class="block text-slate-500 text-xs font-semibold mb-2">Monto Total de la Deuda ($) <span class="text-red-500">*</span></label>
-                    <input formControlName="total_amount" type="number" step="0.01" class="w-full px-3 py-2 text-sm text-slate-700 bg-white border border-slate-300 focus:border-primary focus:ring-1 focus:ring-primary rounded-lg outline-none transition-all">
+                    <p-inputNumber formControlName="total_amount" mode="decimal" locale="en-US"
+                        [format]="true" (onFocus)="onDebtAmountFocus($event)"
+                        [minFractionDigits]="2" [maxFractionDigits]="2" [useGrouping]="true"
+                        [showButtons]="false" placeholder="0.00" styleClass="w-full" inputStyleClass="w-full">
+                    </p-inputNumber>
+                    <p *ngIf="form.get('total_amount')?.touched && form.get('total_amount')?.invalid" class="text-xs text-red-600 mt-2">Ingrese un monto desde $0.01.</p>
                 </div>
             </div>
             
-            <button type="submit" [disabled]="form.invalid" class="!bg-primary hover:!bg-primary/90 text-white font-semibold py-1.5 px-3 rounded-lg shadow-sm text-xs transition-all cursor-pointer disabled:opacity-30 mt-4">
-                Guardar Deuda
-            </button>
+            <p *ngIf="createError" role="alert" class="text-sm text-red-700 mb-3">{{ createError }}</p>
+            <div class="flex justify-end gap-3 pt-4 mt-4">
+                <button type="button" (click)="showForm = false" [disabled]="isCreating"
+                    class="px-4 py-2 rounded-lg text-slate-600 border border-slate-300 disabled:opacity-50">Cancelar</button>
+                <button type="submit" [disabled]="form.invalid || isCreating" class="!bg-primary hover:!bg-primary/90 text-white font-semibold py-2 px-4 rounded-lg shadow-sm text-sm transition-all cursor-pointer disabled:opacity-30">
+                    {{ isCreating ? 'Guardando...' : 'Guardar Deuda' }}
+                </button>
+            </div>
         </form>
-    </div>
+    </p-dialog>
 
     <!-- Diálogo para realizar un abono -->
     <p-dialog [(visible)]="showPaymentForm" [modal]="true" header="Registrar Abono" [style]="{width: '400px'}"
@@ -78,7 +93,8 @@
 
                 <!-- Acciones -->
                 <div class="flex flex-col gap-2 pt-3">
-                    <p-button type="submit" [disabled]="paymentForm.invalid" label="Confirmar Pago" icon="pi pi-check"
+                    <p-button type="submit" [disabled]="paymentForm.invalid || isPaymentSubmitting"
+                        [label]="isPaymentSubmitting ? 'Procesando...' : 'Confirmar Pago'" icon="pi pi-check"
                         styleClass="w-full !bg-primary hover:!bg-primary/90 !text-white !border-none !py-2.5 !text-xs !font-semibold rounded-lg shadow-sm transition-all duration-150 cursor-pointer disabled:opacity-30">
                     </p-button>
                     <p-button (click)="showPaymentForm = false" label="Cancelar" [text]="true"
@@ -116,6 +132,9 @@
                             <td class="px-4 py-3 text-center">
                                 <p-button (click)="printHistoryTicket(payment)" label="Imprimir Ticket" icon="pi pi-print" [text]="true"
                                     styleClass="p-button-outlined !text-slate-600 hover:!bg-slate-50 !border-slate-300 !py-1 !px-2.5 !text-[10px] !font-semibold rounded-md shadow-sm transition-all duration-150 cursor-pointer">
+                                </p-button>
+                                <p-button (click)="voidHistoryPayment(payment)" label="Anular" icon="pi pi-ban" [text]="true" [disabled]="isVoiding"
+                                    styleClass="!text-red-600 hover:!bg-red-50 !py-1 !px-2.5 !text-[10px] !font-semibold rounded-md">
                                 </p-button>
                             </td>
                         </tr>

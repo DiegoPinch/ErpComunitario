@@ -26,19 +26,23 @@ export interface ReadingsReport {
 }
 
 export interface RecollectionReport {
-    payment_date: string;
+    invoice_id: number;
     billing_month: string;
     national_id: string;
     user_name: string;
-    payment_method: string;
-    paid_amount: number;
+    invoice_status: string;
+    billed_amount: number;
+    collected_amount: number;
+    pending_amount: number;
+    collection_percentage: number;
+    payment_dates: string | null;
 }
 
 export interface DelinquencyReport {
-    billing_month: string;
-    national_id: string;
+    billing_month: string | null;
     user_name: string;
-    status: string;
+    concept_type: string;
+    description: string;
     total_debt: number;
 }
 

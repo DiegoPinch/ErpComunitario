@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
@@ -9,8 +10,7 @@ import { SelectModule } from 'primeng/select';
 import { DatePickerModule } from 'primeng/datepicker';
 import { TagModule } from 'primeng/tag';
 import { ToastModule } from 'primeng/toast';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { ConfirmationService, MessageService } from 'primeng/api';
+import { MessageService } from 'primeng/api';
 import { forkJoin } from 'rxjs';
 import { CardModule } from 'primeng/card';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
@@ -37,12 +37,11 @@ import { TableAction } from '../../../shared/components/tables/custom-table/tabl
     DatePickerModule,
     TagModule,
     ToastModule,
-    ConfirmDialogModule,
     CardModule,
     ProgressSpinnerModule,
     CustomTable
   ],
-  providers: [ConfirmationService, MessageService],
+  providers: [MessageService],
   templateUrl: './asignar-medidores.html',
   styleUrl: './asignar-medidores.css',
 })
@@ -50,7 +49,7 @@ export class AsignarMedidores implements OnInit {
   private userService = inject(UserService);
   private meterHistoryService = inject(MeterHistoryService);
   private fb = inject(FormBuilder);
-  private confirmationService = inject(ConfirmationService);
+  private confirmationService = inject(ConfirmService);
   private messageService = inject(MessageService);
   private cdr = inject(ChangeDetectorRef);
 
@@ -304,7 +303,6 @@ export class AsignarMedidores implements OnInit {
     this.confirmationService.confirm({
       message: `¿Está seguro de retirar el medidor ${assignment.meter_code} del usuario?`,
       header: 'Confirmar Retiro',
-      icon: 'pi pi-exclamation-triangle',
       acceptLabel: 'Sí, Retirar',
       rejectLabel: 'Cancelar',
       accept: () => {

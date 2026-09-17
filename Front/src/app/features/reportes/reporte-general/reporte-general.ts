@@ -48,6 +48,69 @@ export class ReporteGeneral implements OnInit {
 
   constructor() { }
   previewVisible = false;
+  countedCash: number | null = null;
+  countReason = '';
+  savingCount = false;
+  collectionYear = new Date().getFullYear();
+  collectionYears = Array.from({length: 8}, (_, index) => new Date().getFullYear() - 5 + index);
+  collectionDays: any[] = [];
+  loadingCollectionDays = false;
+  selectedCollectionDay: any = null;
+
+  loadCollectionDays() {
+    this.loadingCollectionDays = true;
+    this.reportsService.getCollectionDays(this.collectionYear).subscribe({
+      next: rows => {
+        this.collectionDays = rows;
+        this.loadingCollectionDays = false;
+        this.onCollectionDateChange();
+      },
+      error: () => {
+        this.collectionDays = [];
+        this.loadingCollectionDays = false;
+      }
+    });
+  }
+
+  selectCollectionDay(row: any) {
+    this.selectedDate = row.collection_date;
+    this.selectedCollectionDay = row;
+    this.countedCash = row.has_count ? Number(row.counted) : null;
+    this.countReason = row.reason || '';
+  }
+
+  onCollectionDateChange() {
+    const year = Number(this.selectedDate?.slice(0, 4));
+    if (year && year !== this.collectionYear) {
+      this.collectionYear = year;
+      this.loadCollectionDays();
+      return;
+    }
+    const row = this.collectionDays.find(item => item.collection_date === this.selectedDate);
+    if (row) this.selectCollectionDay(row);
+    else {
+      this.selectedCollectionDay = null;
+      this.countedCash = null;
+      this.countReason = '';
+    }
+  }
+
+  formatCollectionDate(value: string) {
+    return value ? value.split('-').reverse().join('/') : '';
+  }
+
+  saveCashCount() {
+    if (this.savingCount || this.countedCash === null || !this.selectedDate || !this.countReason.trim()) return;
+    this.savingCount = true;
+    this.reportsService.saveCashCount(this.selectedDate,this.countedCash,this.countReason).subscribe({
+      next: () => {
+        this.savingCount=false;
+        this.loadCollectionDays();
+        this.messageService.add({severity:'success',summary:'Arqueo guardado',detail:'El conteo y su diferencia quedaron registrados. Genere el reporte para consultarlos.'});
+      },
+      error: err => {this.savingCount=false;this.messageService.add({severity:'error',summary:'No se guardó el arqueo',detail:err.error?.error || 'Revise los datos'});}
+    });
+  }
   previewUrl = '';
   previewTitle = '';
   dateRange: Date[] = [];
@@ -94,8 +157,8 @@ export class ReporteGeneral implements OnInit {
     },
     {
       id: 'recollection',
-      title: 'Recaudación por Periodo de Emisión',
-      description: 'Muestra los cobros recibidos agrupados según el mes en que se emitió la factura de agua. Útil para analizar la efectividad del cobro de un mes, no para cuadrar el dinero físico diario del tesorero.',
+      title: 'Cobranza de Facturas por Mes Facturado',
+      description: 'Compara cuánto se facturó, cuánto se cobró y cuánto continúa pendiente en cada mes de facturación. Sirve para medir recuperación de cartera, no para cuadrar el efectivo diario.',
       icon: 'pi-dollar',
       gradientFrom: '#10b981',
       gradientTo: '#059669',
@@ -104,21 +167,11 @@ export class ReporteGeneral implements OnInit {
     },
     {
       id: 'delinquency',
-      title: 'Reporte de Morosidad (Cartera Vencida)',
-      description: 'Facturas pendientes de pago por periodo y usuarios morosos.',
+      title: 'Cuentas por Cobrar por Usuario',
+      description: 'Deuda por usuario hasta el mes final: incluye meses anteriores y convenios sin duplicar cuotas facturadas. El mes inicial no limita la cartera.',
       icon: 'pi-exclamation-triangle',
       gradientFrom: '#f59e0b',
       gradientTo: '#d97706',
-      filters: ['monthRange'],
-      category: 'financiero'
-    },
-    {
-      id: 'additional-charges',
-      title: 'Reporte de Rubros Adicionales',
-      description: 'Detalle de rubros adicionales pagados por mes, listado de usuarios y totales recaudados por concepto.',
-      icon: 'pi-receipt',
-      gradientFrom: '#8b5cf6',
-      gradientTo: '#7c3aed',
       filters: ['monthRange'],
       category: 'financiero'
     },
@@ -133,26 +186,6 @@ export class ReporteGeneral implements OnInit {
       category: 'financiero'
     },
     {
-      id: 'incomes',
-      title: 'Reporte Detallado de Ingresos',
-      description: 'Detalla cronológicamente todas las recaudaciones y cobros (consumo de agua, multas, rubros, venta de ramal, donaciones y colaboraciones) en un rango de meses.',
-      icon: 'pi-plus-circle',
-      gradientFrom: '#10b981',
-      gradientTo: '#059669',
-      filters: ['monthRange'],
-      category: 'financiero'
-    },
-    {
-      id: 'expenses',
-      title: 'Reporte Detallado de Egresos',
-      description: 'Detalla todos los egresos y gastos realizados por la Junta en un rango de meses, incluyendo fecha, categoría, descripción y forma de pago.',
-      icon: 'pi-minus-circle',
-      gradientFrom: '#ef4444',
-      gradientTo: '#991b1b',
-      filters: ['monthRange'],
-      category: 'financiero'
-    },
-    {
       id: 'bank-accounts',
       title: 'Auxiliar de Cuentas Bancarias',
       description: 'Muestra los movimientos de cada cuenta bancaria activa (depósitos, transferencias, egresos), incluyendo origen, concepto, número de transferencia y saldos.',
@@ -164,8 +197,8 @@ export class ReporteGeneral implements OnInit {
     },
     {
       id: 'comprehensive',
-      title: 'Reporte Integral Contable',
-      description: 'Reporte financiero definitivo que muestra ingresos por concepto, egresos por categoría, saldos en bancos y cuentas por cobrar.',
+      title: 'Estado Integral Contable y Cierre',
+      description: 'Saldo inicial, ingresos, gastos y saldo final por fecha de movimiento. Incluye anexos de ingresos, egresos y cartera; identifica el cierre guardado o la consulta provisional.',
       icon: 'pi-book',
       gradientFrom: '#8b5cf6',
       gradientTo: '#4c1d95',
@@ -214,6 +247,14 @@ export class ReporteGeneral implements OnInit {
 
   selectReport(report: ReportType) {
     this.selectedReport = report;
+    if (report.id === 'daily-collections') {
+      this.collectionYear = new Date().getFullYear();
+      this.selectedDate = '';
+      this.selectedCollectionDay = null;
+      this.countedCash = null;
+      this.countReason = '';
+      this.loadCollectionDays();
+    }
   }
 
   onMonthStartChange() {

@@ -29,4 +29,8 @@ export class OtherIncomesService {
   create(income: OtherIncome): Observable<any> {
     return this.http.post(this.apiUrl, income);
   }
+
+  voidIncome(id: number, reason: string): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/${id}`, { body: { reason } });
+  }
 }

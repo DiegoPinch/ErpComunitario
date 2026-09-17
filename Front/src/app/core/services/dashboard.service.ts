@@ -11,7 +11,7 @@ export class DashboardService {
     private http = inject(HttpClient);
     private apiUrl = `${environment.apiUrl}/dashboard`;
 
-    getStats(): Observable<DashboardStats> {
-        return this.http.get<DashboardStats>(`${this.apiUrl}/stats`);
+    getStats(month: string): Observable<DashboardStats> {
+        return this.http.get<DashboardStats>(`${this.apiUrl}/stats`, {params: {month}});
     }
 }

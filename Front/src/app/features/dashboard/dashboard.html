@@ -1,171 +1,57 @@
-<div class="p-6 bg-slate-50/50 min-h-full animate-fade-in">
-    <!-- Header -->
-    <div class="mb-8">
-        <h1 class="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
-            <i class="pi pi-chart-line text-blue-600 bg-blue-50 p-3 rounded-2xl"></i>
-            Panel de Control
-        </h1>
-        <p class="text-slate-500 font-medium ml-14 -mt-2">Resumen histórico y métricas de acción inmediata.</p>
+<div class="mx-auto max-w-[1440px] p-4 md:p-6 space-y-5">
+  <header class="flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-100 text-blue-700"><i class="pi pi-chart-bar text-xl"></i></div>
+      <div><p class="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">Administración del agua</p><h1 class="text-2xl font-bold tracking-tight text-slate-800">Panel de control</h1></div>
+    </div>
+    <div class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+      <label for="dashboard-month" class="text-xs font-semibold text-slate-500">Mes facturado</label>
+      <input id="dashboard-month" type="month" min="2000-01" [max]="maxMonth" [(ngModel)]="month" (change)="loadDashboardData()" class="min-w-0 rounded-lg border-0 bg-slate-50 px-2 py-1.5 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-200">
+      <button (click)="loadDashboardData()" [disabled]="loading" aria-label="Actualizar resumen" title="Actualizar resumen" class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50"><i class="pi pi-refresh" [class.pi-spin]="loading"></i></button>
+    </div>
+  </header>
+  <div *ngIf="loading" role="status" class="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500"><i class="pi pi-spin pi-spinner mr-2"></i>Cargando resumen…</div>
+  <p *ngIf="error" role="alert" class="rounded-xl bg-red-50 p-3 text-sm text-red-700">{{error}}</p>
+  <ng-container *ngIf="data as d">
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <section class="metric-card metric-income">
+        <div class="metric-heading"><span>Cobrado de las facturas</span><i class="pi pi-arrow-down-left bg-blue-50 text-blue-600"></i></div>
+        <p class="metric-value text-blue-700">{{d.kpis.income | currency:'USD'}}</p><p class="metric-caption">Facturas de {{d.month}}, incluso cobradas después</p>
+      </section>
+      <section class="metric-card">
+        <div class="metric-heading"><span>Gastos del mes</span><i class="pi pi-arrow-up-right bg-orange-50 text-orange-600"></i></div>
+        <p class="metric-value text-slate-800">{{d.kpis.expense | currency:'USD'}}</p><p class="metric-caption">Por fecha de gasto · sin traspasos internos</p>
+      </section>
+      <section class="metric-card">
+        <div class="metric-heading"><span>Total facturado</span><i class="pi pi-file bg-emerald-50 text-emerald-600"></i></div>
+        <p class="metric-value text-emerald-700">{{d.kpis.billed | currency:'USD'}}</p><p class="metric-caption">Facturas de {{d.month}} · no equivale a ingresos</p>
+      </section>
+      <section class="metric-card">
+        <div class="metric-heading"><span>Pendiente por cobrar</span><i class="pi pi-clock bg-amber-50 text-amber-600"></i></div>
+        <p class="metric-value text-amber-700">{{d.kpis.debt | currency:'USD'}}</p><p class="metric-caption">Saldo actual de las facturas de {{d.month}}</p>
+      </section>
     </div>
 
-    <!-- KPI Grid (Decision Cards) -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        <!-- Monthly Revenue -->
-        <p-card
-            styleClass="border-none shadow-sm rounded-3xl overflow-hidden hover:scale-[1.02] transition-transform bg-gradient-to-br from-white to-blue-50/30">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
-                    <i class="pi pi-wallet text-xl"></i>
-                </div>
-                <div>
-                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ingresos del
-                        Mes</span>
-                    <h3 class="text-2xl font-black text-slate-800">${{stats.monthlyRevenue | number:'1.2-2'}}</h3>
-                </div>
-            </div>
-            <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter italic">Recaudado en
-                    {{currentMonthName}}</span>
-                <i class="pi pi-calendar text-blue-400 text-xs"></i>
-            </div>
-        </p-card>
+    <section class="rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+        <div><h2 class="text-sm font-bold text-slate-700">Otros cobros · por fecha</h2><p class="text-xs text-slate-400">{{d.month}} · separados de las facturas</p></div>
+        <div *ngFor="let row of d.breakdown; let i=index" class="border-t md:border-t-0 md:border-l border-slate-100 pt-3 md:pt-0 md:pl-5">
+          <p class="text-xs text-slate-500 flex items-center gap-2"><span class="h-2 w-2 rounded-full" [style.background]="['#2563eb','#8b5cf6','#14b8a6'][i]"></span>{{row.category}}</p>
+          <p class="mt-1 text-lg font-bold tabular-nums text-slate-800">{{row.amount | currency:'USD'}}</p>
+        </div>
+      </div>
+    </section>
 
-        <!-- Total Debt (Cartera Vencida) -->
-        <p-card styleClass="border-none shadow-sm rounded-3xl overflow-hidden hover:scale-[1.02] transition-transform">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600">
-                    <i class="pi pi-exclamation-triangle text-xl"></i>
-                </div>
-                <div>
-                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cartera Vencida</span>
-                    <h3 class="text-2xl font-black text-slate-800">${{stats.totalPendingDebt | number:'1.2-2'}}</h3>
-                </div>
-            </div>
-            <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span class="text-[10px] text-slate-400 font-bold uppercase">Deuda por recuperar</span>
-                <p-tag [value]="'Alerta'" severity="warn" styleClass="text-[8px] rounded-lg"></p-tag>
-            </div>
-        </p-card>
-
-        <!-- Total Users -->
-        <p-card styleClass="border-none shadow-sm rounded-3xl overflow-hidden hover:scale-[1.02] transition-transform">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                    <i class="pi pi-users text-xl"></i>
-                </div>
-                <div>
-                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Usuarios</span>
-                    <h3 class="text-2xl font-black text-slate-800">{{stats.totalUsers}}</h3>
-                </div>
-            </div>
-            <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span class="text-[10px] text-slate-400 font-bold uppercase italic">Socios registrados</span>
-                <i class="pi pi-id-card text-indigo-400"></i>
-            </div>
-        </p-card>
-
-        <!-- Total Meters -->
-        <p-card styleClass="border-none shadow-sm rounded-3xl overflow-hidden hover:scale-[1.02] transition-transform">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-                    <i class="pi pi-box text-xl"></i>
-                </div>
-                <div>
-                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Medidores</span>
-                    <h3 class="text-2xl font-black text-slate-800">{{stats.totalMeters}}</h3>
-                </div>
-            </div>
-            <div class="mt-4 pt-4 border-t border-slate-100 flex items-center gap-3">
-                <div class="flex items-center gap-1">
-                    <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                    <span class="text-[9px] text-slate-500 font-bold uppercase">{{stats.consumoMeters}} Consumo</span>
-                </div>
-                <div class="flex items-center gap-1">
-                    <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                    <span class="text-[9px] text-slate-500 font-bold uppercase">{{stats.riegoMeters}} Riego</span>
-                </div>
-            </div>
-        </p-card>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <section class="chart-panel">
+        <div class="flex items-start justify-between gap-2 mb-5"><div><h2 class="text-base font-bold text-slate-800">Cobranza por mes facturado</h2><p class="text-xs text-slate-400 mt-1">Cobrado y pendiente a la fecha · enero a diciembre</p></div><span class="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{{d.year}}</span></div>
+        <div class="h-60 md:h-64"><p-chart type="bar" [data]="revenueData" [options]="chartOptions" height="100%"></p-chart></div>
+      </section>
+      <section class="chart-panel">
+        <div class="flex items-start justify-between gap-2 mb-5"><div><h2 class="text-base font-bold text-slate-800">Consumo de agua</h2><p class="text-xs text-slate-400 mt-1">Por mes de lectura · doméstico y riego</p></div><span class="rounded-lg bg-cyan-50 px-2.5 py-1 text-xs font-bold text-cyan-700">m³</span></div>
+        <div class="h-60 md:h-64"><p-chart type="line" [data]="consumptionData" [options]="chartOptions" height="100%"></p-chart></div>
+      </section>
     </div>
-
-    <!-- Main Content Section (Decision Charts) -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <!-- Revenue Growth Chart (RESTORED) -->
-        <div class="bg-white rounded-[2.5rem] p-8 shadow-sm">
-            <div class="flex justify-between items-start mb-8">
-                <div>
-                    <h4 class="text-lg font-black text-slate-800">Crecimiento de Ingresos</h4>
-                    <p class="text-xs text-slate-400 font-medium">Historial 6 meses (Agua vs Rubros Adicionales)</p>
-                </div>
-                <div class="px-3 py-1 bg-blue-50 rounded-full text-[10px] font-bold text-blue-600 uppercase">
-                    Historial Recaudación
-                </div>
-            </div>
-            <div class="h-64">
-                <p-chart type="bar" [data]="revenueData" [options]="revenueOptions" height="100%"></p-chart>
-            </div>
-        </div>
-
-        <!-- Consumption Trend Chart (SPLIT) -->
-        <div class="bg-white rounded-[2.5rem] p-8 shadow-sm">
-            <div class="flex justify-between items-start mb-8">
-                <div>
-                    <h4 class="text-lg font-black text-slate-800">Tendencia de Consumo (m³)</h4>
-                    <p class="text-xs text-slate-400 font-medium">Diferenciado por tipo de servicio</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
-                    <span class="text-[10px] font-bold text-slate-500 uppercase">Control de Gasto</span>
-                </div>
-            </div>
-            <div class="h-64">
-                <p-chart type="line" [data]="consumptionData" [options]="consumptionOptions" height="100%"></p-chart>
-            </div>
-        </div>
-    </div>
-
-    <!-- Actionable List (Top Debtors) -->
-    <div class="bg-white rounded-[2.5rem] p-8 shadow-sm">
-        <div class="flex justify-between items-center mb-10">
-            <div>
-                <h4 class="text-xl font-black text-slate-800">Cartera Crítica (Acción Requerida)</h4>
-                <p class="text-sm font-medium text-slate-400">Usuarios con mayor tiempo de morosidad y saldo pendiente.
-                </p>
-            </div>
-            <p-button label="Generar Órdenes de Corte" icon="pi pi-bolt"
-                styleClass="rounded-2xl p-button-danger"></p-button>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div *ngFor="let debtor of topDebtors"
-                class="p-5 rounded-3xl border border-slate-100 hover:border-rose-200 hover:shadow-lg hover:shadow-rose-100/30 transition-all group bg-white">
-                <div class="flex justify-between items-start mb-4">
-                    <div
-                        class="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-rose-50 group-hover:text-rose-500 transition-colors">
-                        <i class="pi pi-user text-xl"></i>
-                    </div>
-                    <p-tag [value]="debtor.months + ' meses de mora'" severity="danger"
-                        styleClass="text-[9px] font-black rounded-lg"></p-tag>
-                </div>
-
-                <h5 class="text-base font-black text-slate-800 mb-1 tracking-tight">{{debtor.name}}</h5>
-                <p class="text-xs text-slate-400 font-bold mb-4">C.I.: {{debtor.national_id}}</p>
-
-                <div class="flex justify-between items-center pt-4 border-t border-slate-50 mt-2">
-                    <div class="flex flex-col">
-                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Deuda
-                            Pendiente</span>
-                        <span class="text-lg font-black text-rose-600">${{debtor.amount | number:'1.2-2'}}</span>
-                    </div>
-                    <p-button icon="pi pi-envelope" [rounded]="true" [text]="true" severity="info"
-                        pTooltip="Notificar Pago"></p-button>
-                </div>
-            </div>
-        </div>
-
-        <div class="mt-8 text-center pt-6 border-t border-slate-50">
-            <p-button label="Ver todos los deudores" icon="pi pi-list" [text]="true" severity="info"
-                styleClass="text-sm font-black"></p-button>
-        </div>
-    </div>
+    <p class="text-[11px] leading-relaxed text-slate-400"><i class="pi pi-info-circle mr-1"></i>El mes en curso puede estar incompleto. Se excluyen anulados; este resumen no reemplaza el cierre contable guardado.</p>
+  </ng-container>
 </div>

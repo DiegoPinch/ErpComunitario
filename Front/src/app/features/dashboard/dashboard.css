@@ -1,27 +1,8 @@
-.animate-fade-in {
-    animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-:host ::ng-deep .p-card {
-    background: white;
-}
-
-:host ::ng-deep .p-card-body {
-    padding: 1.5rem !important;
-}
-
-:host ::ng-deep .p-tag {
-    padding: 0.25rem 0.6rem;
-}
+:host { display: block; background: #f8fafc; min-height: 100%; }
+.metric-card { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 18px 20px; box-shadow: 0 2px 6px #0f172a04; min-width: 0; }
+.metric-income { border-color: #bfdbfe; background: linear-gradient(135deg, #fff 50%, #eff6ff); }
+.metric-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #64748b; }
+.metric-heading i { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0; font-size: 14px; }
+.metric-value { margin: 10px 0 5px; font-size: clamp(23px, 2.2vw, 30px); line-height: 1.2; font-weight: 750; letter-spacing: -0.8px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.metric-caption { font-size: 11px; color: #94a3b8; margin: 0; line-height: 1.5; }
+.chart-panel { min-width: 0; background: white; border: 1px solid #e2e8f0; border-radius: 18px; padding: 22px; box-shadow: 0 2px 6px #0f172a04; }

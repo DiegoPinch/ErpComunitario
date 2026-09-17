@@ -1,11 +1,11 @@
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
 import { ButtonModule } from 'primeng/button';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { InputNumberModule } from 'primeng/inputnumber';
-import { ConfirmationService } from 'primeng/api';
+
 import { AccountingPeriodsService, AccountingPeriod } from '../../../core/services/accounting-periods';
 import { AdministrationsService, Administration } from '../../../core/services/administrations';
 import { FinancialService } from '../../../core/services/financial.service';
@@ -13,8 +13,8 @@ import { FinancialService } from '../../../core/services/financial.service';
 @Component({
   selector: 'app-cortes-caja',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogModule, ButtonModule, ConfirmDialogModule, InputNumberModule],
-  providers: [ConfirmationService],
+  imports: [CommonModule, ReactiveFormsModule, DialogModule, ButtonModule, InputNumberModule],
+  providers: [],
   templateUrl: './cortes-caja.html',
   styleUrls: ['./cortes-caja.css']
 })
@@ -31,7 +31,7 @@ export class CortesCaja implements OnInit {
     private adminService: AdministrationsService,
     private financialService: FinancialService,
     private fb: FormBuilder,
-    private confirmationService: ConfirmationService,
+    private confirmationService: ConfirmService,
     private cdr: ChangeDetectorRef
   ) {
     this.form = this.fb.group({
@@ -86,13 +86,9 @@ export class CortesCaja implements OnInit {
   onSubmit(event: Event) {
     if (this.form.valid && this.activeAdmin) {
       this.confirmationService.confirm({
-        target: event.target as EventTarget,
         message: '¿Está seguro de generar este Corte Contable? Esta acción no se puede deshacer ni editar posteriormente.',
+        acceptLabel: 'Generar corte',
         header: 'Confirmación de Corte',
-        icon: 'pi pi-exclamation-triangle',
-        acceptIcon: 'none',
-        rejectIcon: 'none',
-        rejectButtonStyleClass: 'p-button-text',
         accept: () => {
           const data = {
             ...this.form.getRawValue(),

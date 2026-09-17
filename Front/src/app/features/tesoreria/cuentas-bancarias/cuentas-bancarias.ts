@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
@@ -7,9 +8,8 @@ import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { InputNumberModule } from 'primeng/inputnumber';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
-import { ConfirmationService, MessageService } from 'primeng/api';
+import { MessageService } from 'primeng/api';
 import { BankAccountsService, BankAccount } from '../../../core/services/bank-accounts.service';
 import { CustomTable } from '../../../shared/components/tables/custom-table/custom-table';
 import { TableAction } from '../../../shared/components/tables/custom-table/table-action.model';
@@ -26,16 +26,15 @@ import { TableAction } from '../../../shared/components/tables/custom-table/tabl
     InputTextModule,
     SelectModule,
     InputNumberModule,
-    ConfirmDialogModule,
     ToastModule
   ],
-  providers: [ConfirmationService, MessageService],
+  providers: [MessageService],
   templateUrl: './cuentas-bancarias.html'
 })
 export default class CuentasBancariasComponent implements OnInit {
   private bankService = inject(BankAccountsService);
   private fb = inject(FormBuilder);
-  private confirmationService = inject(ConfirmationService);
+  private confirmationService = inject(ConfirmService);
   private messageService = inject(MessageService);
 
   accounts$!: Observable<BankAccount[]>;

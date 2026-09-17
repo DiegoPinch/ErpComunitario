@@ -6,7 +6,9 @@ export interface ConfirmOptions {
   message: string;
   acceptLabel?: string;
   rejectLabel?: string;
-  accept: () => void;
+  inputLabel?: string;
+  inputMinLength?: number;
+  accept: (value?: string) => void;
 }
 
 @Injectable({

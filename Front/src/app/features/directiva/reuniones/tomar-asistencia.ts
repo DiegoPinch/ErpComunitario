@@ -13,6 +13,8 @@ import { InputTextModule } from 'primeng/inputtext';
 import { RadioButtonModule } from 'primeng/radiobutton';
 import { AttendanceService, UserAttendance } from '../../../core/services/attendance.service';
 import { MeetingsService, Meeting } from '../../../core/services/meetings.service';
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
+import { finalize, timeout } from 'rxjs';
 
 @Component({
   selector: 'app-tomar-asistencia',
@@ -40,6 +42,11 @@ export class TomarAsistencia implements OnInit {
   private meetingsService = inject(MeetingsService);
   private messageService = inject(MessageService);
   private cdr = inject(ChangeDetectorRef);
+  private confirm = inject(ConfirmService);
+  private original = new Map<number, string>();
+  private fingerprint(item: UserAttendance): string {
+    return JSON.stringify([item.attended, (item.observations || '').trim()]);
+  }
 
   meetingId!: number;
   meeting: Meeting | null = null;
@@ -69,6 +76,7 @@ export class TomarAsistencia implements OnInit {
     this.meetingsService.getMeeting(this.meetingId).subscribe({
       next: (meeting) => {
         this.meeting = meeting;
+        this.cdr.markForCheck();
       },
       error: () => {
         this.showError('No se pudo cargar los detalles de la reunión');
@@ -81,13 +89,16 @@ export class TomarAsistencia implements OnInit {
     this.attendanceService.getAttendanceByMeeting(this.meetingId).subscribe({
       next: (data) => {
         this.attendanceList = data;
+        this.original = new Map(data.filter(u => u.attendance_id).map(u => [u.user_id, this.fingerprint(u)]));
         this.calculateStats();
         this.loading = false;
+        this.cdr.markForCheck();
         this.cdr.detectChanges();
       },
       error: () => {
         this.showError('No se pudo cargar la lista de usuarios');
         this.loading = false;
+        this.cdr.markForCheck();
       }
     });
   }
@@ -110,22 +121,43 @@ export class TomarAsistencia implements OnInit {
   }
 
   saveAttendance() {
+    if (this.saving || this.loading || !this.meeting) return;
     this.saving = true;
-    const saveList = this.attendanceList.map(item => ({
+    const saveList = this.attendanceList.filter(item => !item.locked && this.original.get(item.user_id) !== this.fingerprint(item)).map(item => ({
       user_id: item.user_id,
+      expected: this.original.get(item.user_id) ?? null,
       attended: item.attended,
       observations: item.observations
     }));
 
-    this.attendanceService.updateAttendanceBulk(this.meetingId, saveList).subscribe({
-      next: () => {
-        this.showSuccess('Asistencia y multas registradas con éxito');
+    if (!saveList.length) { this.saving = false; this.showError('No hay cambios habilitados para guardar'); return; }
+    const payload = { records: saveList, application_month: this.meeting.application_month };
+    this.attendanceService.preview(this.meetingId, payload).pipe(
+      timeout(30000),
+      finalize(() => { this.saving = false; this.cdr.markForCheck(); })
+    ).subscribe({
+      next: (preview) => {
         this.saving = false;
-        // Reload to update invoice statuses
-        this.loadAttendanceList();
+        this.confirm.confirm({
+          header: 'Revisar asistencia y multas',
+          message: `Mes de factura: ${preview.application_month}. Cambios: ${preview.changes}. Multas nuevas: ${preview.added} ($${Number(preview.added_amount).toFixed(2)}). Multas que se retiran: ${preview.removed}. No se modificará ningún cobro vigente.`,
+          inputLabel: 'Motivo del registro o corrección', inputMinLength: 5,
+          acceptLabel: 'Guardar asistencia',
+          accept: (reason) => {
+            if (this.saving) return;
+            this.saving = true;
+            this.cdr.markForCheck();
+            this.attendanceService.updateAttendanceBulk(this.meetingId, {...payload, reason}).pipe(
+              finalize(() => { this.saving = false; this.cdr.markForCheck(); })
+            ).subscribe({
+              next: () => { this.saving = false; this.showSuccess('Asistencia guardada con historial'); this.loadAttendanceList(); },
+              error: err => { this.saving = false; this.showError(err.error?.message || err.error?.error || 'No se guardó la asistencia'); }
+            });
+          }
+        });
       },
       error: (err) => {
-        this.showError(err.error?.message || 'Error al guardar la asistencia');
+        this.showError(err.name === 'TimeoutError' ? 'La revisión tardó demasiado. No se envió el guardado. Intente nuevamente.' : err.error?.message || err.error?.error || 'Error al revisar la asistencia');
         this.saving = false;
       }
     });

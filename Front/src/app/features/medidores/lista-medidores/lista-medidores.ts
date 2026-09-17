@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
@@ -7,9 +8,8 @@ import { DialogModule } from 'primeng/dialog';
 import { SelectModule } from 'primeng/select';
 import { DatePickerModule } from 'primeng/datepicker';
 import { InputTextModule } from 'primeng/inputtext';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
-import { ConfirmationService, MessageService } from 'primeng/api';
+import { MessageService } from 'primeng/api';
 import { MeterService } from '../../../core/services/meter.service';
 import { Meter } from '../../../core/models/meter.model';
 import { CustomTable } from '../../../shared/components/tables/custom-table/custom-table';
@@ -26,17 +26,16 @@ import { TableAction } from '../../../shared/components/tables/custom-table/tabl
     SelectModule,
     DatePickerModule,
     InputTextModule,
-    ConfirmDialogModule,
     ToastModule
   ],
-  providers: [ConfirmationService, MessageService],
+  providers: [MessageService],
   templateUrl: './lista-medidores.html',
   styleUrl: './lista-medidores.css',
 })
 export class ListaMedidores implements OnInit {
   private meterService = inject(MeterService);
   private fb = inject(FormBuilder);
-  private confirmationService = inject(ConfirmationService);
+  private confirmationService = inject(ConfirmService);
   private messageService = inject(MessageService);
 
   meters$!: Observable<any[]>;
@@ -163,7 +162,6 @@ export class ListaMedidores implements OnInit {
     this.confirmationService.confirm({
       message: `¿Está seguro de eliminar el medidor ${meter.code}?`,
       header: 'Confirmar Eliminación',
-      icon: 'pi pi-exclamation-triangle',
       acceptLabel: 'Sí, Eliminar',
       rejectLabel: 'Cancelar',
       accept: () => {

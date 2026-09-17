@@ -9,6 +9,7 @@ import { BoardMembersService } from '../../../core/services/board-members.servic
 import { UserService } from '../../../core/services/user.service';
 import { CustomTable } from '../../../shared/components/tables/custom-table/custom-table';
 import { TableAction } from '../../../shared/components/tables/custom-table/table-action.model';
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 
 @Component({
   selector: 'app-list-directiva',
@@ -18,6 +19,7 @@ import { TableAction } from '../../../shared/components/tables/custom-table/tabl
   styleUrls: ['./list-directiva.css']
 })
 export class ListDirectiva implements OnInit {
+  private confirmService = inject(ConfirmService);
   administrations: any[] = [];
   columns: any[] = [];
   actions: TableAction[] = [];
@@ -142,11 +144,11 @@ export class ListDirectiva implements OnInit {
   }
 
   deleteAdmin(id: number) {
-    if(confirm('¿Está seguro de eliminar esta directiva?')) {
+    this.confirmService.confirm({header:'Eliminar directiva', message:'¿Está seguro de eliminar esta directiva?', acceptLabel:'Eliminar', accept: () => {
       this.adminService.delete(id).subscribe(() => {
         this.loadAdministrations();
       });
-    }
+    }});
   }
 
   manageMembers(admin: any) {
@@ -197,13 +199,13 @@ export class ListDirectiva implements OnInit {
   }
 
   removeMember(boardId: number) {
-    if (confirm('¿Está seguro de quitar a este integrante de la directiva?')) {
+    this.confirmService.confirm({header:'Retirar integrante', message:'¿Está seguro de quitar a este integrante de la directiva?', acceptLabel:'Retirar', accept: () => {
       this.boardMembersService.delete(boardId).subscribe({
         next: () => {
           this.loadMembers();
         },
         error: (err) => console.error('Error al eliminar integrante', err)
       });
-    }
+    }});
   }
 }

@@ -35,7 +35,4 @@ export class FineConfigurationsService {
     return this.http.put<{ message: string }>(`${this.apiUrl}/${id}`, config);
   }
 
-  deleteConfig(id: number): Observable<{ message: string }> {
-    return this.http.delete<{ message: string }>(`${this.apiUrl}/${id}`);
-  }
 }

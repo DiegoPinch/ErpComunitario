@@ -6,7 +6,8 @@ import { environment } from '../../../environments/environment';
 export interface UserAttendance {
   user_id: number;
   user_name: string;
-  national_id: string;
+  locked: boolean;
+  lock_reason?: string;
   attendance_id?: number | null;
   attended: 'yes' | 'no' | 'justified';
   observations?: string | null;
@@ -24,7 +25,10 @@ export class AttendanceService {
     return this.http.get<UserAttendance[]>(`${this.apiUrl}/meeting/${meetingId}`);
   }
 
-  updateAttendanceBulk(meetingId: number, list: { user_id: number; attended: string; observations?: string | null }[]): Observable<{ message: string }> {
-    return this.http.post<{ message: string }>(`${this.apiUrl}/bulk/${meetingId}`, list);
+  preview(meetingId: number, payload: object): Observable<any> {
+    return this.http.post(`${this.apiUrl}/preview/${meetingId}`, payload);
+  }
+  updateAttendanceBulk(meetingId: number, payload: object): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiUrl}/bulk/${meetingId}`, payload);
   }
 }

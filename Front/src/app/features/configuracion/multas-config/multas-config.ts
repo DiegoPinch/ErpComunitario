@@ -8,8 +8,7 @@ import { SelectModule } from 'primeng/select';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { ToastModule } from 'primeng/toast';
-import { MessageService, ConfirmationService } from 'primeng/api';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { MessageService } from 'primeng/api';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
@@ -33,19 +32,17 @@ import { TableAction } from '../../../shared/components/tables/custom-table/tabl
     InputTextModule,
     InputNumberModule,
     ToastModule,
-    ConfirmDialogModule,
     CardModule,
     TagModule,
     TooltipModule
   ],
-  providers: [MessageService, ConfirmationService],
+  providers: [MessageService],
   templateUrl: './multas-config.html',
   styleUrl: './multas-config.css',
 })
 export class MultasConfig implements OnInit {
   private configsService = inject(FineConfigurationsService);
   private messageService = inject(MessageService);
-  private confirmationService = inject(ConfirmationService);
   private fb = inject(FormBuilder);
   private cdr = inject(ChangeDetectorRef);
 
@@ -105,13 +102,6 @@ export class MultasConfig implements OnInit {
         styleClass: 'p-button-text p-button-info',
         tooltip: 'Editar Tarifa',
         command: (row: FineConfiguration) => this.editConfig(row)
-      },
-      {
-        label: 'Eliminar',
-        icon: 'pi pi-trash',
-        styleClass: 'p-button-text p-button-danger',
-        tooltip: 'Eliminar Tarifa',
-        command: (row: FineConfiguration) => this.deleteConfig(row)
       }
     ];
   }
@@ -160,25 +150,6 @@ export class MultasConfig implements OnInit {
         error: (err) => this.showError(err.error?.message || 'Error al crear')
       });
     }
-  }
-
-  deleteConfig(config: FineConfiguration) {
-    this.confirmationService.confirm({
-      message: `¿Está seguro de eliminar la tarifa "${config.name}"? Esta acción no se puede deshacer.`,
-      header: 'Confirmar eliminación',
-      icon: 'pi pi-exclamation-triangle',
-      accept: () => {
-        if (config.config_id) {
-          this.configsService.deleteConfig(config.config_id).subscribe({
-            next: () => {
-              this.showSuccess('Tarifa eliminada con éxito');
-              this.loadConfigs();
-            },
-            error: (err) => this.showError(err.error?.message || 'Error al eliminar')
-          });
-        }
-      }
-    });
   }
 
   private showSuccess(msg: string) {

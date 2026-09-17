@@ -2,6 +2,10 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { SelectModule } from 'primeng/select';
+import { InputNumberModule } from 'primeng/inputnumber';
+import { ToastModule } from 'primeng/toast';
+import { MessageService } from 'primeng/api';
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { PaymentAgreementsService, PaymentAgreement } from '../../../core/services/payment-agreements';
 import { BankAccountsService, BankAccount } from '../../../core/services/bank-accounts.service';
 import { UserService } from '../../../core/services/user.service';
@@ -14,7 +18,8 @@ import { ButtonModule } from 'primeng/button';
 @Component({
   selector: 'app-convenios',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, CustomTable, SelectModule, DialogModule, ButtonModule],
+  imports: [CommonModule, ReactiveFormsModule, CustomTable, SelectModule, InputNumberModule, DialogModule, ButtonModule, ToastModule],
+  providers: [MessageService],
   templateUrl: './convenios.html',
   styleUrls: ['./convenios.css']
 })
@@ -25,9 +30,22 @@ export class Convenios implements OnInit {
   actions: TableAction[] = [];
   
   showForm = false;
+
+  onDebtAmountFocus(event: Event) {
+    const input = event.target as HTMLInputElement;
+    setTimeout(() => {
+      if (document.activeElement === input) input.select();
+    });
+  }
+
+  isCreating = false;
+  isVoiding = false;
+  createError = '';
   showPaymentForm = false;
   selectedDebtId: number | null = null;
   selectedDebtName = '';
+  selectedAgreementId: number | null = null;
+  isPaymentSubmitting = false;
   form: FormGroup;
   paymentForm: FormGroup;
   
@@ -43,12 +61,14 @@ export class Convenios implements OnInit {
     private bankAccountService: BankAccountsService,
     private userService: UserService,
     private fb: FormBuilder,
+    private confirmService: ConfirmService,
+    private messageService: MessageService,
     private cdr: ChangeDetectorRef
   ) {
     this.form = this.fb.group({
       user_id: ['', Validators.required],
       description: ['', Validators.required],
-      total_amount: ['', [Validators.required, Validators.min(1)]]
+      total_amount: ['', [Validators.required, Validators.min(0.01)]]
     });
 
     this.paymentForm = this.fb.group({
@@ -105,7 +125,7 @@ export class Convenios implements OnInit {
     this.agreementsService.getAll().subscribe(data => {
       this.agreements = data.map(item => ({
         ...item,
-        client_name: `${item.last_name} ${item.first_name} (${item.national_id})`,
+        client_name: `${item.last_name} ${item.first_name}`,
         status_label: item.status === 'active' ? 'ACTIVO' : 'PAGADO',
         total_amount: Number(item.total_amount).toFixed(2),
         remaining_amount: Number(item.remaining_amount).toFixed(2)
@@ -116,23 +136,42 @@ export class Convenios implements OnInit {
 
   loadUsers() {
     this.userService.getUsers().subscribe(data => {
-      this.users = data;
+      this.users = data.map(user => ({
+        ...user,
+        display_name: `${user.last_name} ${user.first_name}`
+      }));
     });
   }
 
+  openCreateModal() {
+    if (this.isCreating) return;
+    this.form.reset({ user_id: '', description: '', total_amount: '' });
+    this.createError = '';
+    this.showForm = true;
+  }
+
   onSubmit() {
-    if (this.form.valid) {
-      this.agreementsService.create(this.form.value).subscribe(() => {
-        this.loadAgreements();
+    if (this.form.invalid || this.isCreating) return;
+    this.isCreating = true;
+    this.createError = '';
+    this.agreementsService.create(this.form.value).subscribe({
+      next: () => {
+        this.isCreating = false;
         this.showForm = false;
         this.form.reset();
-      });
-    }
+        this.loadAgreements();
+      },
+      error: err => {
+        this.isCreating = false;
+        this.createError = err.error?.message || err.error?.error || 'No se pudo guardar la deuda. Revise los datos.';
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   openPaymentModal(row: any) {
     if (row.status === 'completed') {
-      alert('Esta deuda ya está pagada.');
+      this.notify('info', 'Esta deuda ya está pagada.');
       return;
     }
     this.selectedDebtId = row.agreement_id;
@@ -146,26 +185,29 @@ export class Convenios implements OnInit {
   }
 
   onPaymentSubmit() {
-    if (this.paymentForm.invalid) return;
+    if (this.paymentForm.invalid || this.isPaymentSubmitting) return;
     
     if (this.paymentForm.value.payment_method !== 'cash' && !this.paymentForm.value.account_id) {
-      alert('Debe seleccionar una cuenta bancaria');
+      this.notify('warn', 'Debe seleccionar una cuenta bancaria');
       return;
     }
 
     if (this.paymentForm.valid && this.selectedDebtId) {
+      this.isPaymentSubmitting = true;
       const { amount_paid, payment_method, account_id, reference_number } = this.paymentForm.value;
       this.agreementsService.addDebtPayment(this.selectedDebtId, amount_paid, payment_method, account_id, reference_number).subscribe({
         next: (res) => {
-          alert('Abono registrado correctamente. Nuevo saldo: $' + res.remaining);
+          this.notify('success', 'Abono registrado correctamente. Nuevo saldo: $' + res.remaining);
           this.showPaymentForm = false;
           this.loadAgreements();
           if (res.debt_payment_id) {
              this.agreementsService.printReceipt(res.debt_payment_id).subscribe();
           }
+          this.isPaymentSubmitting = false;
         },
         error: (err) => {
-          alert('Error al registrar abono');
+          this.isPaymentSubmitting = false;
+          this.notify('error', err.error?.message || err.error?.error || 'Error al registrar abono');
         }
       });
     }
@@ -217,6 +259,7 @@ export class Convenios implements OnInit {
   }
   
   openHistoryModal(row: any) {
+    this.selectedAgreementId = row.agreement_id;
     this.selectedDebtName = `${row.description} - Historial de Abonos`;
     this.agreementsService.getDebtPayments(row.agreement_id).subscribe(payments => {
       this.historyPayments = payments;
@@ -227,5 +270,43 @@ export class Convenios implements OnInit {
 
   printHistoryTicket(payment: any) {
     this.agreementsService.printReceipt(payment.debt_payment_id).subscribe();
+  }
+
+  voidHistoryPayment(payment: any) {
+    if (this.isVoiding) return;
+    const agreementId = this.selectedAgreementId;
+    this.confirmService.confirm({
+      header: 'Anular abono',
+      message: `¿Desea anular el abono de $${Number(payment.amount_paid).toFixed(2)}? El valor volverá al saldo pendiente de la deuda.`,
+      inputLabel: 'Motivo de la anulación',
+      inputMinLength: 5,
+      acceptLabel: 'Anular abono',
+      rejectLabel: 'Cancelar',
+      accept: reason => {
+        if (!reason || reason.trim().length < 5 || this.isVoiding) return;
+        this.isVoiding = true;
+    this.agreementsService.voidDebtPayment(payment.debt_payment_id, reason).subscribe({
+      next: () => {
+        this.isVoiding = false;
+        if (agreementId && agreementId === this.selectedAgreementId) {
+          this.agreementsService.getDebtPayments(agreementId).subscribe(items => {
+            if (agreementId === this.selectedAgreementId) this.historyPayments = items;
+            this.cdr.detectChanges();
+          });
+        }
+        this.loadAgreements();
+        this.notify('success', 'Abono anulado y saldo restaurado correctamente');
+      },
+      error: err => {
+        this.isVoiding = false;
+        this.notify('error', err.error?.message || err.error?.error || 'No fue posible anular el abono');
+      }
+    });
+      }
+    });
+  }
+
+  private notify(severity: 'info' | 'warn' | 'success' | 'error', detail: string) {
+    this.messageService.add({severity, summary: severity === 'error' ? 'Error' : 'Cuentas por cobrar', detail});
   }
 }

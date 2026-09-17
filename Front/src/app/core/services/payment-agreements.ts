@@ -50,12 +50,17 @@ export class PaymentAgreementsService {
       amount_paid,
       payment_method: paymentMethod,
       account_id: accountId,
-      reference_number: referenceNumber
+      reference_number: referenceNumber,
+      idempotency_key: crypto.randomUUID()
     });
   }
 
   getDebtPayments(id: number): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/${id}/payments`);
+  }
+
+  voidDebtPayment(paymentId: number, reason: string): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/payment/${paymentId}`, { body: { reason } });
   }
 
   processMonth(billing_month: string): Observable<any> {

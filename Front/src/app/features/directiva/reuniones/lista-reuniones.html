@@ -1,6 +1,5 @@
 <div class="bg-white rounded-lg shadow-md p-6">
     <p-toast></p-toast>
-    <p-confirmDialog></p-confirmDialog>
 
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-800">Control de Reuniones y Mingas</h1>
@@ -12,14 +11,14 @@
     </app-custom-table>
 
     <!-- Modal de Reunión -->
-    <p-dialog [(visible)]="meetingDialog" header="Detalles de la Reunión / Minga" [modal]="true" [style]="{ width: '40vw' }"
+    <p-dialog [(visible)]="meetingDialog" header="Reunión / Minga" [modal]="true" [style]="{ width: '900px', maxWidth: '96vw' }"
         [breakpoints]="{ '960px': '75vw', '640px': '90vw' }" [draggable]="false" [resizable]="false">
 
-        <form [formGroup]="meetingForm" (ngSubmit)="saveMeeting()" class="flex flex-col gap-4">
+        <form [formGroup]="meetingForm" (ngSubmit)="saveMeeting()" class="flex flex-col gap-3 text-sm">
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <!-- Motivo / Asunto -->
-                <div class="flex flex-col gap-2 col-span-2">
+                <div class="flex flex-col gap-1 md:col-span-2">
                     <label class="font-semibold text-gray-700">Motivo / Asunto de la Reunión</label>
                     <input type="text" pInputText formControlName="reason" placeholder="Ej: Minga de Limpieza de Reservorio" class="w-full" />
                     <small class="text-red-500" *ngIf="meetingForm.get('reason')?.touched && meetingForm.get('reason')?.invalid">
@@ -31,24 +30,26 @@
                 <div class="flex flex-col gap-2">
                     <label class="font-semibold text-gray-700">Fecha</label>
                     <input type="date" pInputText formControlName="meeting_date" class="w-full" />
-                    <small class="text-red-500" *ngIf="meetingForm.get('meeting_date')?.touched && meetingForm.get('meeting_date')?.invalid">
-                        La fecha es requerida.
-                    </small>
+                    <small class="text-red-500" *ngIf="meetingForm.get('meeting_date')?.touched && meetingForm.get('meeting_date')?.invalid">La fecha es requerida.</small>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="font-semibold text-gray-700">Mes para cobrar multas *</label>
+                    <p-select formControlName="application_month" [options]="billingMonths" optionLabel="label" optionValue="value" optionDisabled="disabled" [loading]="monthsLoading" placeholder="Seleccione un mes habilitado" appendTo="body" styleClass="w-full"></p-select>
                 </div>
 
                 <!-- Tipo de Reunión -->
                 <div class="flex flex-col gap-2">
                     <label class="font-semibold text-gray-700">Tipo de Reunión</label>
                     <p-select [options]="meetingTypes" formControlName="meeting_type" placeholder="Seleccione un tipo"
-                        styleClass="w-full">
+                        styleClass="w-full" appendTo="body">
                     </p-select>
                 </div>
 
                 <!-- Tarifa de Multa -->
-                <div class="flex flex-col gap-2 col-span-2">
+                <div class="flex flex-col gap-2">
                     <label class="font-semibold text-gray-700">Tarifa de Multa por Inasistencia</label>
                     <p-select [options]="fineConfigs" formControlName="fine_config_id" placeholder="Seleccione una tarifa configurada"
-                        styleClass="w-full" (onChange)="onFineConfigChange($event.value)">
+                        styleClass="w-full" appendTo="body" (onChange)="onFineConfigChange($event.value)">
                     </p-select>
                     <small class="text-red-500" *ngIf="meetingForm.get('fine_config_id')?.touched && meetingForm.get('fine_config_id')?.invalid">
                         La tarifa de multa es requerida. Configúrala antes en el menú de "Configurar Multas" si no aparece.
@@ -56,9 +57,18 @@
                 </div>
             </div>
 
-            <div class="flex flex-col gap-2">
+            <div class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs text-slate-600">
+                <span *ngIf="financialLocked">Mes bloqueado: ya hay asistencia. No se puede cambiar fecha, mes ni tarifa.</span>
+                <span *ngIf="!financialLocked">Mes de cobro independiente del evento: actual o anterior sin cobros, y sin cierre contable.</span>
+                <details *ngIf="hasBlockedMonths" class="mt-1">
+                    <summary class="cursor-pointer text-amber-700 font-semibold">Ver meses no disponibles</summary>
+                    <ng-container *ngFor="let month of billingMonths"><p class="m-0 mt-1" *ngIf="month.reason">{{ month.label }}: {{ month.reason }}</p></ng-container>
+                </details>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="flex flex-col gap-1 md:col-span-2">
                 <label class="font-semibold text-gray-700">Acta de la Reunión (Resoluciones)</label>
-                <textarea formControlName="minutes" rows="3" placeholder="Resoluciones o acta..." class="w-full border border-gray-300 rounded p-2 text-sm focus:outline-none focus:border-blue-500"></textarea>
+                <textarea formControlName="minutes" rows="2" placeholder="Resoluciones o acta (opcional)..." class="w-full border border-gray-300 rounded p-2 text-sm focus:outline-none focus:border-blue-500"></textarea>
             </div>
 
             <div class="flex flex-col gap-2">
@@ -66,8 +76,9 @@
                 <textarea formControlName="notes" rows="2" placeholder="Observaciones generales..." class="w-full border border-gray-300 rounded p-2 text-sm focus:outline-none focus:border-blue-500"></textarea>
             </div>
 
+            </div>
             <!-- Botones -->
-            <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
+            <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
                 <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary"
                     (click)="meetingDialog = false"></p-button>
                 <p-button label="Guardar" icon="pi pi-check" type="submit" [disabled]="meetingForm.invalid"

@@ -7,6 +7,8 @@ export interface Meeting {
   meeting_id?: number;
   reason: string;
   meeting_date: string;
+  application_month: string;
+  financial_locked?: boolean | number;
   minutes?: string;
   notes?: string;
   meeting_type: 'session' | 'minga';
@@ -24,6 +26,9 @@ export class MeetingsService {
 
   getMeetings(): Observable<Meeting[]> {
     return this.http.get<Meeting[]>(this.apiUrl);
+  }
+  getBillingMonths(): Observable<{value:string;label:string;disabled:boolean;reason:string|null}[]> {
+    return this.http.get<{value:string;label:string;disabled:boolean;reason:string|null}[]>(`${this.apiUrl}/billing-months`);
   }
 
   getMeeting(id: number): Observable<Meeting> {
