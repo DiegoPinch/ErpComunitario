@@ -38,6 +38,9 @@ const getComprehensivePdf = async (req, res, next) => {
         let boardMembers = [];
 
         const formatDateOnly = (dStr) => {
+            if (typeof dStr==='string' && /^\d{4}-\d{2}-\d{2}$/.test(dStr)) {
+                return dStr.split('-').reverse().join('/');
+            }
             try {
                 const d = new Date(dStr);
                 if (isNaN(d.getTime())) return dStr;
@@ -90,7 +93,9 @@ const getComprehensivePdf = async (req, res, next) => {
             // Current unclosed period
             const allPeriods = await accountingPeriodsModel.getAllPeriods();
             if (allPeriods.length > 0) {
-                resolvedStartDate = allPeriods[0].end_date;
+                const nextOpenDay = new Date(allPeriods[0].end_date);
+                nextOpenDay.setDate(nextOpenDay.getDate() + 1);
+                resolvedStartDate = `${nextOpenDay.getFullYear()}-${String(nextOpenDay.getMonth() + 1).padStart(2, '0')}-${String(nextOpenDay.getDate()).padStart(2, '0')} 00:00:00`;
             } else {
                 resolvedStartDate = '1970-01-01 00:00:00'; // Fallback if no periods exist
             }
@@ -117,7 +122,23 @@ const getComprehensivePdf = async (req, res, next) => {
             boardMembers = bmRows;
         }
 
-        const data = await reportsModel.getComprehensiveReport(resolvedStartDate, resolvedEndDate);
+        let periodSnapshot = null;
+        if (periodData?.snapshot_json) {
+            try {
+                periodSnapshot = typeof periodData.snapshot_json === 'string'
+                    ? JSON.parse(periodData.snapshot_json)
+                    : periodData.snapshot_json;
+            } catch (_) {
+                throw new Error('El cierre guardado contiene una instantánea inválida');
+            }
+            // MySQL JSON may normalize whitespace/key order; verify the values against the persisted columns below.
+            if (Math.abs(Number(periodSnapshot.system_balance)-Number(periodData.system_balance))>0.005 ||
+                Math.abs(Number(periodSnapshot.total_incomes)-Number(periodData.total_incomes))>0.005 ||
+                Math.abs(Number(periodSnapshot.total_expenses)-Number(periodData.total_expenses))>0.005) {
+                throw new Error('Los totales del cierre y su instantánea no coinciden');
+            }
+        }
+        const data = await reportsModel.getComprehensiveReport(resolvedStartDate, resolvedEndDate, periodSnapshot);
         
         // Formatear datos
         const bankAccounts = data.bankAccounts;
@@ -129,10 +150,10 @@ const getComprehensivePdf = async (req, res, next) => {
         const [openingCashRes] = await pool.query(`
             SELECT 
                 (
-                    COALESCE((SELECT SUM(invoice_amount) FROM payments WHERE payment_date < ? AND account_id IS NULL), 0) +
-                    COALESCE((SELECT SUM(amount_paid) FROM debt_payments WHERE payment_date < ? AND account_id IS NULL), 0) +
-                    COALESCE((SELECT SUM(amount) FROM other_incomes WHERE income_date < ? AND account_id IS NULL), 0) -
-                    COALESCE((SELECT SUM(amount) FROM expenses WHERE expense_date < ? AND payment_method = 'cash'), 0)
+                    COALESCE((SELECT SUM(invoice_amount) FROM payments WHERE status='posted' AND payment_date < ? AND account_id IS NULL), 0) +
+                    COALESCE((SELECT SUM(amount_paid) FROM debt_payments WHERE status='posted' AND payment_date < ? AND account_id IS NULL), 0) +
+                    COALESCE((SELECT SUM(amount) FROM other_incomes WHERE status='posted' AND income_date < ? AND account_id IS NULL), 0) -
+                    COALESCE((SELECT SUM(amount) FROM expenses WHERE status='posted' AND expense_date < ? AND payment_method = 'cash'), 0)
                 ) as opening_cash
         `, [resolvedStartDate, resolvedStartDate, resolvedStartDate, resolvedStartDate]);
         const openingCash = parseFloat(openingCashRes[0]?.opening_cash || 0);
@@ -142,11 +163,11 @@ const getComprehensivePdf = async (req, res, next) => {
                 b.account_id,
                 (
                     b.initial_balance +
-                    COALESCE((SELECT SUM(amount_paid) FROM payments WHERE payment_date < ? AND account_id = b.account_id), 0) +
-                    COALESCE((SELECT SUM(amount_paid) FROM debt_payments WHERE payment_date < ? AND account_id = b.account_id), 0) +
-                    COALESCE((SELECT SUM(amount) FROM other_incomes WHERE income_date < ? AND account_id = b.account_id), 0) -
-                    COALESCE((SELECT SUM(amount) FROM expenses WHERE expense_date < ? AND account_id = b.account_id AND payment_method != 'cash'), 0) +
-                    COALESCE((SELECT SUM(amount) FROM expenses WHERE expense_date < ? AND account_id = b.account_id AND payment_method = 'cash'), 0)
+                    COALESCE((SELECT SUM(invoice_amount) FROM payments WHERE status='posted' AND payment_date < ? AND account_id = b.account_id), 0) +
+                    COALESCE((SELECT SUM(amount_paid) FROM debt_payments WHERE status='posted' AND payment_date < ? AND account_id = b.account_id), 0) +
+                    COALESCE((SELECT SUM(amount) FROM other_incomes WHERE status='posted' AND income_date < ? AND account_id = b.account_id), 0) -
+                    COALESCE((SELECT SUM(amount) FROM expenses WHERE status='posted' AND expense_date < ? AND account_id = b.account_id AND payment_method != 'cash'), 0) +
+                    COALESCE((SELECT SUM(amount) FROM expenses WHERE status='posted' AND expense_date < ? AND account_id = b.account_id AND payment_method = 'cash'), 0)
                 ) as opening_balance
             FROM bank_accounts b
         `, [resolvedStartDate, resolvedStartDate, resolvedStartDate, resolvedStartDate, resolvedStartDate]);
@@ -213,6 +234,10 @@ const getComprehensivePdf = async (req, res, next) => {
             acc.balance = acc.initial + acc.incomes - acc.expenses;
         });
         balances.global.balance = balances.cash.balance + Object.values(balances.accounts).reduce((acc, a) => acc + a.balance, 0);
+        const expectedBalance = balances.global.initial + balances.global.incomes - balances.global.expenses;
+        if (Math.abs(expectedBalance - balances.global.balance) > 0.005) {
+            throw new Error('No se puede emitir el integral: caja y bancos no concilian con los movimientos');
+        }
 
         // --- Generar PDF ---
         const doc = new PDFDocument({ margin: 30, size: 'A4', bufferPages: true });
@@ -222,7 +247,11 @@ const getComprehensivePdf = async (req, res, next) => {
 
         // Header
         doc.fillColor('#1d4ed8').fontSize(16).text('JUNTA ADMINISTRADORA DE AGUA POTABLE COMUNIDAD CHALUAPAMBA', { align: 'center' });
-        doc.fontSize(10).fillColor('#64748b').text('Reporte Contable Integral Detallado', { align: 'center' });
+        doc.fontSize(10).fillColor('#64748b').text('Estado Integral Contable y Cierre', { align: 'center' });
+        doc.fontSize(8).text(periodData
+            ? `Cierre guardado #${periodData.period_id} | Responsable: ${periodData.treasurer_username || ''}`
+            : 'CONSULTA PROVISIONAL - Período sin cierre guardado', { align: 'center' });
+        if (periodData?.integrity_hash) doc.fontSize(6).text(`Integridad: ${periodData.integrity_hash}`, {align:'center'});
         doc.moveDown(1);
 
         const titleY = doc.y;
@@ -299,7 +328,7 @@ const getComprehensivePdf = async (req, res, next) => {
             doc.font('Helvetica-Bold').fillColor(diffColor);
             doc.text(`RESULTADO: ${diffText}`, 360, auditY + 18, { width: 190 });
             doc.font('Helvetica').fontSize(7.5).fillColor('#64748b');
-            doc.text('Verificado por Auditoría Interna', 360, auditY + 30);
+            doc.text('Diferencia registrada en el cierre', 360, auditY + 30);
             
             currentY = auditY + 50;
             doc.y = currentY;
@@ -392,6 +421,7 @@ const getComprehensivePdf = async (req, res, next) => {
 
         const expenseCategoryTotals = {};
         expenses.forEach(e => {
+            if (e.payment_method === 'cash' && e.account_id) return;
             const amt = parseFloat(e.amount) || 0;
             const type = e.type || 'Sin Categoría';
             expenseCategoryTotals[type] = (expenseCategoryTotals[type] || 0) + amt;
@@ -495,7 +525,7 @@ const getComprehensivePdf = async (req, res, next) => {
         }
 
         doc.rect(30, currentY, 535, 18).fill('#b45309'); // Color marrón/naranja
-        doc.fillColor('#ffffff').fontSize(9).font('Helvetica-Bold').text('RESUMEN DE CUENTAS POR COBRAR (CARTERA VENCIDA)', 40, currentY + 5);
+        doc.fillColor('#ffffff').fontSize(9).font('Helvetica-Bold').text('RESUMEN DE CUENTAS POR COBRAR AL CORTE', 40, currentY + 5);
         currentY += 18;
 
         const drawReceivableRow = (label, amount, isTotal = false) => {
@@ -511,14 +541,17 @@ const getComprehensivePdf = async (req, res, next) => {
 
         // Convenios pendientes por concepto
         let agreementsTotal = 0;
+        const pendingByConcept = new Map();
+        const conceptName = value => normalizeIncomeKey(String(value || 'Otros').trim().replace(/\s+/g, ' ').normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
         accountsReceivableDetails.pendingAgreements.forEach(arg => {
             const amt = parseFloat(arg.total) || 0;
             agreementsTotal += amt;
-            const normName = normalizeIncomeKey(arg.description);
-            drawReceivableRow(`Deuda Histórica por Cobrar: ${normName}`, amt);
+            const normName = conceptName(arg.description);
+            pendingByConcept.set(normName, (pendingByConcept.get(normName) || 0) + amt);
         });
+        for (const [concept, amount] of pendingByConcept) drawReceivableRow(`${concept} por cobrar`, amount);
 
-        const totalReceivables = accountsReceivableDetails.pendingInvoices + agreementsTotal;
+        const totalReceivables = Number(accountsReceivableDetails.pendingInvoices) + agreementsTotal;
         drawReceivableRow('TOTAL DE CUENTAS POR COBRAR (DEUDA VIVA)', totalReceivables, true);
         
         doc.y = currentY + 15;
@@ -571,6 +604,162 @@ const getComprehensivePdf = async (req, res, next) => {
             doc.text(secretary.toUpperCase(), 197, ySign + 68, { width: 200, align: 'center' });
             doc.text(`Directiva: ${administrationName || '2026-2028'}`, 197, ySign + 78, { width: 200, align: 'center' });
         }
+
+        // Anexos resumidos por mes. Los cobros de facturas se clasifican por el mes
+        // facturado; convenios e ingresos extraordinarios usan por su fecha real.
+        // Los movimientos individuales se consultan en los reportes auxiliares.
+        const monthKey = value => {
+            if (typeof value === 'string' && /^\d{4}-\d{2}/.test(value)) return value.slice(0, 7);
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return 'SIN-MES';
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        };
+        const monthLabel = key => {
+            const names = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+            const match = /^(\d{4})-(\d{2})$/.exec(key || '');
+            return match ? `${match[1]}-${names[Number(match[2]) - 1]}` : 'SIN MES ASIGNADO';
+        };
+        const addAmount = (map, key, amount) => map.set(key, (map.get(key) || 0) + Number(amount || 0));
+        const drawMonthlyAnnex = (title, columns, rows, totalColumn) => {
+            doc.addPage();
+            let y = 40;
+            const header = () => {
+                doc.font('Helvetica-Bold').fontSize(11).fillColor('#1e293b').text(title,30,y,{width:535});
+                y += 25;
+                doc.rect(30,y,535,24).fill('#1d4ed8');
+                let x = 30;
+                for (const column of columns) {
+                    doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(7.5)
+                        .text(column.label,x + 5,y + 8,{width:column.width - 10,align:column.align || 'left'});
+                    x += column.width;
+                }
+                y += 24;
+            };
+            header();
+            if (!rows.length) {
+                doc.rect(30,y,535,24).stroke('#e2e8f0');
+                doc.fillColor('#64748b').font('Helvetica').fontSize(8).text('SIN MOVIMIENTOS EN EL PERÍODO',35,y + 8,{width:525,align:'center'});
+                y += 24;
+            }
+            rows.forEach((row,index) => {
+                doc.font('Helvetica').fontSize(7.5);
+                const rowHeight = Math.max(20, ...columns.map(column =>
+                    doc.heightOfString(String(column.money ? formatCurrency(row[column.key]) : (row[column.key] ?? '')),
+                        {width:column.width - 10}) + 12));
+                if (y + rowHeight > 760) { doc.addPage(); y=40; header(); }
+                doc.rect(30,y,535,rowHeight).fill(index % 2 ? '#f8fafc' : '#ffffff').stroke('#e2e8f0');
+                let x = 30;
+                for (const column of columns) {
+                    const raw = row[column.key];
+                    const value = column.money ? formatCurrency(raw) : raw;
+                    doc.fillColor('#334155').font('Helvetica').fontSize(7.5)
+                        .text(String(value ?? ''),x + 5,y + 6,{width:column.width - 10,align:column.align || 'left'});
+                    x += column.width;
+                }
+                y += rowHeight;
+            });
+            if (totalColumn) {
+                const total = rows.reduce((sum,row) => sum + Number(row[totalColumn] || 0),0);
+                if (y + 22 > 760) { doc.addPage(); y=40; header(); }
+                doc.rect(30,y,535,22).fill('#e2e8f0');
+                doc.fillColor('#1e293b').font('Helvetica-Bold').fontSize(8).text('TOTAL DEL ANEXO',35,y + 7,{width:390});
+                doc.text(formatCurrency(total),430,y + 7,{width:125,align:'right'});
+            }
+        };
+
+        const monthlyIncomes = new Map();
+        for (const income of incomes) {
+            const key = income.accounting_month || monthKey(income.trans_date);
+            const row = monthlyIncomes.get(key) || {month:monthLabel(key),invoices:0,agreements:0,extraordinary:0,total:0};
+            const amount = Number(income.amount || 0);
+            if (income.type === 'Factura de Agua') row.invoices += amount;
+            else if (income.type === 'Pago Convenio/Deuda') row.agreements += amount;
+            else row.extraordinary += amount;
+            row.total += amount;
+            monthlyIncomes.set(key,row);
+        }
+        const incomeRows = [...monthlyIncomes.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([,row])=>row);
+
+        const monthlyExpenses = new Map();
+        for (const expense of expenses.filter(e => !(e.payment_method==='cash' && e.account_id))) {
+            const key = JSON.stringify([monthKey(expense.trans_date), expense.type || 'Sin categoría',
+                String(expense.source_dest || '').trim() || 'Sin descripción']);
+            addAmount(monthlyExpenses,key,expense.amount);
+        }
+        const expenseRows = [...monthlyExpenses.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([key,total])=>{
+            const [month,category,description] = JSON.parse(key);
+            return {month:monthLabel(month),category,description,total};
+        });
+
+        const monthlyTransfers = new Map();
+        for (const transfer of expenses.filter(e => e.payment_method==='cash' && e.account_id)) {
+            const destination = transfer.bank_name || 'Cuenta bancaria';
+            const description = String(transfer.source_dest || '').trim() || 'Sin descripción';
+            const key = JSON.stringify([monthKey(transfer.trans_date),transfer.account_id,destination,description]);
+            addAmount(monthlyTransfers,key,transfer.amount);
+        }
+        const transferRows = [...monthlyTransfers.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([key,total])=>{
+            const [month,,destination,description] = JSON.parse(key);
+            return {month:monthLabel(month),destination,description,total};
+        });
+
+        if (Math.abs(incomeRows.reduce((sum,row)=>sum+row.total,0) - balances.global.incomes) > 0.005 ||
+            Math.abs(expenseRows.reduce((sum,row)=>sum+row.total,0) - balances.global.expenses) > 0.005) {
+            throw new Error('No se puede emitir el integral: los anexos mensuales no concilian con el resumen');
+        }
+
+        drawMonthlyAnnex('ANEXO 1 - INGRESOS COBRADOS POR MES AL QUE CORRESPONDEN',[
+            {key:'month',label:'MES CORRESPONDIENTE',width:105},
+            {key:'invoices',label:'FACTURAS',width:105,align:'right',money:true},
+            {key:'agreements',label:'CONVENIOS / DEUDA',width:115,align:'right',money:true},
+            {key:'extraordinary',label:'EXTRAORDINARIOS',width:110,align:'right',money:true},
+            {key:'total',label:'TOTAL',width:100,align:'right',money:true}
+        ],incomeRows,'total');
+        const collectedConcepts = new Map();
+        for (const income of incomes.filter(item => item.type !== 'Factura de Agua')) {
+            const concept = conceptName(income.type === 'Pago Convenio/Deuda'
+                ? income.agreement_desc : income.source_dest);
+            const key = JSON.stringify([monthKey(income.trans_date), concept]);
+            addAmount(collectedConcepts, key, income.amount);
+        }
+        const collectedRows = [...collectedConcepts.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([key,total])=>{
+            const [month,concept] = JSON.parse(key);
+            return {month:monthLabel(month),concept,total};
+        });
+        drawMonthlyAnnex('ANEXO 1B - COBROS DE CUENTAS E INGRESOS EXTRAORDINARIOS',[
+            {key:'month',label:'MES DE COBRO',width:130},
+            {key:'concept',label:'CONCEPTO',width:275},
+            {key:'total',label:'TOTAL COBRADO',width:130,align:'right',money:true}
+        ],collectedRows,'total');
+        drawMonthlyAnnex('ANEXO 2 - EGRESOS POR MES Y CATEGORÍA',[
+            {key:'month',label:'MES',width:105},
+            {key:'category',label:'CATEGORÍA',width:140},
+            {key:'description',label:'DESCRIPCIÓN',width:195},
+            {key:'total',label:'TOTAL',width:95,align:'right',money:true}
+        ],expenseRows,'total');
+        drawMonthlyAnnex('ANEXO 3 - TRASPASOS INTERNOS POR MES',[
+            {key:'month',label:'MES',width:105},
+            {key:'destination',label:'CUENTA DE DESTINO',width:140},
+            {key:'description',label:'DESCRIPCIÓN',width:195},
+            {key:'total',label:'TOTAL',width:95,align:'right',money:true}
+        ],transferRows,'total');
+        const receivableRows = periodSnapshot?.receivables || (!periodData
+            ? await require('../models/receivablesModel').getReceivables(resolvedEndDate) : []);
+        const monthlyReceivables = new Map();
+        for (const item of receivableRows) {
+            const month = item.billing_month || 'SIN-MES';
+            const type = item.invoice_id ? 'Factura' : conceptName(item.description);
+            addAmount(monthlyReceivables,`${month}|${type}`,item.total_debt);
+        }
+        const receivableSummary = [...monthlyReceivables.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([key,total])=>{
+            const [month,...type] = key.split('|');
+            return {month:monthLabel(month),type:type.join('|'),total};
+        });
+        drawMonthlyAnnex('ANEXO 4 - CUENTAS POR COBRAR POR MES AL CORTE',[
+            {key:'month',label:'MES FACTURADO',width:150},
+            {key:'type',label:'TIPO DE DEUDA',width:255},
+            {key:'total',label:'SALDO PENDIENTE',width:130,align:'right',money:true}
+        ],receivableSummary,'total');
 
         // Footer numerado
         const pageCount = doc.bufferedPageRange().count;

@@ -59,6 +59,7 @@ const generateReceiptPdf = async (req, res) => {
 
         let doc;
         const totalGlobalToPay = groupedInvoices.reduce((acc, inv) => acc + inv.invoice_amount, 0);
+        const totalCollection = parseFloat(firstRow.collection_total || totalGlobalToPay);
         // amount_paid y change_amount son iguales en todas las facturas de la misma transacción.
         // Tomamos los de la primera para evitar multiplicarlos por el nro de facturas.
         const totalGlobalAmountPaid = groupedInvoices[0]?.amount_paid ?? 0;
@@ -179,7 +180,8 @@ const generateReceiptPdf = async (req, res) => {
                 };
                 doc.fontSize(10).font('Helvetica-Bold').text('RESUMEN DE COBRO', { align: 'center' });
                 doc.moveDown(0.4);
-                drawRow('TOTAL COBRADO:', `$${totalGlobalToPay.toFixed(2)}`, true);
+                drawRow('TOTAL FACTURAS:', `$${totalGlobalToPay.toFixed(2)}`);
+                drawRow('TOTAL OPERACIÓN:', `$${totalCollection.toFixed(2)}`, true);
                 drawRow('EFECTIVO RECIBIDO:', `$${totalGlobalAmountPaid.toFixed(2)}`);
                 drawRow('CAMBIO ENTREGADO:', `$${totalGlobalChange.toFixed(2)}`);
                 doc.fillColor('#000').moveDown(0.8);

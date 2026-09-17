@@ -30,43 +30,12 @@ const getAttendanceByMeeting = async (req, res, next) => {
   }
 };
 
-const createAttendance = async (req, res, next) => {
-  try {
-    const id = await attendanceModel.createAttendance(req.body);
-    res.status(201).json({ attendance_id: id });
-  } catch (err) {
-    next(err);
-  }
-};
-
-const updateAttendance = async (req, res, next) => {
-  try {
-    const id = req.params.id;
-    const rows = await attendanceModel.updateAttendance(id, req.body);
-    if (!rows) return res.status(404).json({ message: 'Asistencia no encontrada o sin cambios' });
-    res.json({ updated: rows });
-  } catch (err) {
-    next(err);
-  }
-};
-
-const deleteAttendance = async (req, res, next) => {
-  try {
-    const id = req.params.id;
-    const rows = await attendanceModel.deleteAttendance(id);
-    if (!rows) return res.status(404).json({ message: 'Asistencia no encontrada' });
-    res.json({ deleted: rows });
-  } catch (err) {
-    next(err);
-  }
-};
-
 const updateAttendanceBulk = async (req, res, next) => {
   try {
     const meetingId = req.params.meetingId;
-    const list = req.body;
-    await attendanceModel.updateAttendanceBulk(meetingId, list);
-    res.json({ message: 'Asistencia registrada y facturas actualizadas con éxito' });
+    const result = await attendanceModel.updateAttendanceBulk(meetingId, req.body.records, req.user.id,
+      {application_month:req.body.application_month, reason:req.body.reason, preview:Boolean(req.previewAttendance)});
+    res.json({ ...result, message: req.previewAttendance ? 'Revisión completada' : 'Asistencia registrada y facturas actualizadas con éxito' });
   } catch (err) {
     next(err);
   }
@@ -76,8 +45,5 @@ module.exports = {
   getAttendance,
   getAttendanceById,
   getAttendanceByMeeting,
-  createAttendance,
-  updateAttendance,
-  deleteAttendance,
   updateAttendanceBulk,
 };

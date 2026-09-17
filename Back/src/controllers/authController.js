@@ -28,7 +28,7 @@ const login = async (req, res, next) => {
       if (boardRows && boardRows.length > 0) {
         boardRole = boardRows[0].role;
         user.role = 'board';
-      } else {
+      } else if (user.role !== 'treasurer') {
         user.role = 'user';
       }
     }

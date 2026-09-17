@@ -14,7 +14,10 @@ const formatCurrency = (val) => {
  * Helper para formatear periodos YYYY-MM a YYYY-MES (Español)
  */
 const formatPeriod = (period) => {
-    if (!period || !period.includes('-')) return period;
+    if (period && period.includes(' a ')) {
+        return period.split(' a ').map(value => formatPeriod(value.trim())).join(' A ');
+    }
+    if (!period || !/^\d{4}-\d{2}$/.test(period)) return period;
     const [year, month] = period.split('-');
     const months = [
         'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
@@ -97,45 +100,56 @@ const generatePDF = (res, title, data, columns, period = null, totalKey = null) 
     // Dibujar Filas
     let y = tableTop + 25;
     let lastMonth = null;
-    let monthlyTotal = 0;
-    let grandTotal = 0;
+    let lastGroupKey = null;
+    const totalKeys = Array.isArray(totalKey) ? totalKey : (totalKey ? [totalKey] : []);
+    const emptyTotals = () => Object.fromEntries(totalKeys.map(key => [key, 0]));
+    let monthlyTotals = emptyTotals();
+    let grandTotals = emptyTotals();
 
-    const drawSubtotal = (month, total) => {
+    const drawSubtotal = (month, totals) => {
         if (y > 750) { doc.addPage(); y = 50; }
         doc.rect(30, y - 5, totalTableWidth, 20).fill('#e2e8f0');
-        doc.fillColor('#1e293b').fontSize(9).text(`SUBTOTAL ${formatPeriod(month)}:`, 40, y, { bold: true });
-
-        // El subtotal se alinea con la última columna
-        const lastCol = columnDefinitions[columnDefinitions.length - 1];
-        doc.text(formatCurrency(total), lastCol.x, y, { width: lastCol.width, align: 'left', bold: true });
+        const firstTotal = columnDefinitions.find(col => totalKeys.includes(col.key));
+        doc.fillColor('#1e293b').fontSize(8).text(`SUBTOTAL ${formatPeriod(month)}:`, 40, y, { width: (firstTotal?.x || 470)-45, height:18, ellipsis:true });
+        totalKeys.forEach(key => {
+            const col = columnDefinitions.find(column => column.key === key);
+            if (col) doc.text(formatCurrency(totals[key]), col.x, y, { width: col.width - 5, align: 'right', bold: true });
+        });
+        const percentageCol = columnDefinitions.find(column => column.key === 'collection_percentage');
+        if (percentageCol && totals.billed_amount !== undefined) {
+            const percentage = totals.billed_amount > 0 ? totals.collected_amount / totals.billed_amount * 100 : 100;
+            doc.text(`${percentage.toFixed(2)}%`, percentageCol.x, y, { width: percentageCol.width - 5, align: 'right', bold: true });
+        }
         y += 25;
     };
 
     data.forEach((row, rowIndex) => {
         const rowData = { ...row };
-        const currentMonth = rowData.month_year || rowData.billing_month;
+        const currentMonth = rowData.group_label || rowData.month_year || rowData.billing_month || rowData.payment_month;
+        const currentGroupKey = rowData.group_key ?? currentMonth;
 
         // Si hay un cambio de mes (y no es el primero), mostramos el subtotal del mes anterior
-        if (lastMonth && currentMonth !== lastMonth && totalKey) {
-            drawSubtotal(lastMonth, monthlyTotal);
-            monthlyTotal = 0;
+        if (lastMonth && currentGroupKey !== lastGroupKey && totalKeys.length) {
+            drawSubtotal(lastMonth, monthlyTotals);
+            monthlyTotals = emptyTotals();
         }
 
         // Agrupación por Mes
-        if (currentMonth && currentMonth !== lastMonth) {
+        if (currentMonth && currentGroupKey !== lastGroupKey) {
             if (y > 750) { doc.addPage(); y = 50; }
             doc.rect(30, y - 5, totalTableWidth, 18).fill('#f1f5f9');
             doc.fillColor('#1e293b').fontSize(9).text(formatPeriod(currentMonth), 40, y, { bold: true });
             y += 20;
             lastMonth = currentMonth;
+            lastGroupKey = currentGroupKey;
         }
 
         // Acumular totales si aplica
-        if (totalKey) {
-            const val = parseFloat(rowData[totalKey]) || 0;
-            monthlyTotal += val;
-            grandTotal += val;
-        }
+        totalKeys.forEach(key => {
+            const val = parseFloat(rowData[key]) || 0;
+            monthlyTotals[key] += val;
+            grandTotals[key] += val;
+        });
 
         // Formatear valores
         if (rowData.meter_status === 1) rowData.meter_status = 'Activo';
@@ -156,7 +170,10 @@ const generatePDF = (res, title, data, columns, period = null, totalKey = null) 
         }
 
         const rowHeights = columnDefinitions.map(col => {
-            const val = String(rowData[col.key] || '');
+            const rawValue = rowData[col.key];
+            const val = col.format === 'currency' ? formatCurrency(rawValue)
+                : col.format === 'percent' ? `${Number(rawValue || 0).toFixed(2)}%`
+                : String(rawValue ?? '');
             return doc.heightOfString(val, { width: col.width - 10, fontSize: 8 });
         });
         const maxRowHeight = Math.max(...rowHeights) + 10;
@@ -178,26 +195,36 @@ const generatePDF = (res, title, data, columns, period = null, totalKey = null) 
 
         doc.fillColor('#475569').fontSize(8);
         columnDefinitions.forEach(col => {
-            const val = String(rowData[col.key] || '');
-            doc.text(val, col.x, y, { width: col.width - 10, align: 'left', lineGap: 2 });
+            const rawValue = rowData[col.key];
+            const val = col.format === 'currency' ? formatCurrency(rawValue)
+                : col.format === 'percent' ? `${Number(rawValue || 0).toFixed(2)}%`
+                : String(rawValue ?? '');
+            doc.text(val, col.x, y, { width: col.width - 10, align: col.align || 'left', lineGap: 2 });
         });
 
         y += maxRowHeight;
     });
 
     // Subtotal del último mes si aplica
-    if (lastMonth && totalKey) {
-        drawSubtotal(lastMonth, monthlyTotal);
+    if (lastMonth && totalKeys.length) {
+        drawSubtotal(lastMonth, monthlyTotals);
     }
 
     // Gran Total Final si aplica
-    if (totalKey) {
+    if (totalKeys.length) {
         if (y > 750) { doc.addPage(); y = 50; }
         doc.rect(30, y - 5, totalTableWidth, 25).fill('#1e293b');
         doc.fillColor('#ffffff').fontSize(10).text('TOTAL FINAL:', 40, y + 5, { bold: true });
 
-        const lastCol = columnDefinitions[columnDefinitions.length - 1];
-        doc.text(formatCurrency(grandTotal), lastCol.x, y + 5, { width: lastCol.width, align: 'left', bold: true });
+        totalKeys.forEach(key => {
+            const col = columnDefinitions.find(column => column.key === key);
+            if (col) doc.text(formatCurrency(grandTotals[key]), col.x, y + 5, { width: col.width - 5, align: 'right', bold: true });
+        });
+        const percentageCol = columnDefinitions.find(column => column.key === 'collection_percentage');
+        if (percentageCol && grandTotals.billed_amount !== undefined) {
+            const percentage = grandTotals.billed_amount > 0 ? grandTotals.collected_amount / grandTotals.billed_amount * 100 : 100;
+            doc.text(`${percentage.toFixed(2)}%`, percentageCol.x, y + 5, { width: percentageCol.width - 5, align: 'right', bold: true });
+        }
     }
 
     // Footer
@@ -268,17 +295,29 @@ const getRecollection = async (req, res, next) => {
             return res.status(400).json({ message: 'Mes inicial y final son requeridos (YYYY-MM)' });
         }
         const data = await reportsModel.getRecollectionReport(startMonth, endMonth);
+        for (const row of data) {
+            row.invoice_detail = `${row.user_name}\nAgua: ${formatCurrency(row.water_amount)} | Multas: ${formatCurrency(row.fine_amount)} | Rubros: ${formatCurrency(row.additional_amount)}`;
+        }
 
         if (format === 'pdf') {
             const cols = [
-                { label: 'Usuario', key: 'user_name', width: 200 },
-                { label: 'Fecha Pago', key: 'payment_date' },
-                { label: 'Mes Fact.', key: 'billing_month' },
-                { label: 'Método', key: 'payment_method' },
-                { label: 'Total $', key: 'paid_amount' }
+                { label: 'Usuario / Facturado por concepto', key: 'invoice_detail', width: 125 },
+                { label: 'Fact.', key: 'invoice_id', width: 40 },
+                { label: 'Fecha(s) Pago', key: 'payment_dates', width: 80 },
+                { label: 'Facturado', key: 'billed_amount', width: 65, format: 'currency', align: 'right' },
+                { label: 'Cobrado', key: 'collected_amount', width: 65, format: 'currency', align: 'right' },
+                { label: 'Pendiente', key: 'pending_amount', width: 65, format: 'currency', align: 'right' },
+                { label: '% Cobro', key: 'collection_percentage', width: 50, format: 'percent', align: 'right' },
+                { label: 'Estado', key: 'invoice_status', width: 45 }
             ];
-            // 'paid_amount' incluye Consumo, Riego y Rubros Adicionales
-            generatePDF(res, 'Reporte de Recaudación', data, cols, `${startMonth} a ${endMonth}`, 'paid_amount');
+            generatePDF(
+                res,
+                'Cobranza de Facturas por Mes Facturado',
+                data,
+                cols,
+                `${startMonth} a ${endMonth}`,
+                ['billed_amount', 'collected_amount', 'pending_amount']
+            );
         } else {
             res.json(data);
         }
@@ -298,20 +337,28 @@ const getDelinquency = async (req, res, next) => {
         // Pre-formatear para el PDF / Excel
         const formattedData = data.map(row => ({
             ...row,
+            group_key: row.user_id,
+            group_label: row.user_name,
             total_debt_str: formatCurrency(row.total_debt)
         }));
 
         if (format === 'pdf') {
             const cols = [
-                { label: 'Usuario / Socio', key: 'user_name', width: 140 },
-                { label: 'Cédula', key: 'national_id', width: 75 },
+                { label: 'Usuario / Socio', key: 'user_name', width: 180 },
                 { label: 'Tipo Deuda', key: 'concept_type', width: 95 },
-                { label: 'Descripción / Concepto', key: 'description', width: 145 },
-                { label: 'Monto Pendiente', key: 'total_debt_str', width: 80 }
+                { label: 'Descripción / Concepto', key: 'description', width: 180 },
+                { label: 'Monto Pendiente', key: 'total_debt', width: 80, format: 'currency', align: 'right' }
             ];
-            generatePDF(res, 'Reporte de Morosidad Detallado', formattedData, cols, `${startMonth} a ${endMonth}`, 'total_debt');
+            generatePDF(res, 'Cuentas por Cobrar por Usuario', formattedData, cols, `Cartera hasta ${endMonth}; incluye meses anteriores`, 'total_debt');
         } else {
-            res.json(formattedData);
+            // Lista explícita para evitar exportar cédulas e identificadores internos.
+            res.json(data.map(row => ({
+                user_name: row.user_name,
+                billing_month: row.billing_month,
+                concept_type: row.concept_type,
+                description: row.description,
+                total_debt: row.total_debt
+            })));
         }
     } catch (err) {
         next(err);
@@ -782,9 +829,11 @@ const getIncomesReport = async (req, res, next) => {
 
             return {
                 ...row,
+                payment_month: isNaN(dateObj.getTime())
+                    ? ''
+                    : `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`,
                 payment_date_formatted: dateStr,
-                payment_method_str: methodStr,
-                amount_str: formatCurrency(row.amount)
+                payment_method_str: methodStr
             };
         });
 
@@ -794,7 +843,7 @@ const getIncomesReport = async (req, res, next) => {
                 { label: 'Socio / Origen', key: 'client_name', width: 140 },
                 { label: 'Concepto de Ingreso', key: 'concept', width: 180 },
                 { label: 'Forma Pago', key: 'payment_method_str', width: 65 },
-                { label: 'Monto Recibido', key: 'amount_str', width: 70 }
+                { label: 'Monto Recibido', key: 'amount', width: 70, format: 'currency', align: 'right' }
             ];
             generatePDF(res, 'Reporte Detallado de Ingresos', formattedData, cols, `${startMonth} a ${endMonth}`, 'amount');
         } else {

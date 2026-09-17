@@ -1,4 +1,5 @@
 const paymentAgreementsModel = require('../models/paymentAgreementsModel');
+const paymentsModel = require('../models/paymentsModel');
 
 const getAllAgreements = async (req, res, next) => {
     try {
@@ -20,7 +21,7 @@ const getAgreementsByUserId = async (req, res, next) => {
 
 const createAgreement = async (req, res, next) => {
     try {
-        const id = await paymentAgreementsModel.createAgreement(req.body);
+        const id = await paymentAgreementsModel.createAgreement({ ...req.body, system_user_id: req.user.id });
         res.status(201).json({ id, message: 'Convenio creado con éxito' });
     } catch (err) {
         next(err);
@@ -29,7 +30,9 @@ const createAgreement = async (req, res, next) => {
 
 const updateAgreementStatus = async (req, res, next) => {
     try {
-        const rows = await paymentAgreementsModel.updateAgreementStatus(req.params.id, req.body.status);
+        const rows = await paymentAgreementsModel.updateAgreementStatus(
+            req.params.id, req.body.status, req.user.id, req.body.reason
+        );
         if (!rows) return res.status(404).json({ message: 'Convenio no encontrado' });
         res.json({ message: 'Estado actualizado correctamente' });
     } catch (err) {
@@ -39,7 +42,7 @@ const updateAgreementStatus = async (req, res, next) => {
 
 const addDebtPayment = async (req, res, next) => {
     try {
-        const system_user_id = req.user?.system_user_id || req.user?.id || 1; // fallback to 1
+        const system_user_id = req.user.id;
         const amount_paid = req.body.amount_paid;
         const payment_method = req.body.payment_method;
         const account_id = req.body.account_id;
@@ -48,12 +51,31 @@ const addDebtPayment = async (req, res, next) => {
         if (!amount_paid || amount_paid <= 0) {
             return res.status(400).json({ message: 'Monto inválido' });
         }
-        const result = await paymentAgreementsModel.addDebtPayment(req.params.id, system_user_id, amount_paid, payment_method, account_id, reference_number);
+        const result = await paymentsModel.collectCombinedPayment({
+            invoiceIds: [],
+            debtPayments: [{ agreement_id: Number(req.params.id), amount: amount_paid }],
+            amountTendered: amount_paid,
+            paymentMethod: payment_method || 'cash',
+            accountId: account_id ?? null,
+            referenceNumber: reference_number || null,
+            idempotencyKey: req.body.idempotency_key,
+            systemUserId: system_user_id
+        });
         res.json({ 
             message: 'Abono registrado correctamente', 
-            remaining: result.new_remaining,
-            debt_payment_id: result.debt_payment_id 
+            debt_payment_id: result.debt_payment_ids[0],
+            collection_id: result.collection_id,
+            remaining: result.debt_payments?.[0]?.remaining
         });
+    } catch (err) {
+        next(err);
+    }
+};
+
+const voidDebtPayment = async (req, res, next) => {
+    try {
+        await paymentsModel.voidDebtPayment(req.params.paymentId, req.user.id, req.body?.reason);
+        res.json({ message: 'Abono anulado correctamente y saldo del convenio restaurado' });
     } catch (err) {
         next(err);
     }
@@ -86,6 +108,7 @@ module.exports = {
     createAgreement,
     updateAgreementStatus,
     addDebtPayment,
+    voidDebtPayment,
     getDebtPayments,
     processMonthInstallments
 };

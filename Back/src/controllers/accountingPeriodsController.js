@@ -23,7 +23,7 @@ const generatePeriod = async (req, res, next) => {
     try {
         const periodData = {
             ...req.body,
-            system_user_id: req.user?.id || 1
+            system_user_id: req.user.id
         };
         const id = await model.generateAccountingPeriod(periodData);
         res.status(201).json({ id, message: 'Informe contable generado con éxito' });

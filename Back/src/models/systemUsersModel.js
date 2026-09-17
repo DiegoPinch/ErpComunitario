@@ -67,6 +67,13 @@ const createSystemUser = async (su) => {
 
 const updateSystemUser = async (id, su) => {
   const { user_id, username, password, role, status } = su;
+  const existing = await getSystemUserById(id);
+  if (!existing) return 0;
+  if (existing.role === 'admin' && (role !== 'admin' || status === false || Number(status) === 0)) {
+    const error = new Error('La cuenta administradora no puede desactivarse ni cambiarse a otro rol');
+    error.status = 400;
+    throw error;
+  }
   const exists = await existsUsername(username, id);
   if (exists) throw new Error('El nombre de usuario ya existe');
 
@@ -74,8 +81,6 @@ const updateSystemUser = async (id, su) => {
   if (password) {
     hashed = await bcrypt.hash(password, 10);
   } else {
-    const existing = await getSystemUserById(id);
-    if (!existing) throw new Error('System user no encontrado');
     hashed = existing.password;
   }
 
@@ -87,6 +92,13 @@ const updateSystemUser = async (id, su) => {
 };
 
 const deleteSystemUser = async (id) => {
+  const existing = await getSystemUserById(id);
+  if (!existing) return 0;
+  if (existing.role === 'admin') {
+    const error = new Error('La cuenta administradora no puede eliminarse');
+    error.status = 400;
+    throw error;
+  }
   const [result] = await pool.query('DELETE FROM system_users WHERE system_user_id=?', [id]);
   return result.affectedRows;
 };

@@ -1,206 +1,107 @@
 const pool = require('../config/db');
-
-const getAllAttendance = async () => {
-  const [rows] = await pool.query('SELECT * FROM attendance');
-  return rows;
-};
-
-const getAttendanceById = async (id) => {
-  const [rows] = await pool.query('SELECT * FROM attendance WHERE attendance_id = ?', [id]);
+const {lockFinancialLedger, assertAccountingDateOpen} = require('../utils/periodLock');
+const {fail, assertMonthOpen, invoiceBlock} = require('../utils/fineSafety');
+async function meetingData(db,id) {
+  const [rows] = await db.query(`SELECT m.*,ac.application_month,ac.amount FROM meetings m
+    JOIN additional_concepts ac ON ac.concept_id=m.concept_id WHERE m.meeting_id=?`,[id]);
+  if (!rows.length) throw fail('Reunión o concepto de multa no encontrado',404);
   return rows[0];
-};
-
-const getAttendanceByMeetingId = async (meetingId) => {
-  const query = `
-    SELECT 
-      u.user_id,
-      CONCAT(u.last_name, ' ', u.first_name) as user_name,
-      u.national_id,
-      a.attendance_id,
-      COALESCE(a.attended, 'yes') as attended,
-      a.observations,
-      (
-        SELECT i.status 
-        FROM invoices i
-        JOIN invoice_concept ic ON i.invoice_id = ic.invoice_id
-        JOIN meetings m ON ic.concept_id = m.concept_id
-        WHERE m.meeting_id = ? AND i.user_id = u.user_id
-        LIMIT 1
-      ) as invoice_status
-    FROM users u
-    LEFT JOIN attendance a ON u.user_id = a.user_id AND a.meeting_id = ?
-    WHERE u.status = TRUE AND u.exempt_from_fines = FALSE
-    ORDER BY u.last_name ASC, u.first_name ASC
-  `;
-  const [rows] = await pool.query(query, [meetingId, meetingId]);
+}
+async function userInvoices(db, meeting, userId) {
+  const [rows] = await db.query(`SELECT DISTINCT i.* FROM invoices i WHERE i.user_id=? AND
+    ((i.billing_month=? AND i.invoice_type='water') OR EXISTS
+      (SELECT 1 FROM invoice_concept ic WHERE ic.invoice_id=i.invoice_id AND ic.concept_id=?)) ORDER BY i.invoice_id`,
+    [userId,meeting.application_month,meeting.concept_id]);
   return rows;
-};
-
-const createAttendance = async (att) => {
-  const { meeting_id, user_id, attended, observations } = att;
-  const [result] = await pool.query(
-    `INSERT INTO attendance (meeting_id, user_id, attended, observations) VALUES (?, ?, ?, ?)`,
-    [meeting_id, user_id, attended, observations ?? null]
-  );
-  return result.insertId;
-};
-
-const updateAttendance = async (id, att) => {
-  const { meeting_id, user_id, attended, observations } = att;
-  const [result] = await pool.query(
-    `UPDATE attendance SET meeting_id=?, user_id=?, attended=?, observations=? WHERE attendance_id=?`,
-    [meeting_id, user_id, attended, observations, id]
-  );
-  return result.affectedRows;
-};
-
-const deleteAttendance = async (id) => {
-  const [result] = await pool.query('DELETE FROM attendance WHERE attendance_id=?', [id]);
-  return result.affectedRows;
-};
-
-const updateAttendanceBulk = async (meetingId, attendanceList) => {
-  const connection = await pool.getConnection();
-  try {
-    await connection.beginTransaction();
-
-    // 1. Get meeting concept and billing month
-    const [meeting] = await connection.query(
-      'SELECT concept_id, meeting_date FROM meetings WHERE meeting_id = ?',
-      [meetingId]
-    );
-
-    if (meeting.length === 0) {
-      throw new Error('Reunión no encontrada');
-    }
-
-    const { concept_id, meeting_date } = meeting[0];
-    if (!concept_id) {
-      throw new Error('La reunión no tiene un concepto de multa configurado');
-    }
-
-    const dateStr = typeof meeting_date === 'string' ? meeting_date : new Date(meeting_date).toISOString();
-    const billingMonth = dateStr.substring(0, 7);
-
-    for (const record of attendanceList) {
-      const { user_id, attended, observations } = record;
-
-      // Check if fine is already paid
-      const [invoiceCheck] = await connection.query(`
-        SELECT i.invoice_id, i.status 
-        FROM invoices i
-        JOIN invoice_concept ic ON i.invoice_id = ic.invoice_id
-        WHERE ic.concept_id = ? AND i.user_id = ?
-        LIMIT 1
-      `, [concept_id, user_id]);
-
-      if (invoiceCheck.length > 0 && invoiceCheck[0].status === 'paid') {
-        // Skip updating attendance if the fine is already paid
-        continue;
-      }
-
-      // Check if attendance record exists
-      const [currentAttendance] = await connection.query(
-        'SELECT attendance_id FROM attendance WHERE meeting_id = ? AND user_id = ?',
-        [meetingId, user_id]
-      );
-
-      let attendanceId;
-      if (currentAttendance.length > 0) {
-        attendanceId = currentAttendance[0].attendance_id;
-        await connection.query(
-          'UPDATE attendance SET attended = ?, observations = ? WHERE attendance_id = ?',
-          [attended, observations ?? null, attendanceId]
-        );
-      } else {
-        const [insertResult] = await connection.query(
-          'INSERT INTO attendance (meeting_id, user_id, attended, observations) VALUES (?, ?, ?, ?)',
-          [meetingId, user_id, attended, observations ?? null]
-        );
-        attendanceId = insertResult.insertId;
-      }
-
-      // Manage fine concept mapping
-      if (attended === 'no') {
-        // Find or create invoice
-        const [invoice] = await connection.query(
-          'SELECT invoice_id FROM invoices WHERE user_id = ? AND billing_month = ? LIMIT 1',
-          [user_id, billingMonth]
-        );
-
-        let invoiceId;
-        if (invoice.length > 0) {
-          invoiceId = invoice[0].invoice_id;
-        } else {
-          const [invoiceResult] = await connection.query(`
-            INSERT INTO invoices (user_id, invoice_type, billing_month, description, total_amount, issue_date, status)
-            VALUES (?, 'water', ?, 'Factura Mensual', 0.00, CURRENT_DATE, 'pending')
-          `, [user_id, billingMonth]);
-          invoiceId = invoiceResult.insertId;
-        }
-
-        // Link concept if not already linked
-        const [link] = await connection.query(
-          'SELECT id FROM invoice_concept WHERE invoice_id = ? AND concept_id = ?',
-          [invoiceId, concept_id]
-        );
-
-        if (link.length === 0) {
-          await connection.query(
-            'INSERT INTO invoice_concept (invoice_id, concept_id) VALUES (?, ?)',
-            [invoiceId, concept_id]
-          );
-        }
-
-        // Recalculate invoice total
-        await connection.query('CALL sp_update_invoice_total(?)', [invoiceId]);
-
-      } else {
-        // If attended = 'yes' or 'justified', unlink the concept if it exists
-        const [invoice] = await connection.query(
-          'SELECT invoice_id FROM invoices WHERE user_id = ? AND billing_month = ? LIMIT 1',
-          [user_id, billingMonth]
-        );
-
-        if (invoice.length > 0) {
-          const invoiceId = invoice[0].invoice_id;
-
-          // Delete invoice concept link
-          await connection.query(
-            'DELETE FROM invoice_concept WHERE invoice_id = ? AND concept_id = ?',
-            [invoiceId, concept_id]
-          );
-
-          // Recalculate invoice total
-          await connection.query('CALL sp_update_invoice_total(?)', [invoiceId]);
-
-          // Clean up the invoice if it has no readings and no other concepts
-          const [readings] = await connection.query('SELECT COUNT(*) as count FROM readings WHERE invoice_id = ?', [invoiceId]);
-          const [concepts] = await connection.query('SELECT COUNT(*) as count FROM invoice_concept WHERE invoice_id = ?', [invoiceId]);
-
-          if (readings[0].count === 0 && concepts[0].count === 0) {
-            await connection.query('DELETE FROM invoices WHERE invoice_id = ?', [invoiceId]);
-          }
-        }
-      }
-    }
-
-    await connection.commit();
-    return true;
-  } catch (err) {
-    await connection.rollback();
-    throw err;
-  } finally {
-    connection.release();
+}
+async function getAttendanceByMeetingId(meetingId) {
+  const meeting = await meetingData(pool,meetingId);
+  const [rows] = await pool.query(`SELECT u.user_id,CONCAT_WS(' ',u.last_name,u.first_name) user_name,
+    a.attendance_id,COALESCE(a.attended,'yes') attended,a.observations
+    FROM users u LEFT JOIN attendance a ON a.user_id=u.user_id AND a.meeting_id=?
+    WHERE u.status=TRUE AND u.exempt_from_fines=FALSE ORDER BY u.last_name,u.first_name`,[meetingId]);
+  let monthBlock = null;
+  try { await assertMonthOpen(pool,meeting.application_month); } catch(e) { monthBlock=e.message; }
+  for (const row of rows) {
+    const invoices = await userInvoices(pool,meeting,row.user_id);
+    row.lock_reason = monthBlock;
+    for (const invoice of invoices) row.lock_reason ||= await invoiceBlock(pool,invoice);
+    if (invoices.length>1) row.lock_reason ||= 'Hay varias facturas posibles; se requiere revisión';
+    row.locked = Boolean(row.lock_reason);
+    row.invoice_status = invoices[0]?.status || null;
+    row.application_month = meeting.application_month;
   }
-};
-
-module.exports = {
-  getAllAttendance,
-  getAttendanceById,
-  getAttendanceByMeetingId,
-  createAttendance,
-  updateAttendance,
-  deleteAttendance,
-  updateAttendanceBulk,
-};
+  return rows;
+}
+async function updateAttendanceBulk(meetingId, list, actor, options = {}) {
+  if (!Array.isArray(list) || !list.length) throw fail('La lista de asistencia está vacía',400);
+  if (!actor) throw fail('Responsable requerido',401);
+  const ids = list.map(r=>Number(r.user_id));
+  if (new Set(ids).size!==ids.length || ids.some(id=>!Number.isInteger(id)||id<=0) ||
+      list.some(r=>!['yes','no','justified'].includes(r.attended))) throw fail('Asistencia inválida o usuarios duplicados',400);
+  const db = await pool.getConnection();
+  try {
+    await db.beginTransaction();
+    await lockFinancialLedger(db);
+    const meeting = await meetingData(db,meetingId);
+    if (options.application_month !== meeting.application_month) throw fail('El mes de cobro cambió. Recargue la asistencia y revise el mes.');
+    await assertMonthOpen(db,meeting.application_month);
+    await assertAccountingDateOpen(db,new Date());
+    const plans=[], conflicts=[];
+    for (const record of list) {
+      const [users] = await db.query('SELECT user_id FROM users WHERE user_id=? AND status=TRUE AND exempt_from_fines=FALSE',[record.user_id]);
+      if (!users.length) throw fail('La lista contiene un socio inactivo, exento o inexistente',400);
+      const [previousRows] = await db.query('SELECT * FROM attendance WHERE meeting_id=? AND user_id=?',[meetingId,record.user_id]);
+      if (previousRows.length>1) throw fail('Existen asistencias duplicadas; revise los datos antes de continuar');
+      const previous=previousRows[0];
+      const fingerprint=previous ? JSON.stringify([previous.attended,String(previous.observations || '').trim()]) : null;
+      if (Object.prototype.hasOwnProperty.call(record,'expected') && record.expected!==fingerprint) {
+        throw fail('La asistencia cambió desde que abrió la pantalla. Recargue la lista antes de guardar.');
+      }
+      const observations=String(record.observations || '').trim();
+      if (previous && previous.attended===record.attended && String(previous.observations || '').trim()===observations) continue;
+      // El cliente envía únicamente cambios; para listas antiguas sin registro, un sí implícito no afecta una factura protegida.
+      const invoices=await userInvoices(db,meeting,record.user_id);
+      let blocked=null;
+      for (const invoice of invoices) blocked ||= await invoiceBlock(db,invoice);
+      if (invoices.length>1) blocked ||= 'Hay varias facturas posibles; se requiere revisión';
+      if (blocked) { conflicts.push(`Socio ${record.user_id}: ${blocked}`); continue; }
+      plans.push({record,previous,observations,invoice:invoices[0]});
+    }
+    if (conflicts.length) throw fail(`No se guardó ningún cambio. ${conflicts.join(' ')}`);
+    const summary={application_month:meeting.application_month,changes:plans.length,
+      added:plans.filter(p=>p.record.attended==='no'&&p.previous?.attended!=='no').length,
+      removed:plans.filter(p=>p.previous?.attended==='no'&&p.record.attended!=='no').length};
+    summary.added_amount=Number((summary.added*Number(meeting.amount)).toFixed(2));
+    if (options.preview) { await db.rollback(); return summary; }
+    if (plans.some(p=>p.previous) && String(options.reason || '').trim().length<5) throw fail('Indique un motivo de corrección de al menos 5 caracteres',400);
+    for (const plan of plans) {
+      const {record,previous,observations}=plan;
+      let invoice=plan.invoice;
+      if (record.attended==='no') {
+        if (!invoice) {
+          const [created]=await db.query(`INSERT INTO invoices (user_id,invoice_type,billing_month,description,total_amount,issue_date,status)
+            VALUES (?,'water',?,'Factura Mensual',0,CURRENT_DATE,'pending')`,[record.user_id,meeting.application_month]);
+          invoice={invoice_id:created.insertId};
+        }
+        const [linked]=await db.query('SELECT id FROM invoice_concept WHERE invoice_id=? AND concept_id=?',[invoice.invoice_id,meeting.concept_id]);
+        if (!linked.length) await db.query(`INSERT INTO invoice_concept
+          (invoice_id,concept_id,amount_snapshot,description_snapshot,concept_type_snapshot)
+          SELECT ?,concept_id,amount,description,concept_type FROM additional_concepts WHERE concept_id=?`,[invoice.invoice_id,meeting.concept_id]);
+      } else if (invoice) {
+        await db.query('DELETE FROM invoice_concept WHERE invoice_id=? AND concept_id=?',[invoice.invoice_id,meeting.concept_id]);
+      }
+      if (invoice) await db.query('CALL sp_update_invoice_total(?)',[invoice.invoice_id]);
+      if (previous) await db.query('UPDATE attendance SET attended=?,observations=? WHERE attendance_id=?',[record.attended,observations,previous.attendance_id]);
+      else await db.query('INSERT INTO attendance (meeting_id,user_id,attended,observations) VALUES (?,?,?,?)',[meetingId,record.user_id,record.attended,observations]);
+      await db.query(`INSERT INTO financial_audit_log (system_user_id,action,entity_type,entity_id,reason,before_json,after_json)
+        VALUES (?,'ATTENDANCE_UPDATED','meeting',?,?,?,?)`,[actor,meetingId,String(options.reason || 'Registro de asistencia').slice(0,255),
+        JSON.stringify(previous || null),JSON.stringify({...record,application_month:meeting.application_month,invoice_id:invoice?.invoice_id})]);
+    }
+    await db.commit();
+    return summary;
+  } catch(e) { await db.rollback(); throw e; } finally { db.release(); }
+}
+const getAllAttendance=async()=> (await pool.query('SELECT * FROM attendance'))[0];
+const getAttendanceById=async id=> (await pool.query('SELECT * FROM attendance WHERE attendance_id=?',[id]))[0][0];
+module.exports={getAllAttendance,getAttendanceById,getAttendanceByMeetingId,updateAttendanceBulk};

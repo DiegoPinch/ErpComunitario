@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const { authorize } = require('../middlewares/auth');
+router.use(authorize(['board', 'treasurer']));
 const reportsController = require('../controllers/reportsController');
 
 // Directorio de Usuarios y Medidores
@@ -24,6 +26,8 @@ const dailyCollectionsReportController = require('../controllers/dailyCollection
 
 // Reporte de Cobros Diarios
 router.get('/daily-collections', dailyCollectionsReportController.getDailyCollections);
+router.post('/cash-count', require('../controllers/cashCountController').save);
+router.get('/collection-days', require('../controllers/cashCountController').listCollectionDays);
 
 const comprehensiveReportController = require('../controllers/comprehensiveReportController');
 

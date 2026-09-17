@@ -38,20 +38,9 @@ const updateConfig = async (req, res, next) => {
     }
 };
 
-const deleteConfig = async (req, res, next) => {
-    try {
-        const affectedRows = await fineConfigurationsModel.deleteConfig(req.params.id);
-        if (affectedRows === 0) return res.status(404).json({ message: 'Configuración de multa no encontrada' });
-        res.json({ message: 'Configuración de multa eliminada con éxito' });
-    } catch (err) {
-        next(err);
-    }
-};
-
 module.exports = {
     getAllConfigs,
     getConfig,
     createConfig,
-    updateConfig,
-    deleteConfig
+    updateConfig
 };

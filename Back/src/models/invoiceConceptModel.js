@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { lockFinancialLedger } = require('../utils/periodLock');
 
 const createInvoiceConcept = async (ic) => {
   let { invoice_id, concept_id, user_id, billing_month } = ic;
@@ -6,15 +7,17 @@ const createInvoiceConcept = async (ic) => {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
+    await lockFinancialLedger(connection);
 
     // 1. Get the concept details
     const [conceptRows] = await connection.query(
-      'SELECT applies_to, application_month FROM additional_concepts WHERE concept_id = ?',
+      'SELECT applies_to, application_month, description, amount, concept_type FROM additional_concepts WHERE concept_id = ?',
       [concept_id]
     );
     if (conceptRows.length === 0) {
       throw new Error('Concepto no encontrado.');
     }
+    if (conceptRows[0].concept_type === 'fine') throw Object.assign(new Error('Registre las multas desde la asistencia'), {status:409});
 
     // 2. If user_id and billing_month are provided instead of invoice_id (used when assigning directly to user)
     if (!invoice_id && user_id && billing_month) {
@@ -50,8 +53,9 @@ const createInvoiceConcept = async (ic) => {
 
         // Auto-link any other global concepts for that month (excluding exempt users)
         await connection.query(`
-          INSERT IGNORE INTO invoice_concept (invoice_id, concept_id)
-          SELECT ?, ac.concept_id
+          INSERT IGNORE INTO invoice_concept
+            (invoice_id, concept_id, description_snapshot, amount_snapshot, concept_type_snapshot)
+          SELECT ?, ac.concept_id, ac.description, ac.amount, ac.concept_type
           FROM additional_concepts ac
           JOIN users u ON u.user_id = ?
           WHERE ac.application_month = ? 
@@ -77,8 +81,10 @@ const createInvoiceConcept = async (ic) => {
 
     // 4. Link the concept (IGNORE to prevent duplicate links)
     const [result] = await connection.query(
-      `INSERT IGNORE INTO invoice_concept (invoice_id, concept_id) VALUES (?, ?)`,
-      [invoice_id, concept_id]
+      `INSERT IGNORE INTO invoice_concept
+       (invoice_id, concept_id, description_snapshot, amount_snapshot, concept_type_snapshot)
+       VALUES (?, ?, ?, ?, ?)`,
+      [invoice_id, concept_id, conceptRows[0].description, conceptRows[0].amount, conceptRows[0].concept_type]
     );
 
     // 5. Update invoice total
@@ -95,29 +101,31 @@ const createInvoiceConcept = async (ic) => {
 };
 
 const deleteInvoiceConcept = async (id) => {
-  const [rows] = await pool.query(`
-    SELECT ic.invoice_id, i.status 
-    FROM invoice_concept ic
-    JOIN invoices i ON ic.invoice_id = i.invoice_id
-    WHERE ic.id = ?
-  `, [id]);
-
-  if (rows.length === 0) return 0;
-
-  const { invoice_id, status } = rows[0];
-
-  // SHIELD: Prevent unlinking if paid
-  if (status === 'paid') {
-    throw new Error('No se puede eliminar un rubro de una factura ya cobrada.');
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await lockFinancialLedger(connection);
+    const [rows] = await connection.query(`
+      SELECT ic.invoice_id, ic.concept_id, i.status
+      FROM invoice_concept ic JOIN invoices i ON ic.invoice_id=i.invoice_id
+      WHERE ic.id=? FOR UPDATE`, [id]);
+    if (!rows.length) {
+      await connection.commit();
+      return 0;
+    }
+    const [concepts] = await connection.query('SELECT concept_type FROM additional_concepts WHERE concept_id=?',[rows[0].concept_id]);
+    if (concepts[0]?.concept_type === 'fine') throw Object.assign(new Error('Corrija la multa desde la asistencia'), {status:409});
+    if (rows[0].status === 'paid') throw Object.assign(new Error('No se puede eliminar un rubro de una factura ya cobrada.'), { status: 409 });
+    const [result] = await connection.query('DELETE FROM invoice_concept WHERE id=?', [id]);
+    await connection.query('CALL sp_update_invoice_total(?)', [rows[0].invoice_id]);
+    await connection.commit();
+    return result.affectedRows;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
   }
-
-  const [result] = await pool.query('DELETE FROM invoice_concept WHERE id=?', [id]);
-
-  if (result.affectedRows > 0) {
-    await pool.query('CALL sp_update_invoice_total(?)', [invoice_id]);
-  }
-
-  return result.affectedRows;
 };
 
 module.exports = {

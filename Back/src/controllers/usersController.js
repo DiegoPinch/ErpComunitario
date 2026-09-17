@@ -1,5 +1,4 @@
 const usersModel = require('../models/usersModel');
-const systemUsersModel = require('../models/systemUsersModel');
 
 const getUsers = async (req, res, next) => {
   try {
@@ -25,19 +24,6 @@ const createUser = async (req, res, next) => {
   try {
     const userData = req.body;
     const id = await usersModel.createUser(userData);
-
-    const created = await usersModel.getUserById(id);
-    const cedula = created && (created.national_id || created.cedula || created.dni || created.id_number);
-    if (!cedula) return res.status(400).json({ message: 'Cédula (national_id) requerida para crear system user' });
-
-    // Usar la cédula como username y password en system_users
-    await systemUsersModel.createSystemUser({
-      user_id: id,
-      username: String(cedula),
-      password: String(cedula),
-      role: 'user'
-    });
-
     res.status(201).json({ user_id: id });
   } catch (err) {
     next(err);

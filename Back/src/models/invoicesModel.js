@@ -1,4 +1,6 @@
 const pool = require('../config/db');
+const { money } = require('../utils/accountingRules');
+const { assertAccountingDateOpen, lockFinancialLedger } = require('../utils/periodLock');
 
 const getPendingUsersSummary = async () => {
   const query = `
@@ -55,8 +57,9 @@ const getInvoiceDetails = async (invoiceId) => {
   // 2. Get additional concepts
   const conceptQuery = `
     SELECT 
-      ac.description,
-      ac.amount
+      COALESCE(ic.description_snapshot, ac.description) AS description,
+      COALESCE(ic.amount_snapshot, ac.amount) AS amount,
+      COALESCE(ic.concept_type_snapshot, ac.concept_type) AS concept_type
     FROM invoice_concept ic
     INNER JOIN additional_concepts ac ON ic.concept_id = ac.concept_id
     WHERE ic.invoice_id = ?;
@@ -71,19 +74,40 @@ const getInvoiceDetails = async (invoiceId) => {
 
 const createInvoice = async (invoiceData) => {
   const { user_id, invoice_type, billing_month, description, total_amount, issue_date } = invoiceData;
-  const [result] = await pool.query(
-    `INSERT INTO invoices (user_id, invoice_type, billing_month, description, total_amount, issue_date, status)
-     VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
-    [
-      user_id, 
-      invoice_type || 'water', 
-      billing_month || null, 
-      description || null, 
-      total_amount || 0, 
-      issue_date || new Date()
-    ]
-  );
-  return result.insertId;
+  const invoiceType = invoice_type || 'water';
+  if (!['water', 'legacy_debt', 'installation', 'other'].includes(invoiceType)) {
+    throw Object.assign(new Error('Tipo de factura inválido'), { status: 400 });
+  }
+  if (billing_month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(String(billing_month))) {
+    throw Object.assign(new Error('El período debe tener formato YYYY-MM'), { status: 400 });
+  }
+  const total = money(total_amount, 'Total de la factura');
+  if (total <= 0) throw Object.assign(new Error('El total debe ser mayor que cero'), { status: 400 });
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await lockFinancialLedger(connection);
+    await assertAccountingDateOpen(connection, issue_date || new Date());
+    if (invoiceType === 'water') {
+      const [existing] = await connection.query(
+        "SELECT invoice_id FROM invoices WHERE user_id=? AND billing_month=? AND invoice_type='water' LIMIT 1 FOR UPDATE",
+        [Number(user_id), billing_month]
+      );
+      if (existing.length) throw Object.assign(new Error('Ya existe una factura de agua para el usuario y período'), { status: 409 });
+    }
+    const [result] = await connection.query(
+      `INSERT INTO invoices (user_id, invoice_type, billing_month, description, total_amount, issue_date, status)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
+      [user_id, invoiceType, billing_month || null, description || null, total, issue_date || new Date()]
+    );
+    await connection.commit();
+    return result.insertId;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 };
 
 module.exports = {

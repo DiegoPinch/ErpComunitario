@@ -1,4 +1,7 @@
 const pool = require('../config/db');
+const {lockFinancialLedger} = require('../utils/periodLock');
+const {fail,assertMonthOpen,assertSelectableMonth} = require('../utils/fineSafety');
+const {money} = require('../utils/accountingRules');
 
 const formatDateES = (dateStr) => {
   if (!dateStr) return '';
@@ -26,6 +29,8 @@ const getAllMeetings = async () => {
       m.meeting_type,
       m.fine_config_id,
       m.concept_id,
+      ac.application_month,
+      (EXISTS(SELECT 1 FROM attendance a WHERE a.meeting_id=m.meeting_id) OR EXISTS(SELECT 1 FROM invoice_concept ic WHERE ic.concept_id=m.concept_id)) AS financial_locked,
       COALESCE(ac.amount, 0.00) as fine_amount
     FROM meetings m
     LEFT JOIN additional_concepts ac ON m.concept_id = ac.concept_id
@@ -46,6 +51,8 @@ const getMeetingById = async (id) => {
       m.meeting_type,
       m.fine_config_id,
       m.concept_id,
+      ac.application_month,
+      (EXISTS(SELECT 1 FROM attendance a WHERE a.meeting_id=m.meeting_id) OR EXISTS(SELECT 1 FROM invoice_concept ic WHERE ic.concept_id=m.concept_id)) AS financial_locked,
       COALESCE(ac.amount, 0.00) as fine_amount
     FROM meetings m
     LEFT JOIN additional_concepts ac ON m.concept_id = ac.concept_id
@@ -61,10 +68,12 @@ const createMeeting = async (meeting) => {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
+    await lockFinancialLedger(connection);
+    await assertSelectableMonth(connection,meeting.application_month);
+    if (money(fine_amount)<0) throw fail('La multa no puede ser negativa',400);
 
-    // 1. Calculate application month (YYYY-MM)
-    const dateStr = typeof meeting_date === 'string' ? meeting_date : new Date(meeting_date).toISOString();
-    const appMonth = dateStr.substring(0, 7);
+    // El mes de facturación se elige explícitamente; no se deriva de la fecha del evento.
+    const appMonth = meeting.application_month;
 
     // 2. Format the concept description exactly as requested
     const typeLabel = meeting_type === 'minga' ? 'Minga' : 'Sesión';
@@ -112,10 +121,12 @@ const updateMeeting = async (id, meeting) => {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
+    await lockFinancialLedger(connection);
+    await assertMonthOpen(connection,meeting.application_month);
 
     // 1. Get current meeting to check its concept_id
     const [current] = await connection.query(
-      `SELECT m.concept_id, ac.amount as old_fine_amount 
+      `SELECT m.*, ac.application_month, ac.amount as old_fine_amount
        FROM meetings m 
        LEFT JOIN additional_concepts ac ON m.concept_id = ac.concept_id 
        WHERE m.meeting_id = ?`,
@@ -127,10 +138,22 @@ const updateMeeting = async (id, meeting) => {
     }
 
     const { concept_id, old_fine_amount } = current[0];
+    const [usage] = await connection.query(`SELECT
+      (SELECT COUNT(*) FROM attendance WHERE meeting_id=?) +
+      (SELECT COUNT(*) FROM invoice_concept WHERE concept_id=?) AS count`,[id,concept_id]);
+    if (Number(usage[0].count)===0) await assertSelectableMonth(connection,meeting.application_month);
+    const previousDate = current[0].meeting_date instanceof Date
+      ? `${current[0].meeting_date.getFullYear()}-${String(current[0].meeting_date.getMonth()+1).padStart(2,'0')}-${String(current[0].meeting_date.getDate()).padStart(2,'0')}`
+      : String(current[0].meeting_date).slice(0,10);
+    if (Number(usage[0].count)>0 && (current[0].application_month!==meeting.application_month ||
+        money(old_fine_amount)!==money(fine_amount) || previousDate!==String(meeting_date).slice(0,10) ||
+        current[0].meeting_type!==meeting_type || Number(current[0].fine_config_id)!==Number(fine_config_id))) {
+      throw fail('Esta reunión ya tiene asistencia o multas. No se puede cambiar fecha, mes de cobro o tarifa; corrija la asistencia con motivo o registre un nuevo evento.');
+    }
+    if (money(fine_amount)<0) throw fail('La multa no puede ser negativa',400);
 
-    // 2. Calculate application month
-    const dateStr = typeof meeting_date === 'string' ? meeting_date : new Date(meeting_date).toISOString();
-    const appMonth = dateStr.substring(0, 7);
+    // Mantener separado el mes de facturación de la fecha del evento.
+    const appMonth = meeting.application_month;
 
     // 3. Update concept if it exists
     if (concept_id) {
@@ -182,14 +205,20 @@ const deleteMeeting = async (id) => {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
+    await lockFinancialLedger(connection);
 
     // 1. Get concept_id
     const [current] = await connection.query('SELECT concept_id FROM meetings WHERE meeting_id = ?', [id]);
     if (current.length === 0) {
+      await connection.commit();
       return 0;
     }
 
     const { concept_id } = current[0];
+    const [usage] = await connection.query(`SELECT
+      (SELECT COUNT(*) FROM attendance WHERE meeting_id=?) +
+      (SELECT COUNT(*) FROM invoice_concept WHERE concept_id=?) AS count`,[id,concept_id]);
+    if (Number(usage[0].count)>0) throw fail('No se puede eliminar una reunión con asistencia o multas registradas. Conserve el historial y corrija la asistencia.');
 
     // 2. Shield: if concept is linked to paid invoices, prevent deletion
     if (concept_id) {

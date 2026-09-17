@@ -56,23 +56,43 @@ const getReadingsReport = async (startMonth, endMonth) => {
 };
 
 /**
- * Report: Recaudación (Facturas Pagadas)
- * Listado de pagos realizados en un rango de meses de facturación.
+ * Reporte de cobranza por mes facturado.
+ * Incluye todas las facturas vigentes para medir facturación, cobro y cartera.
  */
 const getRecollectionReport = async (startMonth, endMonth) => {
     const query = `
-        SELECT 
-            p.payment_date,
+        SELECT
+            i.invoice_id,
             i.billing_month,
             u.national_id,
             CONCAT(u.last_name, ' ', u.first_name) as user_name,
-            p.payment_method,
-            i.total_amount as paid_amount
-        FROM payments p
-        JOIN invoices i ON p.invoice_id = i.invoice_id
+            i.status AS invoice_status,
+            i.total_amount AS billed_amount,
+            COALESCE((SELECT SUM(r.amount) FROM readings r WHERE r.invoice_id=i.invoice_id),0) AS water_amount,
+            COALESCE((SELECT SUM(COALESCE(ic.amount_snapshot,ac.amount)) FROM invoice_concept ic
+              JOIN additional_concepts ac ON ac.concept_id=ic.concept_id WHERE ic.invoice_id=i.invoice_id
+              AND COALESCE(ic.concept_type_snapshot,ac.concept_type)='fine'),0) AS fine_amount,
+            COALESCE((SELECT SUM(COALESCE(ic.amount_snapshot,ac.amount)) FROM invoice_concept ic
+              JOIN additional_concepts ac ON ac.concept_id=ic.concept_id WHERE ic.invoice_id=i.invoice_id
+              AND COALESCE(ic.concept_type_snapshot,ac.concept_type)<>'fine'),0) AS additional_amount,
+            COALESCE(SUM(CASE WHEN p.status='posted' THEN p.invoice_amount ELSE 0 END), 0) AS collected_amount,
+            i.total_amount - COALESCE(SUM(CASE WHEN p.status='posted' THEN p.invoice_amount ELSE 0 END), 0) AS pending_amount,
+            CASE
+              WHEN i.total_amount = 0 THEN 100
+              ELSE ROUND(LEAST(COALESCE(SUM(CASE WHEN p.status='posted' THEN p.invoice_amount ELSE 0 END), 0) / i.total_amount * 100, 100), 2)
+            END AS collection_percentage,
+            GROUP_CONCAT(
+              DISTINCT CASE WHEN p.status='posted' THEN DATE_FORMAT(p.payment_date, '%d/%m/%Y') END
+              ORDER BY p.payment_date SEPARATOR ', '
+            ) AS payment_dates
+        FROM invoices i
         JOIN users u ON i.user_id = u.user_id
-        WHERE i.billing_month BETWEEN ? AND ?
-        ORDER BY i.billing_month ASC, p.payment_date DESC, u.last_name ASC, u.first_name ASC;
+        LEFT JOIN payments p ON p.invoice_id = i.invoice_id
+        WHERE i.status <> 'cancelled'
+          AND i.billing_month BETWEEN ? AND ?
+        GROUP BY i.invoice_id, i.billing_month, u.national_id, u.last_name, u.first_name,
+                 i.status, i.total_amount
+        ORDER BY i.billing_month ASC, u.last_name ASC, u.first_name ASC, i.invoice_id ASC;
     `;
     const [rows] = await pool.query(query, [startMonth, endMonth]);
     return rows;
@@ -83,80 +103,9 @@ const getRecollectionReport = async (startMonth, endMonth) => {
  * Usuarios con deudas en un rango de meses.
  */
 const getDelinquencyReport = async (startMonth, endMonth) => {
-    const query = `
-        -- 1. Consumo de Agua (Facturas de Agua Pendientes)
-        SELECT 
-            u.national_id,
-            CONCAT(u.last_name, ' ', u.first_name) as user_name,
-            i.billing_month,
-            'Consumo de Agua' as concept_type,
-            'Consumo de Agua (Planilla Mensual)' as description,
-            (i.total_amount - COALESCE((SELECT SUM(ac.amount) FROM invoice_concept ic JOIN additional_concepts ac ON ic.concept_id = ac.concept_id WHERE ic.invoice_id = i.invoice_id), 0)) as total_debt
-        FROM invoices i
-        JOIN users u ON i.user_id = u.user_id
-        WHERE i.status = 'pending' 
-          AND i.invoice_type = 'water'
-          AND i.billing_month BETWEEN ? AND ?
-          AND (i.total_amount - COALESCE((SELECT SUM(ac.amount) FROM invoice_concept ic JOIN additional_concepts ac ON ic.concept_id = ac.concept_id WHERE ic.invoice_id = i.invoice_id), 0)) > 0
-
-        UNION ALL
-
-        -- 2. Multas y Rubros de Facturas de Agua Pendientes
-        SELECT 
-            u.national_id,
-            CONCAT(u.last_name, ' ', u.first_name) as user_name,
-            i.billing_month,
-            CASE WHEN ac.concept_type = 'fine' THEN 'Multas de Agua' ELSE 'Rubros Adicionales' END as concept_type,
-            ac.description,
-            ac.amount as total_debt
-        FROM invoice_concept ic
-        JOIN invoices i ON ic.invoice_id = i.invoice_id
-        JOIN additional_concepts ac ON ic.concept_id = ac.concept_id
-        JOIN users u ON i.user_id = u.user_id
-        WHERE i.status = 'pending'
-          AND i.invoice_type = 'water'
-          AND i.billing_month BETWEEN ? AND ?
-
-        UNION ALL
-
-        -- 3. Facturas Pendientes que no son de Agua (ej. Instalaciones directas)
-        SELECT 
-            u.national_id,
-            CONCAT(u.last_name, ' ', u.first_name) as user_name,
-            i.billing_month,
-            CASE WHEN i.invoice_type = 'installation' THEN 'Venta de Ramal' ELSE 'Otros Rubros' END as concept_type,
-            COALESCE(i.description, 'Instalación de Ramal/Servicio') as description,
-            i.total_amount as total_debt
-        FROM invoices i
-        JOIN users u ON i.user_id = u.user_id
-        WHERE i.status = 'pending' 
-          AND i.invoice_type != 'water'
-          AND i.billing_month BETWEEN ? AND ?
-
-        UNION ALL
-
-        -- 4. Deuda Histórica / Convenios Activos (con soporte para start_month null)
-        SELECT 
-            u.national_id,
-            CONCAT(u.last_name, ' ', u.first_name) as user_name,
-            COALESCE(pa.start_month, DATE_FORMAT(pa.created_at, '%Y-%m')) as billing_month,
-            CASE WHEN pa.description LIKE '%ramal%' THEN 'Venta de Ramal' ELSE 'Deuda Histórica' END as concept_type,
-            pa.description,
-            pa.remaining_amount as total_debt
-        FROM payment_agreements pa
-        JOIN users u ON pa.user_id = u.user_id
-        WHERE pa.status = 'active'
-          AND COALESCE(pa.start_month, DATE_FORMAT(pa.created_at, '%Y-%m')) BETWEEN ? AND ?
-
-        ORDER BY billing_month ASC, user_name ASC, concept_type ASC;
-    `;
-    const [rows] = await pool.query(query, [
-        startMonth, endMonth, 
-        startMonth, endMonth, 
-        startMonth, endMonth, 
-        startMonth, endMonth
-    ]);
-    return rows;
+    const [year, month] = endMonth.split('-').map(Number);
+    const cutoff = endMonth + '-' + new Date(year, month, 0).getDate() + ' 23:59:59';
+    return require('./receivablesModel').getReceivables(cutoff);
 };
 
 /**
@@ -169,8 +118,8 @@ const getAdditionalChargesReport = async (startMonth, endMonth) => {
             i.billing_month,
             u.national_id,
             CONCAT(u.last_name, ' ', u.first_name) as user_name,
-            ac.description as concept,
-            ac.amount as concept_amount,
+            COALESCE(ic.description_snapshot, ac.description) as concept,
+            COALESCE(ic.amount_snapshot, ac.amount) as concept_amount,
             i.status as invoice_status
         FROM invoice_concept ic
         JOIN invoices i ON ic.invoice_id = i.invoice_id
@@ -249,23 +198,23 @@ const getDetailedCollectionsReport = async (startDate, endDate) => {
             ), 0) as water_component,
             -- Componente de multas
             COALESCE((
-                SELECT SUM(ac.amount) 
+                SELECT SUM(COALESCE(ic.amount_snapshot, ac.amount))
                 FROM invoice_concept ic 
                 JOIN additional_concepts ac ON ic.concept_id = ac.concept_id 
-                WHERE ic.invoice_id = i.invoice_id AND ac.concept_type = 'fine'
+                WHERE ic.invoice_id = i.invoice_id AND COALESCE(ic.concept_type_snapshot, ac.concept_type) = 'fine'
             ), 0) as fine_component,
             -- Componente de rubros adicionales
             COALESCE((
-                SELECT SUM(ac.amount) 
+                SELECT SUM(COALESCE(ic.amount_snapshot, ac.amount))
                 FROM invoice_concept ic 
                 JOIN additional_concepts ac ON ic.concept_id = ac.concept_id 
-                WHERE ic.invoice_id = i.invoice_id AND ac.concept_type NOT IN ('fine')
+                WHERE ic.invoice_id = i.invoice_id AND COALESCE(ic.concept_type_snapshot, ac.concept_type) NOT IN ('fine')
             ), 0) as additional_component
         FROM payments p
         JOIN invoices i ON p.invoice_id = i.invoice_id
         JOIN users u ON i.user_id = u.user_id
         LEFT JOIN bank_accounts ba ON p.account_id = ba.account_id
-        WHERE p.payment_date >= ? AND p.payment_date <= ?
+        WHERE p.status='posted' AND p.payment_date >= ? AND p.payment_date <= ?
         ORDER BY p.payment_date ASC
     `;
     const [invoicePayments] = await pool.query(paymentsQuery, [startDate, endDate]);
@@ -287,7 +236,7 @@ const getDetailedCollectionsReport = async (startDate, endDate) => {
         JOIN payment_agreements pa ON dp.agreement_id = pa.agreement_id
         JOIN users u ON pa.user_id = u.user_id
         LEFT JOIN bank_accounts ba ON dp.account_id = ba.account_id
-        WHERE dp.payment_date >= ? AND dp.payment_date <= ?
+        WHERE dp.status='posted' AND dp.payment_date >= ? AND dp.payment_date <= ?
         ORDER BY dp.payment_date ASC
     `;
     const [debtPayments] = await pool.query(debtPaymentsQuery, [startDate, endDate]);
@@ -305,7 +254,7 @@ const getDetailedCollectionsReport = async (startDate, endDate) => {
             oi.description
         FROM other_incomes oi
         LEFT JOIN bank_accounts ba ON oi.account_id = ba.account_id
-        WHERE oi.income_date >= ? AND oi.income_date <= ?
+        WHERE oi.status='posted' AND oi.income_date >= ? AND oi.income_date <= ?
         ORDER BY oi.income_date ASC
     `;
     const [otherIncomes] = await pool.query(otherIncomesQuery, [startDate, endDate]);
@@ -325,7 +274,7 @@ const getDetailedCollectionsReport = async (startDate, endDate) => {
         FROM expenses e
         LEFT JOIN expense_categories ec ON e.category_id = ec.category_id
         LEFT JOIN bank_accounts ba ON e.account_id = ba.account_id
-        WHERE e.expense_date >= ? AND e.expense_date <= ?
+        WHERE e.status='posted' AND e.expense_date >= ? AND e.expense_date <= ?
         ORDER BY e.expense_date ASC
     `;
     const [expenses] = await pool.query(expensesQuery, [startDate, endDate]);
@@ -334,18 +283,19 @@ const getDetailedCollectionsReport = async (startDate, endDate) => {
     const conceptsBreakdownQuery = `
         SELECT 
             ac.concept_id,
-            ac.concept_type,
-            ac.description,
-            ac.amount as concept_amount,
+            COALESCE(ic.concept_type_snapshot, ac.concept_type) AS concept_type,
+            COALESCE(ic.description_snapshot, ac.description) AS description,
+            COALESCE(ic.amount_snapshot, ac.amount) as concept_amount,
             COUNT(ic.id) as qty_paid,
-            SUM(ac.amount * COALESCE(p.invoice_amount / NULLIF(i.total_amount, 0), 1)) as total_collected
+            SUM(COALESCE(ic.amount_snapshot, ac.amount) * COALESCE(p.invoice_amount / NULLIF(i.total_amount, 0), 1)) as total_collected
         FROM payments p
         JOIN invoices i ON p.invoice_id = i.invoice_id
         JOIN invoice_concept ic ON i.invoice_id = ic.invoice_id
         JOIN additional_concepts ac ON ic.concept_id = ac.concept_id
-        WHERE p.payment_date >= ? AND p.payment_date <= ?
-        GROUP BY ac.concept_id, ac.concept_type, ac.description, ac.amount
-        ORDER BY ac.concept_type DESC, ac.description ASC
+        WHERE p.status='posted' AND p.payment_date >= ? AND p.payment_date <= ?
+        GROUP BY ac.concept_id, COALESCE(ic.concept_type_snapshot, ac.concept_type),
+          COALESCE(ic.description_snapshot, ac.description), COALESCE(ic.amount_snapshot, ac.amount)
+        ORDER BY concept_type DESC, description ASC
     `;
     const [conceptsBreakdown] = await pool.query(conceptsBreakdownQuery, [startDate, endDate]);
 
@@ -366,17 +316,22 @@ const getCashBalanceReport = async (startMonth, endMonth) => {
     // Para simplificar la compatibilidad de SQL, traemos ingresos y egresos agrupados
     // y los uniremos en el controlador
     const incQuery = `
-        SELECT i.billing_month AS mes, SUM(p.invoice_amount) AS total_ingresos
-        FROM payments p
-        JOIN invoices i ON p.invoice_id = i.invoice_id
-        WHERE i.billing_month BETWEEN ? AND ?
-          AND p.movement_type = 'payment'
+        SELECT DATE_FORMAT(movement_date, '%Y-%m') AS mes, SUM(amount) AS total_ingresos
+        FROM (
+          SELECT payment_date AS movement_date, invoice_amount AS amount FROM payments WHERE status='posted'
+          UNION ALL
+          SELECT payment_date, amount_paid FROM debt_payments WHERE status='posted'
+          UNION ALL
+          SELECT income_date, amount FROM other_incomes WHERE status='posted'
+        ) movements
+        WHERE DATE_FORMAT(movement_date, '%Y-%m') BETWEEN ? AND ?
         GROUP BY mes
     `;
     const expQuery = `
         SELECT DATE_FORMAT(expense_date, '%Y-%m') AS mes, SUM(amount) AS total_egresos
         FROM expenses
-        WHERE DATE_FORMAT(expense_date, '%Y-%m') BETWEEN ? AND ?
+        WHERE status='posted' AND DATE_FORMAT(expense_date, '%Y-%m') BETWEEN ? AND ?
+          AND (account_id IS NULL OR LOWER(payment_method) != 'cash')
         GROUP BY mes
     `;
     
@@ -400,14 +355,14 @@ const getCashExpensesDetailReport = async (startMonth, endMonth) => {
             e.amount
         FROM expenses e
         LEFT JOIN expense_categories c ON e.category_id = c.category_id
-        WHERE DATE_FORMAT(e.expense_date, '%Y-%m') BETWEEN ? AND ?
+        WHERE e.status='posted' AND DATE_FORMAT(e.expense_date, '%Y-%m') BETWEEN ? AND ?
         ORDER BY e.expense_date ASC
     `;
     const [rows] = await pool.query(query, [startMonth, endMonth]);
     return rows;
 };
 
-const getComprehensiveReport = async (startDate, endDate) => {
+const getComprehensiveReport = async (startDate, endDate, periodSnapshot = null) => {
     // 1. Bank Accounts
     const [bankAccounts] = await pool.query('SELECT account_id, bank_name, account_number FROM bank_accounts');
 
@@ -421,9 +376,10 @@ const getComprehensiveReport = async (startDate, endDate) => {
             p.account_id,
             p.reference_number,
             p.invoice_amount as amount,
+            CAST(i.billing_month AS CHAR) as accounting_month,
             COALESCE((SELECT SUM(r.amount) FROM readings r WHERE r.invoice_id = i.invoice_id), 0) as water_component,
-            COALESCE((SELECT SUM(ac.amount) FROM invoice_concept ic JOIN additional_concepts ac ON ic.concept_id = ac.concept_id WHERE ic.invoice_id = i.invoice_id AND ac.concept_type = 'fine'), 0) as fine_component,
-            COALESCE((SELECT SUM(ac.amount) FROM invoice_concept ic JOIN additional_concepts ac ON ic.concept_id = ac.concept_id WHERE ic.invoice_id = i.invoice_id AND ac.concept_type != 'fine'), 0) as additional_component,
+            COALESCE((SELECT SUM(COALESCE(ic.amount_snapshot, ac.amount)) FROM invoice_concept ic JOIN additional_concepts ac ON ic.concept_id = ac.concept_id WHERE ic.invoice_id = i.invoice_id AND COALESCE(ic.concept_type_snapshot, ac.concept_type) = 'fine'), 0) as fine_component,
+            COALESCE((SELECT SUM(COALESCE(ic.amount_snapshot, ac.amount)) FROM invoice_concept ic JOIN additional_concepts ac ON ic.concept_id = ac.concept_id WHERE ic.invoice_id = i.invoice_id AND COALESCE(ic.concept_type_snapshot, ac.concept_type) != 'fine'), 0) as additional_component,
             i.total_amount,
             CAST(i.invoice_type AS CHAR) as invoice_type,
             CAST(ba.bank_name AS CHAR) as bank_name,
@@ -432,7 +388,7 @@ const getComprehensiveReport = async (startDate, endDate) => {
         JOIN invoices i ON p.invoice_id = i.invoice_id
         JOIN users u ON i.user_id = u.user_id
         LEFT JOIN bank_accounts ba ON p.account_id = ba.account_id
-        WHERE p.payment_date >= ? AND p.payment_date <= ?
+        WHERE p.status='posted' AND p.payment_date >= ? AND p.payment_date <= ?
 
         UNION ALL
 
@@ -444,6 +400,7 @@ const getComprehensiveReport = async (startDate, endDate) => {
             dp.account_id,
             dp.reference_number,
             dp.amount_paid as amount,
+            DATE_FORMAT(dp.payment_date, '%Y-%m') as accounting_month,
             0 as water_component,
             0 as fine_component,
             0 as additional_component,
@@ -455,7 +412,7 @@ const getComprehensiveReport = async (startDate, endDate) => {
         JOIN payment_agreements pa ON dp.agreement_id = pa.agreement_id
         JOIN users u ON pa.user_id = u.user_id
         LEFT JOIN bank_accounts ba ON dp.account_id = ba.account_id
-        WHERE dp.payment_date >= ? AND dp.payment_date <= ?
+        WHERE dp.status='posted' AND dp.payment_date >= ? AND dp.payment_date <= ?
 
         UNION ALL
 
@@ -467,6 +424,7 @@ const getComprehensiveReport = async (startDate, endDate) => {
             oi.account_id,
             oi.reference_number,
             oi.amount as amount,
+            DATE_FORMAT(oi.income_date, '%Y-%m') as accounting_month,
             0 as water_component,
             0 as fine_component,
             0 as additional_component,
@@ -476,7 +434,7 @@ const getComprehensiveReport = async (startDate, endDate) => {
             CAST(NULL AS CHAR) as agreement_desc
         FROM other_incomes oi
         LEFT JOIN bank_accounts ba ON oi.account_id = ba.account_id
-        WHERE oi.income_date >= ? AND oi.income_date <= ?
+        WHERE oi.status='posted' AND oi.income_date >= ? AND oi.income_date <= ?
 
         ORDER BY trans_date ASC
     `;
@@ -496,31 +454,20 @@ const getComprehensiveReport = async (startDate, endDate) => {
         FROM expenses e
         LEFT JOIN expense_categories ec ON e.category_id = ec.category_id
         LEFT JOIN bank_accounts ba ON e.account_id = ba.account_id
-        WHERE e.expense_date >= ? AND e.expense_date <= ?
+        WHERE e.status='posted' AND e.expense_date >= ? AND e.expense_date <= ?
         ORDER BY trans_date ASC
     `;
     const [expenses] = await pool.query(expensesQuery, [startDate, endDate]);
 
     // 4. Accounts Receivable (Cuentas por Cobrar Desglosadas filtradas hasta el fin de periodo)
     // Filtramos para que solo incluya las deudas emitidas hasta el mes del fin de periodo (endDate)
-    const [pendingInvoicesResult] = await pool.query(
-        "SELECT COALESCE(SUM(total_amount), 0) as total FROM invoices WHERE status = 'pending' AND billing_month <= DATE_FORMAT(?, '%Y-%m')",
-        [endDate]
-    );
-    const pendingInvoices = pendingInvoicesResult[0].total || 0;
-
-    const [pendingAgreementsResult] = await pool.query(
-        `SELECT description, COALESCE(SUM(remaining_amount), 0) as total 
-         FROM payment_agreements 
-         WHERE status = 'active' 
-           AND COALESCE(start_month, DATE_FORMAT(created_at, '%Y-%m')) <= DATE_FORMAT(?, '%Y-%m')
-         GROUP BY description`,
-        [endDate]
-    );
-
+    const receivables = await require('./receivablesModel').getReceivables(endDate);
     const accountsReceivableDetails = {
-        pendingInvoices,
-        pendingAgreements: pendingAgreementsResult
+        pendingInvoices: Number(periodSnapshot?.pending_invoices ??
+            receivables.filter(r => r.invoice_id).reduce((s,r) => s + Number(r.total_debt), 0)),
+        pendingAgreements: periodSnapshot?.pending_agreements !== undefined
+            ? [{description:'Convenios pendientes al cierre',total:Number(periodSnapshot.pending_agreements)}]
+            : receivables.filter(r => r.agreement_id).map(r => ({description:r.description,total:Number(r.total_debt)}))
     };
 
     return {
@@ -533,7 +480,7 @@ const getComprehensiveReport = async (startDate, endDate) => {
 
 const getBankAccountLedgerReport = async (startMonth, endMonth) => {
     // 1. Obtenemos todas las cuentas bancarias activas
-    const [accounts] = await pool.query("SELECT * FROM bank_accounts WHERE status = 'active'");
+    const [accounts] = await pool.query("SELECT * FROM bank_accounts ORDER BY bank_name, account_number");
     
     // Convertimos rango de meses a fechas de inicio y fin
     const startDate = `${startMonth}-01 00:00:00`;
@@ -557,7 +504,7 @@ const getBankAccountLedgerReport = async (startMonth, endMonth) => {
         FROM payments p
         JOIN invoices i ON p.invoice_id = i.invoice_id
         JOIN users u ON i.user_id = u.user_id
-        WHERE p.account_id = ?
+        WHERE p.status='posted' AND p.account_id = ?
           AND p.payment_date >= ? AND p.payment_date <= ?
 
         UNION ALL
@@ -572,7 +519,7 @@ const getBankAccountLedgerReport = async (startMonth, endMonth) => {
         FROM debt_payments dp
         JOIN payment_agreements pa ON dp.agreement_id = pa.agreement_id
         JOIN users u ON pa.user_id = u.user_id
-        WHERE dp.account_id = ?
+        WHERE dp.status='posted' AND dp.account_id = ?
           AND dp.payment_date >= ? AND dp.payment_date <= ?
 
         UNION ALL
@@ -585,7 +532,7 @@ const getBankAccountLedgerReport = async (startMonth, endMonth) => {
             oi.reference_number,
             oi.amount as amount
         FROM other_incomes oi
-        WHERE oi.account_id = ?
+        WHERE oi.status='posted' AND oi.account_id = ?
           AND oi.income_date >= ? AND oi.income_date <= ?
 
         UNION ALL
@@ -599,7 +546,7 @@ const getBankAccountLedgerReport = async (startMonth, endMonth) => {
             e.amount as amount
         FROM expenses e
         LEFT JOIN expense_categories ec ON e.category_id = ec.category_id
-        WHERE e.account_id = ?
+        WHERE e.status='posted' AND e.account_id = ?
           AND e.expense_date >= ? AND e.expense_date <= ?
 
         ORDER BY trans_date ASC;
@@ -607,6 +554,18 @@ const getBankAccountLedgerReport = async (startMonth, endMonth) => {
 
     const results = [];
     for (const acc of accounts) {
+        const [openingRows] = await pool.query(`
+            SELECT ? +
+              COALESCE((SELECT SUM(invoice_amount) FROM payments WHERE status='posted' AND account_id=? AND payment_date < ?),0) +
+              COALESCE((SELECT SUM(amount_paid) FROM debt_payments WHERE status='posted' AND account_id=? AND payment_date < ?),0) +
+              COALESCE((SELECT SUM(amount) FROM other_incomes WHERE status='posted' AND account_id=? AND income_date < ?),0) -
+              COALESCE((SELECT SUM(amount) FROM expenses WHERE status='posted' AND account_id=? AND payment_method!='cash' AND expense_date < ?),0) +
+              COALESCE((SELECT SUM(amount) FROM expenses WHERE status='posted' AND account_id=? AND payment_method='cash' AND expense_date < ?),0)
+              AS opening_balance`,
+            [Number(acc.initial_balance || 0), acc.account_id, startDate, acc.account_id, startDate,
+              acc.account_id, startDate, acc.account_id, startDate, acc.account_id, startDate]
+        );
+        const openingBalance = Number(openingRows[0].opening_balance || 0);
         const [transactions] = await pool.query(ledgerQuery, [
             acc.account_id, startDate, endDate,
             acc.account_id, startDate, endDate,
@@ -624,10 +583,11 @@ const getBankAccountLedgerReport = async (startMonth, endMonth) => {
             account_number: acc.account_number,
             account_type: acc.account_type,
             initial_balance: parseFloat(acc.initial_balance || 0),
+            opening_balance: openingBalance,
             total_incomes: totalIncomes,
             total_expenses: totalExpenses,
             period_balance: totalIncomes - totalExpenses,
-            current_balance: parseFloat(acc.initial_balance || 0) + totalIncomes - totalExpenses,
+            current_balance: openingBalance + totalIncomes - totalExpenses,
             transactions
         });
     }
@@ -651,12 +611,12 @@ const getCashIncomesDetailReport = async (startMonth, endMonth) => {
             i.description as doc_desc,
             CONCAT(u.last_name, ' ', u.first_name) as client_name,
             COALESCE((SELECT SUM(r.amount) FROM readings r WHERE r.invoice_id = i.invoice_id), 0) as water_component,
-            COALESCE((SELECT SUM(ac.amount) FROM invoice_concept ic JOIN additional_concepts ac ON ic.concept_id = ac.concept_id WHERE ic.invoice_id = i.invoice_id AND ac.concept_type = 'fine'), 0) as fine_component,
-            COALESCE((SELECT SUM(ac.amount) FROM invoice_concept ic JOIN additional_concepts ac ON ic.concept_id = ac.concept_id WHERE ic.invoice_id = i.invoice_id AND ac.concept_type NOT IN ('fine')), 0) as additional_component
+            COALESCE((SELECT SUM(COALESCE(ic.amount_snapshot, ac.amount)) FROM invoice_concept ic JOIN additional_concepts ac ON ic.concept_id = ac.concept_id WHERE ic.invoice_id = i.invoice_id AND COALESCE(ic.concept_type_snapshot, ac.concept_type) = 'fine'), 0) as fine_component,
+            COALESCE((SELECT SUM(COALESCE(ic.amount_snapshot, ac.amount)) FROM invoice_concept ic JOIN additional_concepts ac ON ic.concept_id = ac.concept_id WHERE ic.invoice_id = i.invoice_id AND COALESCE(ic.concept_type_snapshot, ac.concept_type) NOT IN ('fine')), 0) as additional_component
         FROM payments p
         JOIN invoices i ON p.invoice_id = i.invoice_id
         JOIN users u ON i.user_id = u.user_id
-        WHERE p.payment_date >= ? AND p.payment_date <= ?
+        WHERE p.status='posted' AND p.payment_date >= ? AND p.payment_date <= ?
     `;
     const [invoicePayments] = await pool.query(paymentsQuery, [startDate, endDate]);
 
@@ -675,7 +635,7 @@ const getCashIncomesDetailReport = async (startMonth, endMonth) => {
         FROM debt_payments dp
         JOIN payment_agreements pa ON dp.agreement_id = pa.agreement_id
         JOIN users u ON pa.user_id = u.user_id
-        WHERE dp.payment_date >= ? AND dp.payment_date <= ?
+        WHERE dp.status='posted' AND dp.payment_date >= ? AND dp.payment_date <= ?
     `;
     const [debtPayments] = await pool.query(debtPaymentsQuery, [startDate, endDate]);
 
@@ -692,7 +652,7 @@ const getCashIncomesDetailReport = async (startMonth, endMonth) => {
             0 as fine_component,
             0 as additional_component
         FROM other_incomes oi
-        WHERE oi.income_date >= ? AND oi.income_date <= ?
+        WHERE oi.status='posted' AND oi.income_date >= ? AND oi.income_date <= ?
     `;
     const [otherIncomes] = await pool.query(otherIncomesQuery, [startDate, endDate]);
 

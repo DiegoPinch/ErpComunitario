@@ -14,6 +14,7 @@ const formatDate = (dateStr) => {
 };
 
 const formatDateOnly = (dateStr) => {
+    if (typeof dateStr==='string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr.split('-').reverse().join('/');
     try {
         const d = new Date(dateStr);
         if (isNaN(d.getTime())) return dateStr;
@@ -78,10 +79,10 @@ const getDailyCollections = async (req, res, next) => {
         const [openingCashRes] = await pool.query(`
             SELECT 
                 (
-                    COALESCE((SELECT SUM(invoice_amount) FROM payments WHERE payment_date < ? AND account_id IS NULL), 0) +
-                    COALESCE((SELECT SUM(amount_paid) FROM debt_payments WHERE payment_date < ? AND account_id IS NULL), 0) +
-                    COALESCE((SELECT SUM(amount) FROM other_incomes WHERE income_date < ? AND account_id IS NULL), 0) -
-                    COALESCE((SELECT SUM(amount) FROM expenses WHERE expense_date < ? AND payment_method = 'cash'), 0)
+                    COALESCE((SELECT SUM(invoice_amount) FROM payments WHERE status='posted' AND payment_date < ? AND account_id IS NULL), 0) +
+                    COALESCE((SELECT SUM(amount_paid) FROM debt_payments WHERE status='posted' AND payment_date < ? AND account_id IS NULL), 0) +
+                    COALESCE((SELECT SUM(amount) FROM other_incomes WHERE status='posted' AND income_date < ? AND account_id IS NULL), 0) -
+                    COALESCE((SELECT SUM(amount) FROM expenses WHERE status='posted' AND expense_date < ? AND payment_method = 'cash'), 0)
                 ) as opening_cash
         `, [resolvedStartDate, resolvedStartDate, resolvedStartDate, resolvedStartDate]);
         const cashOpening = parseFloat(openingCashRes[0]?.opening_cash || 0);
@@ -91,11 +92,11 @@ const getDailyCollections = async (req, res, next) => {
                 (
                     SELECT COALESCE(SUM(initial_balance), 0) FROM bank_accounts
                 ) +
-                COALESCE((SELECT SUM(amount_paid) FROM payments WHERE payment_date < ? AND account_id IS NOT NULL), 0) +
-                COALESCE((SELECT SUM(amount_paid) FROM debt_payments WHERE payment_date < ? AND account_id IS NOT NULL), 0) +
-                COALESCE((SELECT SUM(amount) FROM other_incomes WHERE income_date < ? AND account_id IS NOT NULL), 0) -
-                COALESCE((SELECT SUM(amount) FROM expenses WHERE expense_date < ? AND account_id IS NOT NULL AND payment_method != 'cash'), 0) +
-                COALESCE((SELECT SUM(amount) FROM expenses WHERE expense_date < ? AND account_id IS NOT NULL AND payment_method = 'cash'), 0)
+                COALESCE((SELECT SUM(invoice_amount) FROM payments WHERE status='posted' AND payment_date < ? AND account_id IS NOT NULL), 0) +
+                COALESCE((SELECT SUM(amount_paid) FROM debt_payments WHERE status='posted' AND payment_date < ? AND account_id IS NOT NULL), 0) +
+                COALESCE((SELECT SUM(amount) FROM other_incomes WHERE status='posted' AND income_date < ? AND account_id IS NOT NULL), 0) -
+                COALESCE((SELECT SUM(amount) FROM expenses WHERE status='posted' AND expense_date < ? AND account_id IS NOT NULL AND payment_method != 'cash'), 0) +
+                COALESCE((SELECT SUM(amount) FROM expenses WHERE status='posted' AND expense_date < ? AND account_id IS NOT NULL AND payment_method = 'cash'), 0)
                 as opening_banks
         `, [resolvedStartDate, resolvedStartDate, resolvedStartDate, resolvedStartDate, resolvedStartDate]);
         const bankOpening = parseFloat(openingAccountsRows[0]?.opening_banks || 0);
@@ -148,13 +149,6 @@ const getDailyCollections = async (req, res, next) => {
                     water = netPaid;
                 } else if (p.invoice_type === 'installation') {
                     ramalTotal += netPaid;
-                    return {
-                        ...p,
-                        netPaid,
-                        water: 0,
-                        fine: 0,
-                        additional: 0
-                    };
                 } else {
                     additional = netPaid;
                 }
@@ -255,11 +249,22 @@ const getDailyCollections = async (req, res, next) => {
         });
 
         const grandIncomeTotal = waterTotal + fineTotal + additionalTotal + ramalTotal + agreementTotal + otherIncomeTotal;
-        const cashNet = cashOpening + cashIn - cashOut;
-        const bankNet = bankOpening + bankIn - bankOut;
+        const cashNet = cashIn - cashOut;
+        const cashClosingBalance = cashOpening + cashNet;
+        const bankNet = bankIn - bankOut;
+        const bankClosingBalance = bankOpening + bankNet;
         const grandNet = grandIncomeTotal - grandExpenseTotal;
+        const [counts] = date ? await pool.query(`SELECT a.after_json,a.occurred_at,a.reason,su.username
+          FROM financial_audit_log a JOIN system_users su ON su.system_user_id=a.system_user_id
+          WHERE a.entity_type='cash_count' AND a.entity_id=? ORDER BY a.audit_id DESC LIMIT 1`,
+          [Number(date.replace(/-/g,''))]) : [[]];
+        const count = counts[0] ? {
+            ...(typeof counts[0].after_json==='string' ? JSON.parse(counts[0].after_json) : counts[0].after_json),
+            username:counts[0].username,occurred_at:counts[0].occurred_at,reason:counts[0].reason
+        } : null;
 
         const summary = {
+            cashCount: count,
             waterTotal,
             fineTotal,
             additionalTotal,
@@ -271,9 +276,11 @@ const getDailyCollections = async (req, res, next) => {
             cashIn,
             cashOut,
             cashNet,
+            cashClosingBalance,
             bankIn,
             bankOut,
             bankNet,
+            bankClosingBalance,
             grandNet
         };
 
@@ -314,39 +321,45 @@ const getDailyCollections = async (req, res, next) => {
         
         // Caja Chica (Izquierda)
         doc.rect(30, currentY, 260, 115).fill('#f8fafc').stroke('#e2e8f0');
-        doc.fillColor('#1e293b').fontSize(10).font('Helvetica-Bold').text('CAJA CHICA (EFECTIVO FÍSICO)', 40, currentY + 8);
+        doc.fillColor('#1e293b').fontSize(10).font('Helvetica-Bold').text('EFECTIVO DE LA JORNADA', 40, currentY + 8);
         doc.font('Helvetica').fontSize(8).fillColor('#475569');
-        doc.text(`Saldo Inicial Caja Chica:`, 40, currentY + 23);
-        doc.text(formatCurrency(cashOpening), 190, currentY + 23, { width: 90, align: 'right' });
-        doc.text(`(+) Recaudación Efectivo:`, 40, currentY + 38);
-        doc.text(formatCurrency(cashIn), 190, currentY + 38, { width: 90, align: 'right' });
-        doc.text(`(-) Gastos en Efectivo:`, 40, currentY + 53);
-        doc.text(formatCurrency(cashOutExpenses), 190, currentY + 53, { width: 90, align: 'right' });
-        doc.text(`(-) Depósitos a Bancos:`, 40, currentY + 68);
-        doc.text(formatCurrency(cashOutTransfers), 190, currentY + 68, { width: 90, align: 'right' });
+        doc.text(`(+) Cobros e ingresos del día:`, 40, currentY + 23);
+        doc.text(formatCurrency(cashIn), 190, currentY + 23, { width: 90, align: 'right' });
+        doc.text(`(-) Gastos del día:`, 40, currentY + 38);
+        doc.text(formatCurrency(cashOutExpenses), 190, currentY + 38, { width: 90, align: 'right' });
+        doc.text(`(-) Depósitos a bancos:`, 40, currentY + 53);
+        doc.text(formatCurrency(cashOutTransfers), 190, currentY + 53, { width: 90, align: 'right' });
+        doc.text(`Saldo histórico (informativo):`, 40, currentY + 68);
+        doc.text(formatCurrency(cashClosingBalance), 190, currentY + 68, { width: 90, align: 'right' });
         
         doc.rect(35, currentY + 85, 250, 1).fill('#cbd5e1'); // Linea
-        doc.fillColor('#1e293b').font('Helvetica-Bold').fontSize(9).text('(=) EFECTIVO ESPERADO:', 40, currentY + 93);
+        doc.fillColor('#1e293b').font('Helvetica-Bold').fontSize(9).text('(=) ESPERADO DE LA JORNADA:', 40, currentY + 93);
         doc.fillColor(cashNet >= 0 ? '#10b981' : '#ef4444').text(formatCurrency(cashNet), 190, currentY + 93, { width: 90, align: 'right' });
 
         // Cuentas Bancarias (Derecha)
         doc.rect(305, currentY, 260, 115).fill('#f8fafc').stroke('#e2e8f0');
-        doc.fillColor('#1e293b').fontSize(10).font('Helvetica-Bold').text('CUENTAS BANCARIAS', 315, currentY + 8);
+        doc.fillColor('#1e293b').fontSize(10).font('Helvetica-Bold').text('MOVIMIENTO BANCARIO DEL DÍA', 315, currentY + 8);
         doc.font('Helvetica').fontSize(8).fillColor('#475569');
-        doc.text(`Saldo Inicial en Bancos:`, 315, currentY + 23);
-        doc.text(formatCurrency(bankOpening), 465, currentY + 23, { width: 90, align: 'right' });
-        doc.text(`(+) Recaudación Directa:`, 315, currentY + 38);
-        doc.text(formatCurrency(bankInRegular), 465, currentY + 38, { width: 90, align: 'right' });
-        doc.text(`(+) Depósitos Recibidos:`, 315, currentY + 53);
-        doc.text(formatCurrency(bankInTransfers), 465, currentY + 53, { width: 90, align: 'right' });
-        doc.text(`(-) Débitos y Comisiones:`, 315, currentY + 68);
-        doc.text(formatCurrency(bankOut), 465, currentY + 68, { width: 90, align: 'right' });
+        doc.text(`(+) Recaudación directa:`, 315, currentY + 23);
+        doc.text(formatCurrency(bankInRegular), 465, currentY + 23, { width: 90, align: 'right' });
+        doc.text(`(+) Depósitos recibidos:`, 315, currentY + 38);
+        doc.text(formatCurrency(bankInTransfers), 465, currentY + 38, { width: 90, align: 'right' });
+        doc.text(`(-) Débitos y comisiones:`, 315, currentY + 53);
+        doc.text(formatCurrency(bankOut), 465, currentY + 53, { width: 90, align: 'right' });
+        doc.text(`Saldo histórico (informativo):`, 315, currentY + 68);
+        doc.text(formatCurrency(bankClosingBalance), 465, currentY + 68, { width: 90, align: 'right' });
         
         doc.rect(310, currentY + 85, 250, 1).fill('#cbd5e1'); // Linea
-        doc.fillColor('#1e293b').font('Helvetica-Bold').fontSize(9).text('(=) SALDO NETO BANCOS:', 315, currentY + 93);
+        doc.fillColor('#1e293b').font('Helvetica-Bold').fontSize(9).text('(=) MOVIMIENTO NETO DEL DÍA:', 315, currentY + 93);
         doc.fillColor(bankNet >= 0 ? '#3b82f6' : '#ef4444').text(formatCurrency(bankNet), 465, currentY + 93, { width: 90, align: 'right' });
 
         currentY += 125;
+        doc.font('Helvetica').fontSize(8).fillColor('#334155');
+        const countText = count
+            ? `ARQUEO GUARDADO: contado en la jornada ${formatCurrency(count.counted)} | esperado de la jornada ${formatCurrency(count.expected)} | diferencia ${formatCurrency(count.difference)}\nResponsable: ${count.username} | ${formatDate(count.occurred_at)} | ${count.reason}${count.scope !== 'daily_cash_movement' ? '\nATENCIÓN: este conteo fue registrado con la regla acumulada anterior; guárdelo nuevamente.' : Math.abs(count.expected-cashNet)>0.005 ? '\nATENCIÓN: hubo cambios posteriores; vuelva a realizar el arqueo.' : ''}`
+            : 'SIN CONTEO REGISTRADO: este reporte muestra únicamente el efectivo esperado de la jornada.';
+        doc.text(countText,30,currentY,{width:535});
+        currentY=doc.y+15;
 
         // ================= RESUMEN DE CUENTAS BANCARIAS ESPECÍFICAS =================
         const bankAccountsList = Object.values(bankAccountBalances);
@@ -407,7 +420,7 @@ const getDailyCollections = async (req, res, next) => {
         
         // Gran Balance Fila
         doc.rect(30, currentY, 535, 20).fill('#1e293b');
-        doc.fillColor('#ffffff').fontSize(9).font('Helvetica-Bold').text('(=) SALDO NETO GLOBAL DE CAJA (SISTEMA):', 40, currentY + 6);
+        doc.fillColor('#ffffff').fontSize(9).font('Helvetica-Bold').text('(=) RESULTADO DEL PERÍODO (INGRESOS - GASTOS):', 40, currentY + 6);
         doc.fillColor(grandNet >= 0 ? '#10b981' : '#ef4444').text(formatCurrency(grandNet), 440, currentY + 6, { width: 110, align: 'right' });
         currentY += 35;
 

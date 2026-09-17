@@ -4,18 +4,14 @@ const {
   getAttendance,
   getAttendanceById,
   getAttendanceByMeeting,
-  createAttendance,
-  updateAttendance,
-  deleteAttendance,
   updateAttendanceBulk
 } = require('../controllers/attendanceController');
 
 router.get('/', getAttendance);
 router.get('/:id', getAttendanceById);
 router.get('/meeting/:meetingId', getAttendanceByMeeting);
-router.post('/', createAttendance);
-router.put('/:id', updateAttendance);
-router.delete('/:id', deleteAttendance);
+// Todas las escrituras pasan por la operación transaccional validada.
+router.post('/preview/:meetingId', (req, res, next) => { req.previewAttendance = true; return updateAttendanceBulk(req,res,next); });
 router.post('/bulk/:meetingId', updateAttendanceBulk);
 
 module.exports = router;

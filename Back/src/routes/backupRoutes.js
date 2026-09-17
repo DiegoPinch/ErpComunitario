@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const { authorize } = require('../middlewares/auth');
+router.use(authorize(['admin']));
 const backupController = require('../controllers/backupController');
 
 // Ruta para descargar el respaldo manual

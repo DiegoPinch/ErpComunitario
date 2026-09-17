@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const { authorize } = require('../middlewares/auth');
+router.use(authorize(['board', 'treasurer']));
 const bankAccountsController = require('../controllers/bankAccountsController');
 
 router.get('/', bankAccountsController.getAllAccounts);

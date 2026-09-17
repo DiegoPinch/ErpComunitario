@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { assertAccountingDateOpen, lockFinancialLedger } = require('../utils/periodLock');
 
 const getAllReadings = async () => {
   const [rows] = await pool.query('SELECT * FROM readings');
@@ -105,13 +106,36 @@ const getAssignmentStatus = async () => {
 // CALL sp_record_reading_and_invoice(user_id, meter_id, month_year, current_reading)
 const recordReadingWithSP = async (data) => {
   const { user_id, meter_id, month_year, current_reading } = data;
-  const [result] = await pool.query('CALL sp_record_reading_and_invoice(?, ?, ?, ?)', [
-    user_id,
-    meter_id,
-    month_year,
-    current_reading
-  ]);
-  return result;
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(month_year || ''))) {
+    throw Object.assign(new Error('El período debe tener formato YYYY-MM'), { status: 400 });
+  }
+  if (!Number.isInteger(Number(current_reading)) || Number(current_reading) < 0) {
+    throw Object.assign(new Error('La lectura debe ser un entero mayor o igual a cero'), { status: 400 });
+  }
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await lockFinancialLedger(connection);
+    const [assignments] = await connection.query(
+      `SELECT history_id FROM meter_history
+       WHERE user_id=? AND meter_id=? AND assigned=1 LIMIT 1 FOR UPDATE`, [Number(user_id), Number(meter_id)]
+    );
+    if (!assignments.length) throw Object.assign(new Error('El medidor no está asignado al usuario indicado'), { status: 409 });
+    const [existingInvoices] = await connection.query(
+      `SELECT issue_date FROM invoices WHERE user_id=? AND billing_month=? AND invoice_type='water'
+       LIMIT 1 FOR UPDATE`, [Number(user_id), month_year]
+    );
+    await assertAccountingDateOpen(connection, existingInvoices[0]?.issue_date || new Date());
+    const [result] = await connection.query('CALL sp_record_reading_and_invoice(?, ?, ?, ?)',
+      [Number(user_id), Number(meter_id), month_year, Number(current_reading)]);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 };
 
 module.exports = {

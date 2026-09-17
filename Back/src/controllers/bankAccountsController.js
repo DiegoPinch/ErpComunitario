@@ -20,7 +20,7 @@ const getActiveAccounts = async (req, res, next) => {
 
 const createAccount = async (req, res, next) => {
     try {
-        const id = await bankAccountsModel.createAccount(req.body);
+        const id = await bankAccountsModel.createAccount(req.body, req.user.id);
         res.status(201).json({ id, message: 'Cuenta bancaria creada con éxito' });
     } catch (err) {
         next(err);
@@ -29,7 +29,7 @@ const createAccount = async (req, res, next) => {
 
 const updateAccount = async (req, res, next) => {
     try {
-        const affectedRows = await bankAccountsModel.updateAccount(req.params.id, req.body);
+        const affectedRows = await bankAccountsModel.updateAccount(req.params.id, req.body, req.user.id);
         if (affectedRows === 0) return res.status(404).json({ message: 'Cuenta no encontrada' });
         res.json({ message: 'Cuenta actualizada con éxito' });
     } catch (err) {

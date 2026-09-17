@@ -40,7 +40,7 @@ const createExpense = async (req, res, next) => {
     try {
         const expenseData = {
             ...req.body,
-            system_user_id: req.user?.id || 1 // Fallback to 1 if auth is disabled
+            system_user_id: req.user.id
         };
         const id = await expenseModel.createExpense(expenseData);
         res.status(201).json({ id, message: 'Egreso registrado con éxito' });
@@ -55,7 +55,7 @@ const createExpense = async (req, res, next) => {
 
 const updateExpense = async (req, res, next) => {
     try {
-        const affectedRows = await expenseModel.updateExpense(req.params.id, req.body);
+        const affectedRows = await expenseModel.updateExpense(req.params.id, req.body, req.user.id);
         if (affectedRows === 0) return res.status(404).json({ message: 'Egreso no encontrado' });
         res.json({ message: 'Egreso actualizado con éxito' });
     } catch (err) {
@@ -68,7 +68,7 @@ const updateExpense = async (req, res, next) => {
 
 const deleteExpense = async (req, res, next) => {
     try {
-        const affectedRows = await expenseModel.deleteExpense(req.params.id);
+        const affectedRows = await expenseModel.deleteExpense(req.params.id, req.user.id, req.body?.reason);
         if (affectedRows === 0) return res.status(404).json({ message: 'Egreso no encontrado' });
         res.json({ message: 'Egreso eliminado con éxito' });
     } catch (err) {

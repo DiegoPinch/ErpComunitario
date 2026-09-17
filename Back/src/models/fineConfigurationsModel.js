@@ -28,20 +28,9 @@ const updateConfig = async (id, configData) => {
     return result.affectedRows;
 };
 
-const deleteConfig = async (id) => {
-    const [meetings] = await pool.query('SELECT meeting_id FROM meetings WHERE fine_config_id = ? LIMIT 1', [id]);
-    if (meetings.length > 0) {
-        throw new Error('No se puede eliminar la configuración porque tiene reuniones asociadas.');
-    }
-
-    const [result] = await pool.query('DELETE FROM fine_configurations WHERE config_id = ?', [id]);
-    return result.affectedRows;
-};
-
 module.exports = {
     getAllConfigs,
     getConfigById,
     createConfig,
-    updateConfig,
-    deleteConfig
+    updateConfig
 };

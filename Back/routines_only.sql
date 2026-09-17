@@ -53,8 +53,10 @@ BEGIN
                   LEAVE read_loop;
               END IF;
               
-              INSERT IGNORE INTO invoice_concept (invoice_id, concept_id)
-              VALUES (v_inv_id, p_concept_id);
+              INSERT IGNORE INTO invoice_concept
+                  (invoice_id, concept_id, description_snapshot, amount_snapshot, concept_type_snapshot)
+              SELECT v_inv_id, concept_id, description, amount, concept_type
+              FROM additional_concepts WHERE concept_id = p_concept_id;
               
               CALL sp_update_invoice_total(v_inv_id);
           END LOOP;
@@ -153,6 +155,7 @@ BEGIN
           FROM invoices
           WHERE user_id = p_user_id
             AND billing_month = p_billing_month
+            AND invoice_type = 'water'
           LIMIT 1;
 
           -- 3. Seguridad: factura pagada
@@ -187,7 +190,9 @@ BEGIN
           INTO v_rate_id, v_unit_price, v_base_limit, v_excess_price
           FROM rates
           WHERE meter_type = v_meter_type
-            AND active = TRUE
+            AND start_date <= LAST_DAY(CONCAT(p_billing_month, '-01'))
+            AND (end_date IS NULL OR end_date >= CONCAT(p_billing_month, '-01'))
+          ORDER BY start_date DESC, rate_id DESC
           LIMIT 1;
 
           -- 7. Cálculos
@@ -210,8 +215,9 @@ BEGIN
               
               -- Auto-vincular rubros globales para este mes (solo si el usuario no es exento)
               IF EXISTS (SELECT 1 FROM users WHERE user_id = p_user_id AND exempt_from_fines = FALSE) THEN
-                  INSERT IGNORE INTO invoice_concept (invoice_id, concept_id)
-                  SELECT v_invoice_id, concept_id
+                  INSERT IGNORE INTO invoice_concept
+                      (invoice_id, concept_id, description_snapshot, amount_snapshot, concept_type_snapshot)
+                  SELECT v_invoice_id, concept_id, description, amount, concept_type
                   FROM additional_concepts
                   WHERE application_month = p_billing_month
                     AND applies_to = 'all';
@@ -277,7 +283,7 @@ BEGIN
     WHERE invoice_id = p_invoice_id;
     
     -- Total from additional concepts
-    SELECT COALESCE(SUM(ac.amount), 0)
+    SELECT COALESCE(SUM(COALESCE(ic.amount_snapshot, ac.amount)), 0)
     INTO v_concepts_amount
     FROM invoice_concept ic
     JOIN additional_concepts ac
@@ -285,6 +291,19 @@ BEGIN
     WHERE ic.invoice_id = p_invoice_id;
     
     -- Update invoice
+    IF EXISTS(SELECT 1 FROM invoices WHERE invoice_id=p_invoice_id
+        AND total_amount <> v_reading_amount + v_concepts_amount) THEN
+      IF EXISTS(SELECT 1 FROM invoices WHERE invoice_id=p_invoice_id AND status <> 'pending')
+        OR EXISTS(SELECT 1 FROM payments WHERE invoice_id=p_invoice_id AND status='posted') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Factura protegida: anule todos los cobros antes de modificar su total';
+      END IF;
+      IF EXISTS(SELECT 1 FROM invoices i JOIN accounting_periods ap ON
+          DATE(i.issue_date) BETWEEN DATE(ap.start_date) AND DATE(ap.end_date) OR
+          (DATE(ap.start_date)<=LAST_DAY(CONCAT(i.billing_month,'-01')) AND DATE(ap.end_date)>=CONCAT(i.billing_month,'-01'))
+          WHERE i.invoice_id=p_invoice_id) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='No se puede recalcular una factura de un periodo cerrado';
+      END IF;
+    END IF;
     UPDATE invoices
     SET total_amount = v_reading_amount + v_concepts_amount
     WHERE invoice_id = p_invoice_id;
