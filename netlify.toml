@@ -1,7 +1,7 @@
-﻿[build]
+[build]
   base = "Front"
   publish = "dist/Front/browser"
-  command = "npm install --legacy-peer-deps && npm run build"
+  command = "npm run build"
 
 [[redirects]]
   from = "/*"
